@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>File Vault</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #f0f2f5; color: #1a1a1a; padding: 16px; }
+    .container { max-width: 800px; margin: 0 auto; }
+    h1 { text-align: center; margin-bottom: 24px; }
+    .dropzone {
+      border: 2px dashed #aaa;
+      border-radius: 12px;
+      padding: 40px;
+      text-align: center;
+      background: #fff;
+      cursor: pointer;
+      transition: background 0.2s;
+      margin-bottom: 24px;
+    }
+    .dropzone.dragover { background: #e1f0ff; border-color: #1a73e8; }
+    .dropzone input { display: none; }
+    .progress-bar {
+      height: 6px;
+      background: #ddd;
+      border-radius: 3px;
+      margin: 16px 0;
+      overflow: hidden;
+      display: none;
+    }
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: #1a73e8;
+      transition: width 0.2s;
+    }
+    .file-list { display: flex; flex-wrap: wrap; gap: 12px; }
+    .card {
+      background: white;
+      border-radius: 8px;
+      padding: 16px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      width: calc(50% - 6px);
+      display: flex;
+      flex-direction: column;
+    }
+    .card .name { font-weight: 600; word-break: break-all; }
+    .card .meta { font-size: 0.85em; color: #666; margin: 8px 0; }
+    .card .actions { display: flex; gap: 6px; margin-top: auto; flex-wrap: wrap; }
+    .btn { padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9em; background: #e0e0e0; }
+    .btn.play { background: #1a73e8; color: white; }
+    .btn.download { background: #0f9d58; color: white; }
+    .btn.delete { background: #ea4335; color: white; }
+    .btn.update { background: #f9ab00; color: white; }
+    .video-modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.8);
+      justify-content: center; align-items: center;
+      z-index: 1000;
+    }
+    .video-modal video {
+      max-width: 95vw;
+      max-height: 95vh;
+      background: #000;
+    }
+    .close-btn {
+      position: absolute;
+      top: 20px; right: 30px;
+      color: white; font-size: 2em; cursor: pointer;
+    }
+    @media (max-width: 600px) { .card { width: 100%; } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📁 Public File Vault</h1>
+    <div class="dropzone" id="dropzone">
+      <p>Drag & drop files here or click to browse</p>
+      <input type="file" id="fileInput" multiple>
+    </div>
+    <div class="progress-bar" id="progressBar">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+    <p id="progressText" style="display:none; text-align:center;"></p>
+    <div class="file-list" id="fileList"></div>
+  </div>
+
+  <div class="video-modal" id="videoModal">
+    <span class="close-btn" id="closeVideo">&times;</span>
+    <video id="videoPlayer" controls></video>
+  </div>
+
+  <script>
+    // ---------- CONFIG ----------
+    const WORKER_BASE = 'https://gdrive-files-api.donthulianithish53.workers.dev'; // <-- CHANGE ME IF NEEDED
+
+    // ---------- DOM refs ----------
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('fileInput');
+    const progressBar = document.getElementById('progressBar');
+    const progressFill = document.getElementById('progressFill');
+    const progressText = document.getElementById('progressText');
+    const fileListEl = document.getElementById('fileList');
+    const videoModal = document.getElementById('videoModal');
+    const videoPlayer = document.getElementById('videoPlayer');
+    const closeVideo = document.getElementById('closeVideo');
+
+    let files = [];
+
+    // ---------- Drag & drop ----------
+    dropzone.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+
+    dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+    dropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('dragover');
+      handleFiles(e.dataTransfer.files);
+    });
+
+    // ---------- Upload logic (resumable + chunked) ----------
+    async function handleFiles(fileList) {
+      for (const file of fileList) {
+        await uploadFile(file);
+      }
+      refreshList();
+    }
+
+    async function uploadFile(file) {
+      const initResp = await fetch(`${WORKER_BASE}/upload-init`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName: file.name, fileType: file.type })
+      });
+      if (!initResp.ok) throw new Error('Init failed');
+      const { uploadUrl, publicId } = await initResp.json();
+
+      let uploaded = 0;
+      try {
+        const statusResp = await fetch(uploadUrl, {
+          method: 'PUT',
+          headers: { 'Content-Range': `bytes */${file.size}` }
+        });
+        if (statusResp.status === 200 || statusResp.status === 201) {
+          const fileData = await statusResp.json();
+          await completeUpload(publicId, fileData.id, file.name, file.type, file.size);
+          return;
+        }
+        const range = statusResp.headers.get('Range');
+        if (range) {
+          const match = range.match(/bytes=0-(\d+)/);
+          if (match) uploaded = parseInt(match[1]) + 1;
+        }
+      } catch (e) {}
+
+      const CHUNK_SIZE = 5 * 1024 * 1024; // 5 MB
+      showProgress(true);
+      while (uploaded < file.size) {
+        const end = Math.min(uploaded + CHUNK_SIZE - 1, file.size - 1);
+        const chunk = file.slice(uploaded, end + 1);
+        const headers = { 'Content-Range': `bytes ${uploaded}-${end}/${file.size}` };
+
+        let retryCount = 0;
+        let done = false;
+        while (retryCount < 3 && !done) {
+          try {
+            const res = await fetch(uploadUrl, { method: 'PUT', headers, body: chunk });
+            if (res.ok) {
+              if (res.status === 200 || res.status === 201) {
+                const fileData = await res.json();
+                await completeUpload(publicId, fileData.id, file.name, file.type, file.size);
+                done = true;
+                break;
+              } else {
+                done = true;
+              }
+            } else if (res.status === 503 || res.status >= 500) {
+              retryCount++;
+              await new Promise(r => setTimeout(r, 1000));
+            } else {
+              throw new Error(`Upload error ${res.status}`);
+            }
+          } catch (err) {
+            if (retryCount === 2) throw err;
+            retryCount++;
+            await new Promise(r => setTimeout(r, 1000));
+          }
+        }
+        if (done && uploaded === file.size - 1) break;
+        if (done) {
+          uploaded = end + 1;
+          updateProgress(uploaded, file.size);
+        } else {
+          const statusResp = await fetch(uploadUrl, {
+            method: 'PUT',
+            headers: { 'Content-Range': `bytes */${file.size}` }
+          });
+          if (statusResp.status === 200 || statusResp.status === 201) {
+            const fileData = await statusResp.json();
+            await completeUpload(publicId, fileData.id, file.name, file.type, file.size);
+            break;
+          }
+          const range = statusResp.headers.get('Range');
+          if (range) {
+            const match = range.match(/bytes=0-(\d+)/);
+            if (match) uploaded = parseInt(match[1]) + 1;
+          } else {
+            uploaded = 0;
+          }
+        }
+      }
+      showProgress(false);
+    }
+
+    async function completeUpload(publicId, fileId, fileName, fileType, size) {
+      await fetch(`${WORKER_BASE}/upload-complete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ publicId, fileId, fileName, fileType, size })
+      });
+    }
+
+    function showProgress(show) {
+      progressBar.style.display = show ? 'block' : 'none';
+      progressText.style.display = show ? 'block' : 'none';
+      if (!show) updateProgress(0, 1);
+    }
+    function updateProgress(uploaded, total) {
+      const pct = total ? Math.round((uploaded / total) * 100) : 0;
+      progressFill.style.width = pct + '%';
+      progressText.textContent = `${pct}% uploaded`;
+    }
+
+    // ---------- File list & actions ----------
+    async function refreshList() {
+      const resp = await fetch(`${WORKER_BASE}/list`);
+      if (!resp.ok) return;
+      files = await resp.json();
+      renderFileList();
+    }
+
+    function renderFileList() {
+      fileListEl.innerHTML = '';
+      files.forEach(f => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+          <div class="name">${escapeHtml(f.fileName)}</div>
+          <div class="meta">${formatBytes(f.size)} · ${new Date(f.uploadedAt).toLocaleString()}</div>
+          <div class="actions">
+            ${f.fileType.startsWith('video/') || f.fileType.startsWith('audio/')
+              ? `<button class="btn play" onclick="playMedia('${f.publicId}')">▶ Play</button>`
+              : ''}
+            <button class="btn download" onclick="downloadFile('${f.publicId}', '${escapeHtml(f.fileName)}')">⬇ Download</button>
+            <button class="btn delete" onclick="deleteFile('${f.publicId}')">🗑 Delete</button>
+            <button class="btn update" onclick="updateFile('${f.publicId}')">🔄 Replace</button>
+          </div>`;
+        fileListEl.appendChild(card);
+      });
+    }
+
+    function escapeHtml(text) { return text.replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+    function formatBytes(bytes) {
+      if (!bytes) return 'unknown size';
+      const units = ['B','KB','MB','GB','TB'];
+      let i = 0;
+      while (bytes >= 1024 && i < units.length - 1) { bytes /= 1024; i++; }
+      return `${bytes.toFixed(1)} ${units[i]}`;
+    }
+
+    function playMedia(publicId) {
+      videoPlayer.src = `${WORKER_BASE}/video/${publicId}`;
+      videoModal.style.display = 'flex';
+      videoPlayer.play();
+    }
+    closeVideo.onclick = () => { videoPlayer.pause(); videoModal.style.display = 'none'; };
+    window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeVideo.click(); });
+
+    function downloadFile(publicId, fileName) {
+      const a = document.createElement('a');
+      a.href = `${WORKER_BASE}/download/${publicId}`;
+      a.download = fileName;
+      a.click();
+    }
+
+    async function deleteFile(publicId) {
+      if (!confirm('Delete this file?')) return;
+      const resp = await fetch(`${WORKER_BASE}/delete/${publicId}`, { method: 'DELETE' });
+      if (resp.ok) refreshList();
+      else alert('Delete failed');
+    }
+
+    async function updateFile(publicId) {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.onchange = async () => {
+        const newFile = input.files[0];
+        if (!newFile) return;
+        const resp = await fetch(`${WORKER_BASE}/update/${publicId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileName: newFile.name, fileType: newFile.type })
+        });
+        const { uploadUrl } = await resp.json();
+        await uploadFileWithSession(newFile, uploadUrl, publicId);
+        refreshList();
+      };
+      input.click();
+    }
+
+    async function uploadFileWithSession(file, uploadUrl, publicId) {
+      const CHUNK_SIZE = 5 * 1024 * 1024;
+      let uploaded = 0;
+      try {
+        const statusResp = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Range': `bytes */${file.size}` } });
+        if (statusResp.ok && (statusResp.status === 200 || statusResp.status === 201)) {
+          await completeUpload(publicId, file.name, file.type, file.size);
+          return;
+        }
+        const range = statusResp.headers.get('Range');
+        if (range) { const m = range.match(/bytes=0-(\d+)/); if (m) uploaded = parseInt(m[1]) + 1; }
+      } catch(e) {}
+
+      showProgress(true);
+      while (uploaded < file.size) {
+        const end = Math.min(uploaded + CHUNK_SIZE - 1, file.size - 1);
+        const chunk = file.slice(uploaded, end + 1);
+        const headers = { 'Content-Range': `bytes ${uploaded}-${end}/${file.size}` };
+        let retries = 0;
+        let done = false;
+        while (retries < 3 && !done) {
+          const res = await fetch(uploadUrl, { method: 'PUT', headers, body: chunk });
+          if (res.ok) {
+            if (res.status === 200 || res.status === 201) {
+              await completeUpload(publicId, file.name, file.type, file.size);
+              done = true;
+              break;
+            } else { done = true; }
+          } else if (res.status >= 500) {
+            retries++;
+            await new Promise(r => setTimeout(r, 1000));
+          } else throw new Error('Update chunk failed');
+        }
+        if (done && uploaded >= file.size - 1) break;
+        if (done) {
+          uploaded = end + 1;
+          updateProgress(uploaded, file.size);
+        } else {
+          const statusResp = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Range': `bytes */${file.size}` } });
+          if (statusResp.ok && (statusResp.status === 200 || statusResp.status === 201)) break;
+          const range = statusResp.headers.get('Range');
+          if (range) { const m = range.match(/bytes=0-(\d+)/); if (m) uploaded = parseInt(m[1]) + 1; }
+        }
+      }
+      showProgress(false);
+    }
+
+    refreshList();
+  </script>
+</body>
+</html>
