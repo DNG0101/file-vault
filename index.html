@@ -42,7 +42,6 @@
   }
   .container { max-width: 1100px; margin: 0 auto; }
 
-  /* Header */
   .header {
     display: flex; justify-content: space-between; align-items: center;
     flex-wrap: wrap; gap: 12px; margin-bottom: 20px;
@@ -67,8 +66,9 @@
   .btn-danger { background: var(--danger); color: #fff; }
   .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
   .btn-outline:hover { background: var(--border); }
+  .btn-success { background: var(--success); color: #fff; }
+  .btn-warn { background: var(--warn); color: #222; }
 
-  /* Toolbar */
   .toolbar {
     display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; align-items: center;
   }
@@ -84,7 +84,11 @@
   }
   .stats { font-size: 0.8rem; color: var(--text-secondary); white-space: nowrap; }
 
-  /* Dropzone */
+  .admin-bar {
+    display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; align-items: center;
+  }
+  .admin-bar.hidden { display: none; }
+
   .dropzone {
     border: 3px dashed var(--border); border-radius: 16px; padding: 40px 20px;
     text-align: center; background: var(--card-bg); cursor: pointer;
@@ -98,14 +102,12 @@
     padding: 1px 6px; font-size: 0.8rem; font-family: monospace;
   }
 
-  /* Progress */
   .progress-box { margin-bottom: 16px; display: none; }
   .progress-bar { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
   .progress-fill { height: 100%; width: 0%; background: var(--accent); transition: width 0.3s; }
   .progress-text { display: flex; justify-content: space-between; font-size: 0.8rem; margin-top: 6px; color: var(--text-secondary); }
   .cancel-btn { background: var(--danger); color: #fff; border: none; padding: 3px 10px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; }
 
-  /* File grid */
   .file-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
   .card {
     background: var(--card-bg); border-radius: var(--radius); padding: 16px;
@@ -120,9 +122,7 @@
     position: absolute; top: 10px; right: 10px; width: 20px; height: 20px;
     accent-color: var(--accent); cursor: pointer; z-index: 2;
   }
-  .file-icon {
-    font-size: 2.5rem; text-align: center; margin-bottom: 10px;
-  }
+  .file-icon { font-size: 2.5rem; text-align: center; margin-bottom: 10px; }
   .file-name { font-weight: 600; word-break: break-all; margin-bottom: 6px; font-size: 0.95rem; }
   .file-meta { font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 10px; }
   .actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; }
@@ -138,7 +138,6 @@
   .btn-sm-delete { background: var(--danger); color: #fff; }
   .btn-sm-replace { background: var(--warn); color: #222; }
 
-  /* Preview overlay */
   .preview-overlay {
     display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background: var(--overlay-bg); z-index: 1000; justify-content: center; align-items: center;
@@ -168,7 +167,6 @@
   }
   .preview-toolbar button:hover { background: rgba(255,255,255,0.25); }
 
-  /* Toast notifications */
   .toast-container {
     position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex;
     flex-direction: column-reverse; gap: 8px; max-width: 400px;
@@ -182,7 +180,6 @@
   .toast.success { background: var(--success); }
   @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
-  /* Bulk actions bar */
   .bulk-bar {
     display: none; align-items: center; gap: 10px; padding: 10px 16px;
     background: var(--accent); color: #fff; border-radius: 8px; margin-bottom: 12px;
@@ -190,6 +187,16 @@
   }
   .bulk-bar.active { display: flex; }
   .bulk-bar button { background: rgba(255,255,255,0.2); color: #fff; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; }
+
+  .approval-panel {
+    background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 20px; margin-bottom: 16px; display: none;
+  }
+  .approval-panel.active { display: block; }
+  .approval-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 0; border-bottom: 1px solid var(--border); gap: 10px; flex-wrap: wrap;
+  }
 
   @media (max-width: 600px) {
     body { padding: 10px; }
@@ -211,6 +218,20 @@
       <button class="btn-icon" id="btnDarkMode" title="Toggle dark mode">🌓</button>
       <span id="adminUI"></span>
     </div>
+  </div>
+
+  <!-- Admin controls -->
+  <div class="admin-bar hidden" id="adminBar">
+    <button class="btn btn-outline btn-sm" id="btnSync">🔄 Sync Drive Files</button>
+    <button class="btn btn-outline btn-sm" id="btnApprovals">👥 Approvals</button>
+    <button class="btn btn-danger btn-sm" id="btnUnauthorize">🔒 Unauthorize</button>
+    <span style="font-size:0.8rem; color:var(--text-secondary);">Logged in as <strong id="adminEmail"></strong></span>
+  </div>
+
+  <!-- Approval panel -->
+  <div class="approval-panel" id="approvalPanel">
+    <h3 style="margin-bottom:12px;">👥 Pending Approvals</h3>
+    <div id="approvalList"><p style="color:var(--text-secondary);">No pending requests.</p></div>
   </div>
 
   <!-- Toolbar -->
@@ -280,6 +301,10 @@ const WORKER_BASE = 'https://gdrive-files-api.donthulanithish53.workers.dev';
 // ==================== DOM REFS ====================
 const $ = id => document.getElementById(id);
 const adminUI = $('adminUI');
+const adminBar = $('adminBar');
+const adminEmail = $('adminEmail');
+const approvalPanel = $('approvalPanel');
+const approvalList = $('approvalList');
 const storageStats = $('storageStats');
 const dropzone = $('dropzone');
 const fileInput = $('fileInput');
@@ -305,6 +330,7 @@ let currentFileList = [];
 let selectedFiles = new Set();
 let sortOrder = 'newest';
 let searchQuery = '';
+let isAdmin = false;
 
 // ==================== TOAST ====================
 function toast(msg, type = 'info') {
@@ -333,12 +359,24 @@ initDarkMode();
 async function checkAdmin() {
   try {
     const res = await fetch(`${WORKER_BASE}/check-admin`);
+    if (!res.ok) throw new Error('Worker unreachable');
     const data = await res.json();
     if (data.adminReady) {
-      adminUI.innerHTML = '<button class="btn btn-outline btn-sm" id="unauthorizeBtn">🔒 Unauth</button>';
-      $('unauthorizeBtn')?.addEventListener('click', unauthorize);
+      isAdmin = true;
+      adminUI.innerHTML = '';
+      adminBar.classList.remove('hidden');
+      // Try to get admin email from stored info
+      try {
+        const infoRes = await fetch(`${WORKER_BASE}/user-info?utoken=admin`);
+        if (infoRes.ok) {
+          const info = await infoRes.json();
+          if (info.email) adminEmail.textContent = info.email;
+        }
+      } catch(e) { adminEmail.textContent = 'Admin'; }
       refreshFileList();
     } else {
+      isAdmin = false;
+      adminBar.classList.add('hidden');
       adminUI.innerHTML = '<button class="btn btn-primary btn-sm" id="authorizeBtn">🔑 Authorize</button>';
       $('authorizeBtn')?.addEventListener('click', startAuth);
       fileGrid.innerHTML = '<p style="grid-column:1/-1;text-align:center;color:var(--text-secondary);padding:40px;">Admin authorization required.<br>Click <strong>Authorize</strong> to activate the vault.</p>';
@@ -347,24 +385,93 @@ async function checkAdmin() {
   } catch (e) {
     adminUI.textContent = '⚠️ Offline';
     storageStats.textContent = '';
+    adminBar.classList.add('hidden');
   }
 }
 
 async function startAuth() {
   try {
     const res = await fetch(`${WORKER_BASE}/auth-url`);
+    if (!res.ok) throw new Error('Failed to get auth URL');
     const { authUrl } = await res.json();
     window.location.href = authUrl;
   } catch (e) {
-    toast('Failed to start authorization', 'error');
+    toast('Failed to start authorization: ' + e.message, 'error');
   }
 }
 
-async function unauthorize() {
+// ==================== ADMIN ACTIONS ====================
+$('btnUnauthorize').addEventListener('click', async () => {
   if (!confirm('Remove admin access? The vault will stop working for everyone.')) return;
   await fetch(`${WORKER_BASE}/unauthorize`, { method: 'POST' });
   location.reload();
+});
+
+$('btnSync').addEventListener('click', async () => {
+  toast('Syncing files from Google Drive…', 'info');
+  try {
+    const res = await fetch(`${WORKER_BASE}/sync`, { method: 'POST' });
+    if (res.ok) {
+      await refreshFileList();
+      toast('Sync complete! All Drive files are now visible.', 'success');
+    } else {
+      const err = await res.json().catch(() => ({}));
+      toast('Sync failed: ' + (err.error || 'Unknown error'), 'error');
+    }
+  } catch (e) {
+    toast('Sync failed: ' + e.message, 'error');
+  }
+});
+
+$('btnApprovals').addEventListener('click', async () => {
+  if (approvalPanel.classList.contains('active')) {
+    approvalPanel.classList.remove('active');
+    return;
+  }
+  await loadApprovals();
+  approvalPanel.classList.add('active');
+});
+
+async function loadApprovals() {
+  try {
+    const res = await fetch(`${WORKER_BASE}/admin/pending`);
+    if (!res.ok) throw new Error('Failed to load');
+    const emails = await res.json();
+    if (!emails.length) {
+      approvalList.innerHTML = '<p style="color:var(--text-secondary);">No pending requests.</p>';
+      return;
+    }
+    approvalList.innerHTML = emails.map(email => `
+      <div class="approval-item">
+        <span>${email}</span>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-success btn-sm" onclick="approveUser('${email}')">✅ Approve</button>
+          <button class="btn btn-danger btn-sm" onclick="denyUser('${email}')">❌ Deny</button>
+        </div>
+      </div>
+    `).join('');
+  } catch (e) {
+    approvalList.innerHTML = '<p style="color:var(--danger);">Failed to load approvals.</p>';
+  }
 }
+
+window.approveUser = async function(email) {
+  await fetch(`${WORKER_BASE}/admin/approve`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email })
+  });
+  toast(`${email} approved!`, 'success');
+  await loadApprovals();
+};
+
+window.denyUser = async function(email) {
+  await fetch(`${WORKER_BASE}/admin/deny`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email })
+  });
+  toast(`${email} denied.`, 'info');
+  await loadApprovals();
+};
 
 // ==================== DRAG & DROP + PASTE + KEYBOARD ====================
 dropzone.addEventListener('click', () => fileInput.click());
@@ -399,6 +506,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     if (previewOverlay.classList.contains('active')) closePreview();
     if (selectedFiles.size) { selectedFiles.clear(); renderFileList(); updateBulkBar(); }
+    if (approvalPanel.classList.contains('active')) approvalPanel.classList.remove('active');
   }
 });
 
@@ -446,6 +554,7 @@ async function uploadFile(file, tempId) {
     const { publicId } = await initRes.json();
     const entry = currentFileList.find(f => f.publicId === tempId);
     if (entry) entry.publicId = publicId;
+    renderFileList();
 
     let uploaded = 0;
     try {
@@ -462,7 +571,9 @@ async function uploadFile(file, tempId) {
       if (signal.aborted) throw new Error('Cancelled');
       const end = Math.min(uploaded + CHUNK_SIZE - 1, file.size - 1);
       const chunk = file.slice(uploaded, end + 1);
-      let retries = 0, done = false;
+
+      let retries = 0;
+      let done = false;
       while (retries < 3 && !done) {
         try {
           const res = await fetch(`${WORKER_BASE}/upload-chunk/${publicId}`, {
@@ -524,9 +635,11 @@ async function refreshFileList() {
     const res = await fetch(`${WORKER_BASE}/list`);
     if (!res.ok) throw new Error(`List failed (HTTP ${res.status})`);
     const serverFiles = await res.json();
-    // Merge with optimistic entries
     const optimistic = currentFileList.filter(f => f.publicId?.startsWith('temp_'));
-    currentFileList = [...optimistic, ...serverFiles];
+    // Deduplicate: remove optimistic entries that have been replaced by real ones
+    const serverIds = new Set(serverFiles.map(f => f.publicId));
+    const filteredOptimistic = optimistic.filter(f => !serverIds.has(f.publicId));
+    currentFileList = [...filteredOptimistic, ...serverFiles];
     updateStorageStats();
     renderFileList();
   } catch (e) {
@@ -535,9 +648,9 @@ async function refreshFileList() {
 }
 
 function updateStorageStats() {
-  const total = currentFileList.reduce((sum, f) => sum + (f.size || 0), 0);
-  const count = currentFileList.filter(f => !f.publicId?.startsWith('temp_')).length;
-  storageStats.textContent = `${count} file${count !== 1 ? 's' : ''} · ${fmtBytes(total)}`;
+  const real = currentFileList.filter(f => !f.publicId?.startsWith('temp_'));
+  const total = real.reduce((sum, f) => sum + (f.size || 0), 0);
+  storageStats.textContent = `${real.length} file${real.length !== 1 ? 's' : ''} · ${fmtBytes(total)}`;
 }
 
 function getFileIcon(mimeType) {
@@ -566,11 +679,9 @@ function getPreviewType(mimeType) {
 
 function getFilteredAndSortedFiles() {
   let files = [...currentFileList];
-  // Search filter
   if (searchQuery) {
     files = files.filter(f => f.fileName.toLowerCase().includes(searchQuery.toLowerCase()));
   }
-  // Sort
   switch (sortOrder) {
     case 'newest': files.sort((a, b) => (b.uploadedAt || 0) - (a.uploadedAt || 0)); break;
     case 'oldest': files.sort((a, b) => (a.uploadedAt || 0) - (b.uploadedAt || 0)); break;
@@ -587,7 +698,7 @@ function renderFileList() {
   fileGrid.innerHTML = '';
   if (!files.length) {
     fileGrid.innerHTML = `<p style="grid-column:1/-1;text-align:center;color:var(--text-secondary);padding:30px;">${
-      searchQuery ? 'No files match your search.' : 'No files yet. Upload something!'
+      searchQuery ? 'No files match your search.' : 'No files yet. Upload something or click Sync.'
     }</p>`;
     return;
   }
@@ -619,7 +730,7 @@ function renderFileList() {
     fileGrid.appendChild(card);
   });
 
-  // Attach events
+  // Attach button events
   fileGrid.querySelectorAll('.btn-sm[data-action]').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
@@ -645,7 +756,7 @@ function renderFileList() {
     });
   });
 
-  // Click card to toggle select (when not clicking buttons)
+  // Click card to toggle select
   fileGrid.querySelectorAll('.card').forEach(card => {
     card.addEventListener('click', e => {
       if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
@@ -676,13 +787,18 @@ function updateBulkBar() {
 $('btnBulkCancel').addEventListener('click', () => { selectedFiles.clear(); renderFileList(); updateBulkBar(); });
 $('btnBulkDelete').addEventListener('click', async () => {
   if (!confirm(`Delete ${selectedFiles.size} file(s)?`)) return;
+  let failed = 0;
   for (const id of selectedFiles) {
-    try { await fetch(`${WORKER_BASE}/delete/${id}`, { method: 'DELETE' }); } catch (e) {}
+    try {
+      const res = await fetch(`${WORKER_BASE}/delete/${id}`, { method: 'DELETE' });
+      if (!res.ok) failed++;
+    } catch (e) { failed++; }
   }
   selectedFiles.clear();
   updateBulkBar();
   await refreshFileList();
-  toast('Files deleted', 'success');
+  if (failed) toast(`${failed} file(s) failed to delete.`, 'error');
+  else toast('Files deleted!', 'success');
 });
 
 // ==================== SEARCH & SORT ====================
@@ -707,7 +823,9 @@ function openPreview(publicId, type) {
     previewContainer.appendChild(media);
     media.play().catch(() => {});
   } else if (type === 'image') {
-    const img = document.createElement('img'); img.src = url; previewContainer.appendChild(img);
+    const img = document.createElement('img'); img.src = url;
+    img.style.maxWidth = '95%'; img.style.maxHeight = '95%'; img.style.objectFit = 'contain';
+    previewContainer.appendChild(img);
   } else if (type === 'pdf') {
     const iframe = document.createElement('iframe'); iframe.src = url;
     iframe.style.width = '90%'; iframe.style.height = '90%'; previewContainer.appendChild(iframe);
@@ -742,7 +860,7 @@ btnFullscreen.addEventListener('click', () => {
 function downloadFile(publicId, name) {
   const a = document.createElement('a');
   a.href = `${WORKER_BASE}/download/${publicId}`;
-  a.download = name;
+  a.download = name || 'file';
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
 }
 
@@ -771,48 +889,64 @@ function replaceFile(publicId) {
   input.onchange = async () => {
     const file = input.files[0]; if (!file) return;
     try {
+      progressBox.style.display = 'block';
+      // Init update session
       const initRes = await fetch(`${WORKER_BASE}/update/${publicId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fileName: file.name, fileType: file.type || 'application/octet-stream' })
       });
-      if (!initRes.ok) { const err = await initRes.json().catch(() => ({})); throw new Error(err.error || 'Update init failed'); }
+      if (!initRes.ok) {
+        const err = await initRes.json().catch(() => ({}));
+        throw new Error(err.error || 'Update init failed');
+      }
       const { publicId: newPid } = await initRes.json();
-      await uploadReplaceFile(file, newPid);
+
+      // Upload chunks
+      let uploaded = 0;
+      try {
+        const statusRes = await fetch(`${WORKER_BASE}/upload-status/${newPid}`);
+        if (statusRes.ok) {
+          const data = await statusRes.json();
+          if (data.complete) { progressBox.style.display = 'none'; await refreshFileList(); return; }
+          uploaded = data.uploaded || 0;
+        }
+      } catch (e) {}
+
+      const CHUNK_SIZE = 10 * 1024 * 1024;
+      while (uploaded < file.size) {
+        const end = Math.min(uploaded + CHUNK_SIZE - 1, file.size - 1);
+        const chunk = file.slice(uploaded, end + 1);
+        let retries = 0, done = false;
+        while (retries < 3 && !done) {
+          try {
+            const res = await fetch(`${WORKER_BASE}/upload-chunk/${newPid}`, {
+              method: 'PUT',
+              headers: { 'Content-Range': `bytes ${uploaded}-${end}/${file.size}` },
+              body: chunk,
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || 'Chunk error');
+            if (data.complete) { done = true; break; }
+            if (data.uploaded !== undefined) { uploaded = data.uploaded; updateProgressBar(uploaded, file.size); done = true; }
+            else throw new Error('Invalid chunk response');
+          } catch (err) {
+            if (retries >= 2) throw err;
+            retries++;
+            await sleep(1000 * retries);
+          }
+        }
+        if (done && uploaded >= file.size - 1) break;
+      }
       await refreshFileList();
       toast('File replaced!', 'success');
-    } catch (err) { toast('Replace failed: ' + err.message, 'error'); }
+    } catch (err) {
+      toast('Replace failed: ' + err.message, 'error');
+    } finally {
+      progressBox.style.display = 'none';
+    }
   };
   input.click();
-}
-
-async function uploadReplaceFile(file, publicId) {
-  progressBox.style.display = 'block';
-  let uploaded = 0;
-  try {
-    const statusRes = await fetch(`${WORKER_BASE}/upload-status/${publicId}`);
-    if (statusRes.ok) { const data = await statusRes.json(); if (data.complete) return; uploaded = data.uploaded || 0; }
-  } catch (e) {}
-  const CHUNK_SIZE = 10 * 1024 * 1024;
-  while (uploaded < file.size) {
-    const end = Math.min(uploaded + CHUNK_SIZE - 1, file.size - 1);
-    const chunk = file.slice(uploaded, end + 1);
-    let retries = 0, done = false;
-    while (retries < 3 && !done) {
-      try {
-        const res = await fetch(`${WORKER_BASE}/upload-chunk/${publicId}`, {
-          method: 'PUT', headers: { 'Content-Range': `bytes ${uploaded}-${end}/${file.size}` }, body: chunk
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.error || 'Chunk error');
-        if (data.complete) { done = true; break; }
-        if (data.uploaded !== undefined) { uploaded = data.uploaded; updateProgressBar(uploaded, file.size); done = true; }
-        else throw new Error('Invalid chunk response');
-      } catch (err) { if (retries >= 2) throw err; retries++; await sleep(1000 * retries); }
-    }
-    if (done && uploaded >= file.size - 1) break;
-  }
-  progressBox.style.display = 'none';
 }
 
 // ==================== INIT ====================
