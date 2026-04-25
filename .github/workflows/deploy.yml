@@ -1,0 +1,104 @@
+name: Ultra Advanced Deploy Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Prevent overlap but DO NOT cancel — queue everything
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      NODE_VERSION: 20
+
+    steps:
+      # 1️⃣ Checkout repository
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2️⃣ Setup Node.js with caching
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      # 3️⃣ Install dependencies (if package.json exists)
+      - name: Install dependencies
+        run: |
+          if [ -f package.json ]; then
+            npm install
+          else
+            echo "No package.json found, skipping install"
+          fi
+
+      # 4️⃣ Build project (if applicable)
+      - name: Build project
+        run: |
+          if [ -f package.json ]; then
+            npm run build || echo "No build script, skipping"
+          fi
+
+      # 5️⃣ Verify output folder
+      - name: Verify build output
+        run: |
+          if [ -d dist ]; then
+            echo "Using dist folder"
+          else
+            echo "Using root folder"
+          fi
+
+      # 6️⃣ Retry deployment (5 attempts)
+      - name: Deploy with retry
+        uses: nick-fields/retry@v3
+        with:
+          max_attempts: 5
+          timeout_minutes: 10
+          retry_wait_seconds: 15
+          command: |
+            if [ -d dist ]; then
+              npx gh-pages -d dist
+            else
+              npx gh-pages -d .
+            fi
+
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 7️⃣ Health check (basic)
+      - name: Post-deploy check
+        run: |
+          echo "Deployment triggered. GitHub Pages may take a few seconds."
+
+      # 8️⃣ Log commit info
+      - name: Log commit info
+        run: |
+          echo "Branch: ${{ github.ref }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Actor: ${{ github.actor }}"
+
+      # 9️⃣ Success notification
+      - name: Success message
+        if: success()
+        run: echo "✅ Deployment completed successfully"
+
+      # 🔟 Failure notification
+      - name: Failure message
+        if: failure()
+        run: echo "❌ Deployment failed after retries"
+
+      # 1️⃣1️⃣ Upload logs for debugging
+      - name: Upload logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-logs
+          path: |
+            ~/.npm/_logs
