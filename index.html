@@ -66,7 +66,9 @@
   .card {
     background: var(--card-bg); border-radius: var(--radius); padding: 16px;
     box-shadow: var(--shadow); display: flex; flex-direction: column;
+    position: relative;
   }
+  .card.uploading { opacity: 0.7; }
   .file-name { font-weight: 600; word-break: break-all; margin-bottom: 8px; }
   .file-meta { font-size: 0.8rem; color: #666; margin-bottom: 12px; }
   .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; }
@@ -77,48 +79,58 @@
     touch-action: manipulation; min-width: 44px; min-height: 40px; transition: 0.2s;
   }
   .btn:active { transform: scale(0.96); }
+  .btn-preview { background: #6c5ce7; color: #fff; }
   .btn-play { background: var(--accent); color: #fff; }
   .btn-download { background: var(--success); color: #fff; }
   .btn-delete { background: var(--danger); color: #fff; }
   .btn-replace { background: var(--warn); color: #222; }
-  /* Video overlay */
-  .video-overlay {
+  /* Preview / video overlay */
+  .preview-overlay {
     display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: #000; z-index: 1000; justify-content: center; align-items: center;
+    background: rgba(0,0,0,0.9); z-index: 1000; justify-content: center; align-items: center;
     flex-direction: column;
   }
-  .video-overlay.active { display: flex; }
-  .video-container {
+  .preview-overlay.active { display: flex; }
+  .preview-container {
     width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+    position: relative;
   }
-  .video-container video {
-    max-width: 100%; max-height: 100%; object-fit: contain; background: #000;
+  .preview-container img, .preview-container iframe, .preview-container video, .preview-container pre {
+    max-width: 95%; max-height: 95%; object-fit: contain; background: #000;
   }
-  .video-toolbar {
+  .preview-container pre {
+    background: #fff; color: #000; padding: 20px; overflow: auto; white-space: pre-wrap; word-break: break-all;
+    max-width: 80%; max-height: 80%; border-radius: 8px;
+  }
+  .preview-toolbar {
     position: absolute; top: 16px; right: 16px; display: flex; gap: 10px; z-index: 1001;
   }
-  .video-toolbar button {
+  .preview-toolbar button {
     background: rgba(255,255,255,0.15); border: none; color: #fff;
     padding: 10px 16px; border-radius: 8px; cursor: pointer; backdrop-filter: blur(10px);
     font-size: 0.9rem;
   }
-  .video-toolbar button:hover { background: rgba(255,255,255,0.3); }
+  .preview-toolbar button:hover { background: rgba(255,255,255,0.3); }
+  .paste-hint {
+    font-size: 0.9rem; color: #666; margin-bottom: 16px; text-align: center;
+  }
   @media (max-width: 500px) {
     body { padding: 12px; }
     .dropzone { padding: 30px 15px; }
+    .preview-container pre { max-width: 95%; max-height: 95%; }
   }
 </style>
 </head>
 <body>
 
-<!-- Auth prompt (visible when not authenticated) -->
+<!-- Auth prompt -->
 <div id="authPrompt" class="auth-box hidden">
   <h1>📁 Public File Vault</h1>
   <p style="margin-bottom: 20px;">This app needs permission to store files in your Google Drive.</p>
   <button class="auth-btn" id="authBtn">Authorize with Google</button>
 </div>
 
-<!-- Main app (visible after auth) -->
+<!-- Main app -->
 <div id="mainApp" class="hidden">
   <div class="container">
     <div class="header">
@@ -127,10 +139,14 @@
         <span class="dot"></span> <span id="statusText">Connected</span>
       </div>
     </div>
+
+    <div class="paste-hint">📋 <strong>Tip:</strong> You can also press <kbd>Ctrl</kbd>+<kbd>V</kbd> to paste a file</div>
+
     <div class="dropzone" id="dropzone">
       <p>📂 <strong>Drop files here</strong> or click to browse</p>
       <input type="file" id="fileInput" multiple>
     </div>
+
     <div class="progress-box" id="progressBox">
       <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
       <div class="progress-text">
@@ -139,17 +155,16 @@
         <button class="cancel-btn" id="cancelUpload">Cancel</button>
       </div>
     </div>
+
     <div class="file-grid" id="fileGrid"></div>
   </div>
 
-  <!-- Video overlay -->
-  <div class="video-overlay" id="videoOverlay">
-    <div class="video-container">
-      <video id="videoPlayer" controls playsinline></video>
-    </div>
-    <div class="video-toolbar">
+  <!-- Preview overlay (for documents, images, video, audio) -->
+  <div class="preview-overlay" id="previewOverlay">
+    <div class="preview-container" id="previewContainer"></div>
+    <div class="preview-toolbar">
       <button id="btnFullscreen">⛶ Fullscreen</button>
-      <button id="btnCloseVideo">✕ Close</button>
+      <button id="btnClosePreview">✕ Close</button>
     </div>
   </div>
 </div>
@@ -172,13 +187,14 @@ const percentDisplay = document.getElementById('percentDisplay');
 const sizeDisplay = document.getElementById('sizeDisplay');
 const cancelBtn = document.getElementById('cancelUpload');
 const fileGrid = document.getElementById('fileGrid');
-const videoOverlay = document.getElementById('videoOverlay');
-const videoPlayer = document.getElementById('videoPlayer');
+const previewOverlay = document.getElementById('previewOverlay');
+const previewContainer = document.getElementById('previewContainer');
 const btnFullscreen = document.getElementById('btnFullscreen');
-const btnCloseVideo = document.getElementById('btnCloseVideo');
+const btnClosePreview = document.getElementById('btnClosePreview');
 
 let uploadAbortController = null;
 let currentFileList = [];
+let uploadingFiles = {}; // publicId -> {file, status}
 
 // ===================== AUTHENTICATION =====================
 async function checkAuth() {
@@ -220,18 +236,57 @@ dropzone.addEventListener('drop', (e) => {
   if (e.dataTransfer.files.length) processFiles(e.dataTransfer.files);
 });
 
+// ===================== PASTE UPLOAD =====================
+document.addEventListener('paste', (e) => {
+  const items = e.clipboardData?.items;
+  if (!items) return;
+  for (const item of items) {
+    if (item.kind === 'file') {
+      const file = item.getAsFile();
+      if (file) {
+        e.preventDefault(); // Prevent default paste action for files
+        processFiles([file]);
+      }
+    }
+  }
+});
+
+// ===================== OPTIMISTIC FILE ADDITION =====================
+function addOptimisticFile(file) {
+  const tempId = 'temp_' + Date.now() + Math.random();
+  const optimisticEntry = {
+    publicId: tempId,
+    fileName: file.name,
+    fileType: file.type,
+    size: file.size,
+    uploadedAt: Date.now(),
+  };
+  currentFileList.push(optimisticEntry);
+  renderFileList();
+  return tempId;
+}
+
+function removeOptimisticFile(tempId) {
+  currentFileList = currentFileList.filter(f => f.publicId !== tempId);
+  renderFileList();
+}
+
 // ===================== UPLOAD ENGINE =====================
 async function processFiles(files) {
   for (const file of files) {
-    try { await uploadFile(file); } catch (err) {
-      alert(`Upload failed: ${err.message}`);
+    const tempId = addOptimisticFile(file);
+    try {
+      await uploadFile(file, tempId);
+    } catch (err) {
+      alert(`Upload failed for ${file.name}: ${err.message}`);
       console.error(err);
+      removeOptimisticFile(tempId);
     }
   }
-  await refreshFileList();
+  await refreshFileList(); // Refresh to get real data
 }
 
-async function uploadFile(file) {
+async function uploadFile(file, tempId) {
   if (uploadAbortController) uploadAbortController.abort();
   uploadAbortController = new AbortController();
   const signal = uploadAbortController.signal;
@@ -245,8 +300,15 @@ async function uploadFile(file) {
       body: JSON.stringify({ fileName: file.name, fileSize: file.size, fileType: file.type || 'application/octet-stream' }),
       signal,
     });
-    if (!initRes.ok) throw new Error(`Init failed: HTTP ${initRes.status}`);
+    if (!initRes.ok) {
+      const errText = await initRes.text();
+      throw new Error(`Init failed (HTTP ${initRes.status}): ${errText}`);
+    }
     const { publicId } = await initRes.json();
+
+    // Update optimistic entry with real publicId
+    const optimisticEntry = currentFileList.find(f => f.publicId === tempId);
+    if (optimisticEntry) optimisticEntry.publicId = publicId;
 
     // 2. Resume progress
     let uploaded = 0;
@@ -254,7 +316,10 @@ async function uploadFile(file) {
       const statusRes = await fetch(`${WORKER_BASE}/upload-status/${publicId}`, { signal });
       if (statusRes.ok) {
         const data = await statusRes.json();
-        if (data.complete) { progressBox.style.display = 'none'; return; }
+        if (data.complete) {
+          progressBox.style.display = 'none';
+          return;
+        }
         uploaded = data.uploaded || 0;
       }
     } catch (e) {}
@@ -281,7 +346,10 @@ async function uploadFile(file) {
             uploaded = data.uploaded;
             updateProgress(uploaded, file.size);
             done = true;
-          } else throw new Error(data.error || `Chunk error HTTP ${res.status}`);
+          } else {
+            const errorMsg = data.error || `Chunk error HTTP ${res.status}`;
+            throw new Error(errorMsg);
+          }
         } catch (err) {
           if (retries >= 2) throw err;
           retries++;
@@ -290,6 +358,7 @@ async function uploadFile(file) {
       }
       if (done && uploaded >= file.size - 1) break;
       if (!done) {
+        // fallback: re-check status
         const statusRes = await fetch(`${WORKER_BASE}/upload-status/${publicId}`, { signal });
         if (statusRes.ok) {
           const s = await statusRes.json();
@@ -331,10 +400,22 @@ cancelBtn.addEventListener('click', () => {
 async function refreshFileList() {
   try {
     const res = await fetch(`${WORKER_BASE}/list`);
-    if (!res.ok) return;
+    if (!res.ok) throw new Error(`List failed (HTTP ${res.status})`);
     currentFileList = await res.json();
     renderFileList();
-  } catch (e) { console.error(e); }
+  } catch (e) {
+    console.error('Refresh list error:', e);
+  }
+}
+
+function getFilePreviewType(mimeType) {
+  if (!mimeType) return 'other';
+  if (mimeType.startsWith('video/')) return 'video';
+  if (mimeType.startsWith('audio/')) return 'audio';
+  if (mimeType.startsWith('image/')) return 'image';
+  if (mimeType === 'application/pdf') return 'pdf';
+  if (mimeType.startsWith('text/') || mimeType === 'application/json' || mimeType === 'application/javascript') return 'text';
+  return 'other';
 }
 
 function renderFileList() {
@@ -344,19 +425,41 @@ function renderFileList() {
     return;
   }
   currentFileList.forEach(f => {
+    const isUploading = f.publicId?.startsWith('temp_');
     const card = document.createElement('div');
-    card.className = 'card';
-    const isMedia = f.fileType?.startsWith('video/') || f.fileType?.startsWith('audio/');
+    card.className = 'card' + (isUploading ? ' uploading' : '');
+    const previewType = getFilePreviewType(f.fileType);
+    const showPlay = previewType === 'video' || previewType === 'audio';
+    const showPreview = ['image','pdf','text'].includes(previewType);
+
     card.innerHTML = `
       <div class="file-name">${escapeHtml(f.fileName)}</div>
-      <div class="file-meta">${formatBytes(f.size)} · ${new Date(f.uploadedAt).toLocaleString()}</div>
+      <div class="file-meta">
+        ${formatBytes(f.size)} · ${new Date(f.uploadedAt).toLocaleString()}
+        ${isUploading ? ' · Uploading...' : ''}
+      </div>
       <div class="actions">
-        ${isMedia ? `<button class="btn btn-play" onclick="playFile('${f.publicId}')">▶ Play</button>` : ''}
-        <button class="btn btn-download" onclick="downloadFile('${f.publicId}','${escapeHtml(f.fileName)}')">⬇ Download</button>
-        <button class="btn btn-delete" onclick="deleteFile('${f.publicId}')">🗑 Delete</button>
-        <button class="btn btn-replace" onclick="replaceFile('${f.publicId}')">🔄 Replace</button>
+        ${showPlay ? `<button class="btn btn-play" data-action="play" data-id="${f.publicId}">▶ Play</button>` : ''}
+        ${showPreview ? `<button class="btn btn-preview" data-action="preview" data-id="${f.publicId}">🔍 Preview</button>` : ''}
+        <button class="btn btn-download" data-action="download" data-id="${f.publicId}" data-name="${escapeHtml(f.fileName)}">⬇ Download</button>
+        <button class="btn btn-delete" data-action="delete" data-id="${f.publicId}">🗑 Delete</button>
+        <button class="btn btn-replace" data-action="replace" data-id="${f.publicId}">🔄 Replace</button>
       </div>`;
     fileGrid.appendChild(card);
+  });
+
+  // Attach event listeners to all action buttons
+  fileGrid.querySelectorAll('.btn[data-action]').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      const action = this.dataset.action;
+      const id = this.dataset.id;
+      if (action === 'play') openPreview(id, 'video');
+      else if (action === 'preview') openPreview(id, getFilePreviewType(currentFileList.find(f => f.publicId === id)?.fileType));
+      else if (action === 'download') downloadFile(id, this.dataset.name);
+      else if (action === 'delete') deleteFile(id);
+      else if (action === 'replace') replaceFile(id);
+    });
   });
 }
 function escapeHtml(str) {
@@ -365,33 +468,69 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
-// ===================== PLAY / DOWNLOAD / DELETE / REPLACE =====================
-function playFile(publicId) {
-  videoPlayer.src = `${WORKER_BASE}/video/${publicId}`;
-  videoOverlay.classList.add('active');
-  videoPlayer.play().catch(() => {});
+// ===================== PREVIEW / PLAY =====================
+function openPreview(publicId, type) {
+  previewContainer.innerHTML = ''; // Clear previous content
+  const url = `${WORKER_BASE}/video/${publicId}`; // Stream endpoint works for all
+
+  if (type === 'video' || type === 'audio') {
+    const media = document.createElement(type === 'audio' ? 'audio' : 'video');
+    media.src = url;
+    media.controls = true;
+    media.playsInline = true;
+    media.style.maxWidth = '95%';
+    media.style.maxHeight = '95%';
+    previewContainer.appendChild(media);
+    media.play().catch(() => {});
+  } else if (type === 'image') {
+    const img = document.createElement('img');
+    img.src = url;
+    previewContainer.appendChild(img);
+  } else if (type === 'pdf') {
+    const iframe = document.createElement('iframe');
+    iframe.src = url;
+    iframe.style.width = '90%';
+    iframe.style.height = '90%';
+    previewContainer.appendChild(iframe);
+  } else if (type === 'text') {
+    fetch(url)
+      .then(res => res.text())
+      .then(text => {
+        const pre = document.createElement('pre');
+        pre.textContent = text;
+        previewContainer.appendChild(pre);
+      })
+      .catch(err => {
+        previewContainer.innerHTML = `<p style="color:white;">Failed to load text: ${err.message}</p>`;
+      });
+  } else {
+    // Fallback: download
+    downloadFile(publicId, currentFileList.find(f => f.publicId === publicId)?.fileName || 'file');
+    return;
+  }
+
+  previewOverlay.classList.add('active');
 }
 
-btnCloseVideo.addEventListener('click', closeVideo);
-function closeVideo() {
-  videoPlayer.pause();
-  videoPlayer.removeAttribute('src');
-  videoPlayer.load();
-  videoOverlay.classList.remove('active');
+btnClosePreview.addEventListener('click', closePreview);
+function closePreview() {
+  previewContainer.innerHTML = '';
+  previewOverlay.classList.remove('active');
   if (document.fullscreenElement) document.exitFullscreen();
 }
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && videoOverlay.classList.contains('active')) closeVideo();
+  if (e.key === 'Escape' && previewOverlay.classList.contains('active')) closePreview();
 });
 
 btnFullscreen.addEventListener('click', () => {
   if (document.fullscreenElement) {
     document.exitFullscreen();
   } else {
-    videoOverlay.requestFullscreen();
+    previewOverlay.requestFullscreen();
   }
 });
 
+// ===================== DOWNLOAD / DELETE / REPLACE =====================
 function downloadFile(publicId, name) {
   const a = document.createElement('a');
   a.href = `${WORKER_BASE}/download/${publicId}`;
@@ -402,10 +541,19 @@ function downloadFile(publicId, name) {
 }
 
 async function deleteFile(publicId) {
-  if (!confirm('Delete this file?')) return;
-  const res = await fetch(`${WORKER_BASE}/delete/${publicId}`, { method: 'DELETE' });
-  if (res.ok) refreshFileList();
-  else alert('Delete failed');
+  if (!confirm('Permanently delete this file?')) return;
+  try {
+    const res = await fetch(`${WORKER_BASE}/delete/${publicId}`, { method: 'DELETE' });
+    if (res.ok) {
+      currentFileList = currentFileList.filter(f => f.publicId !== publicId);
+      renderFileList();
+    } else {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Delete failed');
+    }
+  } catch (err) {
+    alert('Delete failed: ' + err.message);
+  }
 }
 
 function replaceFile(publicId) {
@@ -421,12 +569,17 @@ function replaceFile(publicId) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fileName: file.name, fileType: file.type || 'application/octet-stream' })
       });
-      if (!initRes.ok) throw new Error('Update init failed');
+      if (!initRes.ok) {
+        const err = await initRes.json().catch(() => ({}));
+        throw new Error(err.error || 'Update init failed');
+      }
       const { publicId: newPid } = await initRes.json();
       // 2. Upload using the new session
       await uploadReplaceFile(file, newPid);
-      refreshFileList();
-    } catch (err) { alert('Replace failed: ' + err.message); }
+      await refreshFileList();
+    } catch (err) {
+      alert('Replace failed: ' + err.message);
+    }
   };
   input.click();
 }
