@@ -1,55 +1,61 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <title>Public File Vault</title>
-  <style>
-    :root {
-      --bg: #f5f7fa; --card-bg: #fff; --text: #1a1a1a;
-      --accent: #1a73e8; --success: #0f9d58; --danger: #ea4335; --warn: #f9ab00;
-      --radius: 12px; --shadow: 0 4px 12px rgba(0,0,0,0.06);
-    }
-    * { margin:0; padding:0; box-sizing:border-box; }
-    body { font-family:system-ui,-apple-system,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; padding:20px; }
-    .container { max-width:960px; margin:0 auto; }
-    .header { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:24px; }
-    h1 { font-size:clamp(1.5rem,6vw,2rem); font-weight:700; }
-    .status-badge { display:flex; align-items:center; gap:6px; font-size:0.85rem; font-weight:600; padding:6px 14px; border-radius:20px; background:#eee; }
-    .online { background:#e6f4ea; color:#1e8e3e; }
-    .offline { background:#fce8e6; color:#c5221f; }
-    .dot { width:8px; height:8px; border-radius:50%; background:currentColor; }
-    .settings-row { margin-bottom:16px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; display:none; }
-    .settings-row input { flex:1; padding:8px 12px; border:1px solid #ccc; border-radius:8px; font-size:0.9rem; min-width:200px; }
-    .settings-row button { padding:8px 18px; border:none; border-radius:8px; background:var(--accent); color:#fff; font-weight:600; cursor:pointer; }
-    .dropzone { border:3px dashed #ccc; border-radius:16px; padding:40px 20px; text-align:center; background:var(--card-bg); cursor:pointer; transition:0.2s; margin-bottom:20px; user-select:none; }
-    .dropzone:hover,.dragover { border-color:var(--accent); background:#e8f0fe; }
-    .dropzone input { display:none; }
-    .progress-box { margin-bottom:20px; display:none; }
-    .progress-bar { height:8px; background:#e0e0e0; border-radius:4px; overflow:hidden; }
-    .progress-fill { height:100%; width:0%; background:var(--accent); border-radius:4px; transition:width 0.3s; }
-    .progress-text { display:flex; justify-content:space-between; font-size:0.8rem; margin-top:6px; }
-    .cancel-btn { background:var(--danger); color:#fff; border:none; padding:3px 10px; border-radius:4px; cursor:pointer; font-size:0.8rem; }
-    .file-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:16px; }
-    .card { background:var(--card-bg); border-radius:var(--radius); padding:16px; box-shadow:var(--shadow); display:flex; flex-direction:column; }
-    .file-name { font-weight:600; word-break:break-all; margin-bottom:8px; }
-    .file-meta { font-size:0.8rem; color:#666; margin-bottom:12px; }
-    .actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:auto; }
-    .btn { padding:8px 12px; border:none; border-radius:8px; font-size:0.8rem; font-weight:600; cursor:pointer; background:#eee; display:inline-flex; align-items:center; justify-content:center; gap:4px; touch-action:manipulation; min-width:44px; min-height:40px; transition:0.2s; }
-    .btn:active { transform:scale(0.96); }
-    .btn-play { background:var(--accent); color:#fff; }
-    .btn-download { background:var(--success); color:#fff; }
-    .btn-delete { background:var(--danger); color:#fff; }
-    .btn-replace { background:var(--warn); color:#222; }
-    .video-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#000; z-index:1000; justify-content:center; align-items:center; flex-direction:column; }
-    .video-overlay.active { display:flex; }
-    .video-container { width:100%; height:100%; display:flex; align-items:center; justify-content:center; }
-    .video-container video { max-width:100%; max-height:100%; object-fit:contain; background:#000; }
-    .video-toolbar { position:absolute; top:16px; right:16px; display:flex; gap:10px; z-index:1001; }
-    .video-toolbar button { background:rgba(255,255,255,0.15); border:none; color:#fff; padding:10px 16px; border-radius:8px; cursor:pointer; backdrop-filter:blur(10px); font-size:0.9rem; }
-    .video-toolbar button:hover { background:rgba(255,255,255,0.3); }
-    @media (max-width:500px) { body{padding:12px;} .dropzone{padding:30px 15px;} }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Public File Vault</title>
+<style>
+  :root {
+    --bg: #f5f7fa;
+    --card-bg: #fff;
+    --text: #1a1a1a;
+    --accent: #1a73e8;
+    --success: #0f9d58;
+    --danger: #ea4335;
+    --warn: #f9ab00;
+    --radius: 12px;
+    --shadow: 0 4px 12px rgba(0,0,0,0.06);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:system-ui,-apple-system,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; padding:20px; }
+  .container { max-width:960px; margin:0 auto; }
+  .header { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:24px; }
+  h1 { font-size:clamp(1.5rem,6vw,2rem); font-weight:700; }
+  .status-badge { display:flex; align-items:center; gap:6px; font-size:0.85rem; font-weight:600; padding:6px 14px; border-radius:20px; background:#eee; }
+  .online { background:#e6f4ea; color:#1e8e3e; }
+  .offline { background:#fce8e6; color:#c5221f; }
+  .dot { width:8px; height:8px; border-radius:50%; background:currentColor; }
+  .settings-row { margin-bottom:16px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; display:none; }
+  .settings-row input { flex:1; padding:8px 12px; border:1px solid #ccc; border-radius:8px; font-size:0.9rem; min-width:200px; }
+  .settings-row button { padding:8px 18px; border:none; border-radius:8px; background:var(--accent); color:#fff; font-weight:600; cursor:pointer; }
+  .dropzone { border:3px dashed #ccc; border-radius:16px; padding:40px 20px; text-align:center; background:var(--card-bg); cursor:pointer; transition:0.2s; margin-bottom:20px; user-select:none; }
+  .dropzone:hover,.dragover { border-color:var(--accent); background:#e8f0fe; }
+  .dropzone input { display:none; }
+  .progress-box { margin-bottom:20px; display:none; }
+  .progress-bar { height:8px; background:#e0e0e0; border-radius:4px; overflow:hidden; }
+  .progress-fill { height:100%; width:0%; background:var(--accent); border-radius:4px; transition:width 0.3s; }
+  .progress-text { display:flex; justify-content:space-between; font-size:0.8rem; margin-top:6px; }
+  .cancel-btn { background:var(--danger); color:#fff; border:none; padding:3px 10px; border-radius:4px; cursor:pointer; font-size:0.8rem; }
+  .file-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:16px; }
+  .card { background:var(--card-bg); border-radius:var(--radius); padding:16px; box-shadow:var(--shadow); display:flex; flex-direction:column; }
+  .file-name { font-weight:600; word-break:break-all; margin-bottom:8px; }
+  .file-meta { font-size:0.8rem; color:#666; margin-bottom:12px; }
+  .actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:auto; }
+  .btn { padding:8px 12px; border:none; border-radius:8px; font-size:0.8rem; font-weight:600; cursor:pointer; background:#eee; display:inline-flex; align-items:center; justify-content:center; gap:4px; touch-action:manipulation; min-width:44px; min-height:40px; transition:0.2s; }
+  .btn:active { transform:scale(0.96); }
+  .btn-play { background:var(--accent); color:#fff; }
+  .btn-download { background:var(--success); color:#fff; }
+  .btn-delete { background:var(--danger); color:#fff; }
+  .btn-replace { background:var(--warn); color:#222; }
+  .video-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#000; z-index:1000; justify-content:center; align-items:center; flex-direction:column; }
+  .video-overlay.active { display:flex; }
+  .video-container { width:100%; height:100%; display:flex; align-items:center; justify-content:center; }
+  .video-container video { max-width:100%; max-height:100%; object-fit:contain; background:#000; }
+  .video-toolbar { position:absolute; top:16px; right:16px; display:flex; gap:10px; z-index:1001; }
+  .video-toolbar button { background:rgba(255,255,255,0.15); border:none; color:#fff; padding:10px 16px; border-radius:8px; cursor:pointer; backdrop-filter:blur(10px); font-size:0.9rem; }
+  .video-toolbar button:hover { background:rgba(255,255,255,0.3); }
+  @media (max-width:500px) { body{padding:12px;} .dropzone{padding:30px 15px;} }
+</style>
 </head>
 <body>
 <div class="container">
@@ -59,14 +65,17 @@
       <span class="dot"></span> <span id="statusText">Checking…</span>
     </div>
   </div>
+
   <div class="settings-row" id="urlSettings">
     <input type="text" id="workerUrlInput" placeholder="Worker URL">
-    <button id="btnSaveUrl">Save & Connect</button>
+    <button id="btnSaveUrl">Save &amp; Connect</button>
   </div>
+
   <div class="dropzone" id="dropzone">
     <p>📂 <strong>Drop files here</strong> or click to browse</p>
     <input type="file" id="fileInput" multiple>
   </div>
+
   <div class="progress-box" id="progressBox">
     <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
     <div class="progress-text">
@@ -75,8 +84,11 @@
       <button class="cancel-btn" id="cancelUpload">Cancel</button>
     </div>
   </div>
+
   <div class="file-grid" id="fileGrid"></div>
 </div>
+
+<!-- Video overlay -->
 <div class="video-overlay" id="videoOverlay">
   <div class="video-container"><video id="videoPlayer" controls playsinline></video></div>
   <div class="video-toolbar">
@@ -84,11 +96,13 @@
     <button id="btnCloseVideo">✕ Close</button>
   </div>
 </div>
+
 <script>
-// ==================== CONFIG ====================
-const DEFAULT_WORKER = 'https://gdrive-files-api.donthulanithish53.workers.dev'; // YOUR REAL URL
+// ===================== CONFIGURATION =====================
+const DEFAULT_WORKER = 'https://gdrive-files-api.donthulanithish53.workers.dev';
 let WORKER_BASE = localStorage.getItem('workerBaseUrl') || DEFAULT_WORKER;
 
+// ===================== DOM ELEMENTS =====================
 const statusBadge = document.getElementById('statusBadge');
 const statusText = document.getElementById('statusText');
 const urlSettings = document.getElementById('urlSettings');
@@ -105,13 +119,11 @@ const fileGrid = document.getElementById('fileGrid');
 
 workerInput.value = WORKER_BASE;
 let uploadAbortController = null;
+let currentFileList = [];
 
-// ---------- Connection check ----------
+// ===================== CONNECTION =====================
 async function testUrl(url) {
-  try {
-    const res = await fetch(`${url}/list`);
-    return res.ok;
-  } catch (e) { return false; }
+  try { const res = await fetch(`${url}/list`); return res.ok; } catch { return false; }
 }
 
 async function connectWorker(url) {
@@ -122,7 +134,7 @@ async function connectWorker(url) {
     statusBadge.className = 'status-badge online';
     statusText.textContent = 'Connected';
     urlSettings.style.display = 'none';
-    refreshFileList();
+    await refreshFileList();
     return true;
   } else {
     statusBadge.className = 'status-badge offline';
@@ -143,20 +155,24 @@ btnSaveUrl.addEventListener('click', async () => {
   if (!success) urlSettings.style.display = 'flex';
 })();
 
-// ---------- Drag & Drop ----------
+// ===================== DRAG & DROP =====================
 dropzone.addEventListener('click', () => fileInput.click());
-fileInput.addEventListener('change', (e) => { if (e.target.files.length) processFiles(e.target.files); fileInput.value = ''; });
+fileInput.addEventListener('change', (e) => {
+  if (e.target.files.length) processFiles(e.target.files);
+  fileInput.value = '';
+});
 dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
 dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
-dropzone.addEventListener('drop', (e) => { e.preventDefault(); dropzone.classList.remove('dragover'); if (e.dataTransfer.files.length) processFiles(e.dataTransfer.files); });
+dropzone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dropzone.classList.remove('dragover');
+  if (e.dataTransfer.files.length) processFiles(e.dataTransfer.files);
+});
 
-// ---------- Upload (proxied chunks) ----------
+// ===================== UPLOAD LOGIC =====================
 async function processFiles(files) {
   for (const file of files) {
-    try { await uploadFile(file); } catch (err) {
-      alert(`Upload failed: ${err.message}`);
-      console.error(err);
-    }
+    try { await uploadFile(file); } catch (err) { alert(`Upload failed: ${err.message}`); console.error(err); }
   }
   await refreshFileList();
 }
@@ -166,57 +182,64 @@ async function uploadFile(file) {
   uploadAbortController = new AbortController();
   const signal = uploadAbortController.signal;
   progressBox.style.display = 'block';
-  let publicId = null;
 
+  let publicId = null;
   try {
-    // Initiate
+    // 1. Init resumable upload
     const initRes = await fetch(`${WORKER_BASE}/upload-init`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ fileName: file.name, fileSize: file.size, fileType: file.type || 'application/octet-stream' }),
-      signal
+      signal,
     });
-    if (!initRes.ok) throw new Error(`Init HTTP ${initRes.status}`);
+    if (!initRes.ok) throw new Error(`Init failed: HTTP ${initRes.status}`);
     const { publicId: pid } = await initRes.json();
     publicId = pid;
 
-    // Check resumable progress
+    // 2. Check if already partially uploaded
     let uploaded = 0;
     try {
       const statusRes = await fetch(`${WORKER_BASE}/upload-status/${publicId}`, { signal });
       if (statusRes.ok) {
-        const { uploaded: up } = await statusRes.json();
-        uploaded = up || 0;
+        const data = await statusRes.json();
+        if (data.complete) {
+          // Already fully uploaded
+          progressBox.style.display = 'none';
+          return;
+        }
+        uploaded = data.uploaded || 0;
       }
-    } catch (e) {}
+    } catch (e) { /* ignore */ }
 
-    // Chunked upload
+    // 3. Send chunks
     const CHUNK_SIZE = 10 * 1024 * 1024; // 10 MB
     while (uploaded < file.size) {
       if (signal.aborted) throw new Error('Cancelled');
       const end = Math.min(uploaded + CHUNK_SIZE - 1, file.size - 1);
       const chunk = file.slice(uploaded, end + 1);
-      const rangeHeader = `bytes ${uploaded}-${end}/${file.size}`;
 
-      let retries = 0;
-      let done = false;
+      let retries = 0, done = false;
       while (retries < 3 && !done) {
         try {
           const res = await fetch(`${WORKER_BASE}/upload-chunk/${publicId}`, {
             method: 'PUT',
-            headers: { 'Content-Range': rangeHeader },
+            headers: { 'Content-Range': `bytes ${uploaded}-${end}/${file.size}` },
             body: chunk,
-            signal
+            signal,
           });
-          const data = await res.json();
-          if (data.complete) {
-            done = true; break;
+          const data = await res.json().catch(() => ({}));
+          if (res.ok && data.complete) {
+            done = true;
+            break;
+          } else if (res.ok && data.uploaded !== undefined) {
+            uploaded = data.uploaded;
+            updateProgress(uploaded, file.size);
+            done = true;
+          } else {
+            throw new Error(data.error || `HTTP ${res.status}`);
           }
-          uploaded = data.uploaded;
-          updateProgress(uploaded, file.size);
-          done = true;
-        } catch (e) {
-          if (retries >= 2) throw e;
+        } catch (err) {
+          if (retries >= 2) throw err;
           retries++;
           await sleep(1000 * retries);
         }
@@ -226,8 +249,8 @@ async function uploadFile(file) {
         // fallback: re-check status
         const statusRes = await fetch(`${WORKER_BASE}/upload-status/${publicId}`, { signal });
         if (statusRes.ok) {
-          const { uploaded: up } = await statusRes.json();
-          uploaded = up;
+          const s = await statusRes.json();
+          uploaded = s.uploaded || uploaded;
           updateProgress(uploaded, file.size);
         }
       }
@@ -244,7 +267,6 @@ function updateProgress(uploaded, total) {
   percentDisplay.textContent = `${pct}%`;
   sizeDisplay.textContent = `${formatBytes(uploaded)} / ${formatBytes(total)}`;
 }
-
 function formatBytes(bytes) {
   if (!bytes) return '0 B';
   const units = ['B','KB','MB','GB','TB'];
@@ -262,23 +284,24 @@ cancelBtn.addEventListener('click', () => {
   }
 });
 
-// ---------- File list ----------
+// ===================== FILE LIST =====================
 async function refreshFileList() {
   try {
     const res = await fetch(`${WORKER_BASE}/list`);
     if (!res.ok) return;
     const files = await res.json();
-    renderFileList(files);
+    currentFileList = files;
+    renderFileList();
   } catch (e) { console.error(e); }
 }
 
-function renderFileList(files) {
+function renderFileList() {
   fileGrid.innerHTML = '';
-  if (!files.length) {
+  if (!currentFileList.length) {
     fileGrid.innerHTML = '<p style="grid-column:1/-1;text-align:center;color:#888;">No files yet. Upload something!</p>';
     return;
   }
-  files.forEach(f => {
+  currentFileList.forEach(f => {
     const card = document.createElement('div');
     card.className = 'card';
     const isMedia = f.fileType?.startsWith('video/') || f.fileType?.startsWith('audio/');
@@ -300,7 +323,7 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
-// ---------- Actions ----------
+// ===================== PLAY / DOWNLOAD / DELETE / REPLACE =====================
 function playFile(publicId) {
   const player = document.getElementById('videoPlayer');
   const overlay = document.getElementById('videoOverlay');
@@ -341,6 +364,7 @@ async function deleteFile(publicId) {
   else alert('Delete failed');
 }
 
+// Replace (update) – starts a new resumable upload
 function replaceFile(publicId) {
   const input = document.createElement('input');
   input.type = 'file';
@@ -348,7 +372,7 @@ function replaceFile(publicId) {
     const file = input.files[0];
     if (!file) return;
     try {
-      // 1. Init update (get upload URL for replacement)
+      // 1. Init update session
       const initRes = await fetch(`${WORKER_BASE}/update/${publicId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -356,52 +380,53 @@ function replaceFile(publicId) {
       });
       if (!initRes.ok) throw new Error('Update init failed');
       const { publicId: newPid } = await initRes.json();
-      // 2. Now chunk to that new publicId (it's the same publicId for simplicity)
-      // But the worker's handleUpdate created a session under the same publicId.
-      // We'll reuse our uploadFile function but need to tweak? Actually, uploadFile expects a file and calls /upload-init.
-      // We'll perform the chunk loop directly using /upload-chunk.
-      await chunkedReplace(file, newPid || publicId);
+      // 2. Use the same chunk upload logic
+      await uploadExistingFile(file, newPid);
       refreshFileList();
     } catch (err) { alert('Replace failed: ' + err.message); }
   };
   input.click();
 }
 
-async function chunkedReplace(file, publicId) {
+async function uploadExistingFile(file, publicId) {
+  progressBox.style.display = 'block';
   let uploaded = 0;
-  const statusRes = await fetch(`${WORKER_BASE}/upload-status/${publicId}`);
-  if (statusRes.ok) { const d = await statusRes.json(); uploaded = d.uploaded || 0; }
+  try {
+    // Check if already partially uploaded for this session
+    const statusRes = await fetch(`${WORKER_BASE}/upload-status/${publicId}`);
+    if (statusRes.ok) {
+      const data = await statusRes.json();
+      if (data.complete) return;
+      uploaded = data.uploaded || 0;
+    }
+  } catch(e) {}
 
   const CHUNK_SIZE = 10 * 1024 * 1024;
-  progressBox.style.display = 'block';
   while (uploaded < file.size) {
     const end = Math.min(uploaded + CHUNK_SIZE - 1, file.size - 1);
     const chunk = file.slice(uploaded, end + 1);
-    const range = `bytes ${uploaded}-${end}/${file.size}`;
     let retries = 0, done = false;
     while (retries < 3 && !done) {
       try {
         const res = await fetch(`${WORKER_BASE}/upload-chunk/${publicId}`, {
           method: 'PUT',
-          headers: { 'Content-Range': range },
-          body: chunk
+          headers: { 'Content-Range': `bytes ${uploaded}-${end}/${file.size}` },
+          body: chunk,
         });
-        const data = await res.json();
+        const data = await res.json().catch(()=>({}));
         if (data.complete) { done = true; break; }
-        uploaded = data.uploaded;
-        updateProgress(uploaded, file.size);
-        done = true;
-      } catch (e) {
-        if (retries >= 2) throw e;
+        if (res.ok && data.uploaded !== undefined) {
+          uploaded = data.uploaded;
+          updateProgress(uploaded, file.size);
+          done = true;
+        } else throw new Error(data.error || 'Chunk error');
+      } catch (err) {
+        if (retries >= 2) throw err;
         retries++;
         await sleep(1000 * retries);
       }
     }
     if (done && uploaded >= file.size - 1) break;
-    if (!done) {
-      const statusRes = await fetch(`${WORKER_BASE}/upload-status/${publicId}`);
-      if (statusRes.ok) { const d = await statusRes.json(); uploaded = d.uploaded || 0; updateProgress(uploaded, file.size); }
-    }
   }
   progressBox.style.display = 'none';
 }
