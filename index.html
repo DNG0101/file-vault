@@ -6,211 +6,91 @@
 <title>Public File Vault</title>
 <style>
   :root {
-    --bg: #f5f7fa;
-    --card-bg: #ffffff;
-    --text: #1a1a1a;
-    --text-secondary: #666;
-    --border: #e0e0e0;
-    --accent: #1a73e8;
-    --accent-hover: #1557b0;
-    --success: #0f9d58;
-    --danger: #ea4335;
-    --warn: #f9ab00;
-    --purple: #6c5ce7;
-    --radius: 12px;
-    --shadow: 0 4px 12px rgba(0,0,0,0.06);
-    --overlay-bg: rgba(0,0,0,0.95);
-    --toast-bg: #333;
-    --toast-text: #fff;
+    --bg: #f5f7fa; --card-bg: #ffffff; --text: #1a1a1a; --text-secondary: #666;
+    --border: #e0e0e0; --accent: #1a73e8; --accent-hover: #1557b0; --success: #0f9d58;
+    --danger: #ea4335; --warn: #f9ab00; --purple: #6c5ce7; --radius: 12px;
+    --shadow: 0 4px 12px rgba(0,0,0,0.06); --overlay-bg: rgba(0,0,0,0.95);
+    --toast-bg: #333; --toast-text: #fff;
   }
   [data-theme="dark"] {
-    --bg: #1a1a2e;
-    --card-bg: #16213e;
-    --text: #e0e0e0;
-    --text-secondary: #aaa;
-    --border: #2a2a4a;
-    --shadow: 0 4px 12px rgba(0,0,0,0.3);
-    --overlay-bg: rgba(0,0,0,0.98);
+    --bg: #1a1a2e; --card-bg: #16213e; --text: #e0e0e0; --text-secondary: #aaa;
+    --border: #2a2a4a; --shadow: 0 4px 12px rgba(0,0,0,0.3); --overlay-bg: rgba(0,0,0,0.98);
     --toast-bg: #444;
   }
   * { margin:0; padding:0; box-sizing:border-box; }
-  body {
-    font-family: system-ui, -apple-system, sans-serif;
-    background: var(--bg); color: var(--text);
-    min-height: 100vh; padding: 20px;
-    transition: background 0.3s, color 0.3s;
-  }
+  body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 20px; transition: background 0.3s, color 0.3s; }
   .container { max-width: 1100px; margin: 0 auto; }
-
-  .header {
-    display: flex; justify-content: space-between; align-items: center;
-    flex-wrap: wrap; gap: 12px; margin-bottom: 20px;
-  }
+  .header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
   h1 { font-size: clamp(1.5rem, 6vw, 2rem); font-weight: 700; display: flex; align-items: center; gap: 8px; }
   .header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  .btn-icon {
-    padding: 8px 10px; border: none; border-radius: 8px; font-size: 1.1rem; cursor: pointer;
-    background: var(--card-bg); color: var(--text); border: 1px solid var(--border);
-    transition: 0.2s; min-width: 40px; min-height: 40px; display: flex; align-items: center; justify-content: center;
-  }
+  .btn-icon { padding: 8px 10px; border: none; border-radius: 8px; font-size: 1.1rem; cursor: pointer; background: var(--card-bg); color: var(--text); border: 1px solid var(--border); transition: 0.2s; min-width: 40px; min-height: 40px; display: flex; align-items: center; justify-content: center; }
   .btn-icon:hover { background: var(--border); }
-  .btn {
-    padding: 8px 14px; border: none; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer;
-    background: #eee; color: #333; display: inline-flex; align-items: center; gap: 6px;
-    touch-action: manipulation; min-width: 44px; min-height: 40px; transition: 0.2s;
-    white-space: nowrap;
-  }
+  .btn { padding: 8px 14px; border: none; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; background: #eee; color: #333; display: inline-flex; align-items: center; gap: 6px; touch-action: manipulation; min-width: 44px; min-height: 40px; transition: 0.2s; white-space: nowrap; }
   .btn:active { transform: scale(0.96); }
   .btn-primary { background: var(--accent); color: #fff; }
   .btn-primary:hover { background: var(--accent-hover); }
   .btn-danger { background: var(--danger); color: #fff; }
   .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
   .btn-outline:hover { background: var(--border); }
-  .btn-success { background: var(--success); color: #fff; }
-  .btn-warn { background: var(--warn); color: #222; }
-
-  .toolbar {
-    display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; align-items: center;
-  }
-  .search-box {
-    flex: 1; min-width: 200px; padding: 10px 14px; border: 1px solid var(--border);
-    border-radius: 8px; font-size: 0.9rem; background: var(--card-bg); color: var(--text);
-    outline: none; transition: border 0.2s;
-  }
+  .toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; align-items: center; }
+  .search-box { flex: 1; min-width: 200px; padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.9rem; background: var(--card-bg); color: var(--text); outline: none; transition: border 0.2s; }
   .search-box:focus { border-color: var(--accent); }
-  .sort-select {
-    padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px;
-    font-size: 0.9rem; background: var(--card-bg); color: var(--text); cursor: pointer;
-  }
+  .sort-select { padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.9rem; background: var(--card-bg); color: var(--text); cursor: pointer; }
   .stats { font-size: 0.8rem; color: var(--text-secondary); white-space: nowrap; }
-
-  .admin-bar {
-    display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; align-items: center;
-  }
-  .admin-bar.hidden { display: none; }
-
-  .dropzone {
-    border: 3px dashed var(--border); border-radius: 16px; padding: 40px 20px;
-    text-align: center; background: var(--card-bg); cursor: pointer;
-    transition: 0.2s; margin-bottom: 16px; user-select: none;
-  }
+  .dropzone { border: 3px dashed var(--border); border-radius: 16px; padding: 40px 20px; text-align: center; background: var(--card-bg); cursor: pointer; transition: 0.2s; margin-bottom: 16px; user-select: none; }
   .dropzone:hover, .dragover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 5%, var(--card-bg)); }
   .dropzone input { display: none; }
   .hint-text { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px; text-align: center; }
-  .hint-text kbd {
-    background: var(--card-bg); border: 1px solid var(--border); border-radius: 4px;
-    padding: 1px 6px; font-size: 0.8rem; font-family: monospace;
-  }
-
+  .hint-text kbd { background: var(--card-bg); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; font-size: 0.8rem; font-family: monospace; }
   .progress-box { margin-bottom: 16px; display: none; }
   .progress-bar { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
   .progress-fill { height: 100%; width: 0%; background: var(--accent); transition: width 0.3s; }
   .progress-text { display: flex; justify-content: space-between; font-size: 0.8rem; margin-top: 6px; color: var(--text-secondary); }
   .cancel-btn { background: var(--danger); color: #fff; border: none; padding: 3px 10px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; }
-
   .file-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
-  .card {
-    background: var(--card-bg); border-radius: var(--radius); padding: 16px;
-    box-shadow: var(--shadow); display: flex; flex-direction: column;
-    position: relative; transition: box-shadow 0.2s, transform 0.2s;
-    border: 2px solid transparent;
-  }
+  .card { background: var(--card-bg); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); display: flex; flex-direction: column; position: relative; transition: box-shadow 0.2s, transform 0.2s; border: 2px solid transparent; }
   .card:hover { box-shadow: 0 8px 24px rgba(0,0,0,0.12); transform: translateY(-2px); }
   .card.selected { border-color: var(--accent); }
   .card.uploading { opacity: 0.5; pointer-events: none; }
-  .card-checkbox {
-    position: absolute; top: 10px; right: 10px; width: 20px; height: 20px;
-    accent-color: var(--accent); cursor: pointer; z-index: 2;
-  }
+  .card-checkbox { position: absolute; top: 10px; right: 10px; width: 20px; height: 20px; accent-color: var(--accent); cursor: pointer; z-index: 2; }
   .file-icon { font-size: 2.5rem; text-align: center; margin-bottom: 10px; }
   .file-name { font-weight: 600; word-break: break-all; margin-bottom: 6px; font-size: 0.95rem; }
   .file-meta { font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 10px; }
   .actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; }
-  .btn-sm {
-    padding: 6px 10px; border: none; border-radius: 6px; font-size: 0.75rem;
-    font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
-    gap: 3px; touch-action: manipulation; min-width: 36px; min-height: 34px; transition: 0.2s;
-  }
+  .btn-sm { padding: 6px 10px; border: none; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 3px; touch-action: manipulation; min-width: 36px; min-height: 34px; transition: 0.2s; }
   .btn-sm:active { transform: scale(0.95); }
   .btn-sm-play { background: var(--accent); color: #fff; }
   .btn-sm-preview { background: var(--purple); color: #fff; }
   .btn-sm-download { background: var(--success); color: #fff; }
   .btn-sm-delete { background: var(--danger); color: #fff; }
   .btn-sm-replace { background: var(--warn); color: #222; }
-
-  .preview-overlay {
-    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: var(--overlay-bg); z-index: 1000; justify-content: center; align-items: center;
-    flex-direction: column;
-  }
+  .preview-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--overlay-bg); z-index: 1000; justify-content: center; align-items: center; flex-direction: column; }
   .preview-overlay.active { display: flex; }
-  .preview-container {
-    width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
-    position: relative;
-  }
-  .preview-container img, .preview-container iframe, .preview-container video, .preview-container pre {
-    max-width: 95%; max-height: 95%; object-fit: contain; border-radius: 4px;
-  }
-  .preview-container pre {
-    background: #1e1e1e; color: #d4d4d4; padding: 24px; overflow: auto; white-space: pre-wrap;
-    word-break: break-all; max-width: 85%; max-height: 85%; border-radius: 8px;
-    font-family: 'Fira Code', 'Consolas', monospace; font-size: 0.9rem; line-height: 1.5;
-  }
+  .preview-container { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; position: relative; }
+  .preview-container img, .preview-container iframe, .preview-container video, .preview-container pre { max-width: 95%; max-height: 95%; object-fit: contain; border-radius: 4px; }
+  .preview-container pre { background: #1e1e1e; color: #d4d4d4; padding: 24px; overflow: auto; white-space: pre-wrap; word-break: break-all; max-width: 85%; max-height: 85%; border-radius: 8px; font-family: 'Fira Code', 'Consolas', monospace; font-size: 0.9rem; line-height: 1.5; }
   .preview-container audio { width: 80%; max-width: 500px; }
-  .preview-toolbar {
-    position: absolute; top: 16px; right: 16px; display: flex; gap: 10px; z-index: 1001;
-  }
-  .preview-toolbar button {
-    background: rgba(255,255,255,0.12); border: none; color: #fff;
-    padding: 10px 16px; border-radius: 8px; cursor: pointer; backdrop-filter: blur(10px);
-    font-size: 0.9rem; transition: background 0.2s;
-  }
+  .preview-toolbar { position: absolute; top: 16px; right: 16px; display: flex; gap: 10px; z-index: 1001; }
+  .preview-toolbar button { background: rgba(255,255,255,0.12); border: none; color: #fff; padding: 10px 16px; border-radius: 8px; cursor: pointer; backdrop-filter: blur(10px); font-size: 0.9rem; transition: background 0.2s; }
   .preview-toolbar button:hover { background: rgba(255,255,255,0.25); }
-
-  .toast-container {
-    position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex;
-    flex-direction: column-reverse; gap: 8px; max-width: 400px;
-  }
-  .toast {
-    padding: 12px 16px; border-radius: 8px; color: var(--toast-text); background: var(--toast-bg);
-    font-size: 0.85rem; font-weight: 500; box-shadow: 0 4px 16px rgba(0,0,0,0.2);
-    animation: slideIn 0.3s ease; display: flex; align-items: center; gap: 8px;
-  }
+  .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column-reverse; gap: 8px; max-width: 400px; }
+  .toast { padding: 12px 16px; border-radius: 8px; color: var(--toast-text); background: var(--toast-bg); font-size: 0.85rem; font-weight: 500; box-shadow: 0 4px 16px rgba(0,0,0,0.2); animation: slideIn 0.3s ease; display: flex; align-items: center; gap: 8px; }
   .toast.error { background: var(--danger); }
   .toast.success { background: var(--success); }
   @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-
-  .bulk-bar {
-    display: none; align-items: center; gap: 10px; padding: 10px 16px;
-    background: var(--accent); color: #fff; border-radius: 8px; margin-bottom: 12px;
-    font-size: 0.85rem; flex-wrap: wrap;
-  }
+  .bulk-bar { display: none; align-items: center; gap: 10px; padding: 10px 16px; background: var(--accent); color: #fff; border-radius: 8px; margin-bottom: 12px; font-size: 0.85rem; flex-wrap: wrap; }
   .bulk-bar.active { display: flex; }
   .bulk-bar button { background: rgba(255,255,255,0.2); color: #fff; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; }
-
-  .approval-panel {
-    background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 20px; margin-bottom: 16px; display: none;
-  }
+  .admin-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; align-items: center; }
+  .admin-bar.hidden { display: none; }
+  .approval-panel { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; display: none; }
   .approval-panel.active { display: block; }
-  .approval-item {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 10px 0; border-bottom: 1px solid var(--border); gap: 10px; flex-wrap: wrap;
-  }
-
-  @media (max-width: 600px) {
-    body { padding: 10px; }
-    .dropzone { padding: 24px 14px; }
-    .file-grid { grid-template-columns: 1fr; }
-    .toolbar { flex-direction: column; }
-    .preview-container pre { max-width: 95%; max-height: 95%; font-size: 0.75rem; }
-  }
+  .approval-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); gap: 10px; flex-wrap: wrap; }
+  @media (max-width: 600px) { body { padding: 10px; } .dropzone { padding: 24px 14px; } .file-grid { grid-template-columns: 1fr; } .toolbar { flex-direction: column; } .preview-container pre { max-width: 95%; max-height: 95%; font-size: 0.75rem; } }
 </style>
 </head>
 <body>
-
 <div class="container">
-  <!-- Header -->
   <div class="header">
     <h1>📁 Public File Vault</h1>
     <div class="header-right">
@@ -220,21 +100,17 @@
     </div>
   </div>
 
-  <!-- Admin controls -->
   <div class="admin-bar hidden" id="adminBar">
     <button class="btn btn-outline btn-sm" id="btnSync">🔄 Sync Drive Files</button>
     <button class="btn btn-outline btn-sm" id="btnApprovals">👥 Approvals</button>
     <button class="btn btn-danger btn-sm" id="btnUnauthorize">🔒 Unauthorize</button>
-    <span style="font-size:0.8rem; color:var(--text-secondary);">Logged in as <strong id="adminEmail"></strong></span>
   </div>
 
-  <!-- Approval panel -->
   <div class="approval-panel" id="approvalPanel">
     <h3 style="margin-bottom:12px;">👥 Pending Approvals</h3>
     <div id="approvalList"><p style="color:var(--text-secondary);">No pending requests.</p></div>
   </div>
 
-  <!-- Toolbar -->
   <div class="toolbar">
     <input type="text" class="search-box" id="searchInput" placeholder="🔍 Search files... (Ctrl+F)">
     <select class="sort-select" id="sortSelect">
@@ -247,14 +123,12 @@
     </select>
   </div>
 
-  <!-- Bulk actions bar -->
   <div class="bulk-bar" id="bulkBar">
     <span id="bulkCount">0 selected</span>
     <button id="btnBulkDelete">🗑 Delete Selected</button>
     <button id="btnBulkCancel">✕ Cancel</button>
   </div>
 
-  <!-- Hint -->
   <div class="hint-text">
     📋 <kbd>Ctrl</kbd>+<kbd>V</kbd> paste &nbsp;|&nbsp;
     <kbd>Ctrl</kbd>+<kbd>U</kbd> upload &nbsp;|&nbsp;
@@ -262,13 +136,11 @@
     <kbd>Esc</kbd> close preview
   </div>
 
-  <!-- Dropzone -->
   <div class="dropzone" id="dropzone">
     <p>📂 <strong>Drop files here</strong> or click to browse</p>
     <input type="file" id="fileInput" multiple>
   </div>
 
-  <!-- Progress -->
   <div class="progress-box" id="progressBox">
     <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
     <div class="progress-text">
@@ -278,11 +150,9 @@
     </div>
   </div>
 
-  <!-- File grid -->
   <div class="file-grid" id="fileGrid"></div>
 </div>
 
-<!-- Preview overlay -->
 <div class="preview-overlay" id="previewOverlay">
   <div class="preview-container" id="previewContainer"></div>
   <div class="preview-toolbar">
@@ -290,19 +160,15 @@
     <button id="btnClosePreview">✕ Close</button>
   </div>
 </div>
-
-<!-- Toast container -->
 <div class="toast-container" id="toastContainer"></div>
 
 <script>
-// ==================== CONFIG ====================
 const WORKER_BASE = 'https://gdrive-files-api.donthulanithish53.workers.dev';
-
-// ==================== DOM REFS ====================
 const $ = id => document.getElementById(id);
+
+// DOM refs
 const adminUI = $('adminUI');
 const adminBar = $('adminBar');
-const adminEmail = $('adminEmail');
 const approvalPanel = $('approvalPanel');
 const approvalList = $('approvalList');
 const storageStats = $('storageStats');
@@ -330,22 +196,21 @@ let currentFileList = [];
 let selectedFiles = new Set();
 let sortOrder = 'newest';
 let searchQuery = '';
-let isAdmin = false;
+let userToken = null;
 
-// ==================== TOAST ====================
-function toast(msg, type = 'info') {
+// Toast
+function toast(msg, type='info') {
   const el = document.createElement('div');
   el.className = `toast ${type}`;
-  el.innerHTML = `${type === 'error' ? '❌' : type === 'success' ? '✅' : 'ℹ️'} ${msg}`;
+  el.innerHTML = `${type==='error'?'❌':type==='success'?'✅':'ℹ️'} ${msg}`;
   toastContainer.appendChild(el);
-  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity 0.3s'; setTimeout(() => el.remove(), 300); }, 3000);
+  setTimeout(() => { el.style.opacity='0'; setTimeout(() => el.remove(), 300); }, 3000);
 }
 
-// ==================== DARK MODE ====================
+// Dark mode
 function initDarkMode() {
   const saved = localStorage.getItem('darkMode');
   if (saved === 'true') document.documentElement.setAttribute('data-theme', 'dark');
-  else document.documentElement.setAttribute('data-theme', 'light');
 }
 btnDarkMode.addEventListener('click', () => {
   const current = document.documentElement.getAttribute('data-theme');
@@ -355,72 +220,102 @@ btnDarkMode.addEventListener('click', () => {
 });
 initDarkMode();
 
-// ==================== ADMIN CHECK ====================
-async function checkAdmin() {
+// ========== AUTH ==========
+async function checkAuth() {
+  // First, check for user token from URL (after user login)
+  const params = new URLSearchParams(location.search);
+  const utoken = params.get('utoken');
+  if (utoken) {
+    userToken = utoken;
+    // Clean URL
+    history.replaceState({}, '', location.pathname);
+    // Check user info
+    try {
+      const res = await fetch(`${WORKER_BASE}/user-info?utoken=${utoken}`);
+      const info = await res.json();
+      if (info.approved) {
+        // User is approved, show main app
+        document.querySelector('.hint-text').style.display = 'block';
+        adminBar.classList.add('hidden');
+        adminUI.innerHTML = '';
+        refreshFileList();
+        return;
+      } else {
+        // Not approved yet
+        showApprovalNeeded(info.email);
+        return;
+      }
+    } catch(e) {
+      toast('Failed to verify user token', 'error');
+    }
+  }
+
+  // Fallback: check if admin is logged in
   try {
     const res = await fetch(`${WORKER_BASE}/check-admin`);
-    if (!res.ok) throw new Error('Worker unreachable');
     const data = await res.json();
     if (data.adminReady) {
-      isAdmin = true;
-      adminUI.innerHTML = '';
+      // Admin is active
       adminBar.classList.remove('hidden');
-      // Try to get admin email from stored info
-      try {
-        const infoRes = await fetch(`${WORKER_BASE}/user-info?utoken=admin`);
-        if (infoRes.ok) {
-          const info = await infoRes.json();
-          if (info.email) adminEmail.textContent = info.email;
-        }
-      } catch(e) { adminEmail.textContent = 'Admin'; }
+      adminUI.innerHTML = '';
+      document.querySelector('.hint-text').style.display = 'block';
       refreshFileList();
     } else {
-      isAdmin = false;
+      // No admin, show login buttons
       adminBar.classList.add('hidden');
-      adminUI.innerHTML = '<button class="btn btn-primary btn-sm" id="authorizeBtn">🔑 Authorize</button>';
-      $('authorizeBtn')?.addEventListener('click', startAuth);
-      fileGrid.innerHTML = '<p style="grid-column:1/-1;text-align:center;color:var(--text-secondary);padding:40px;">Admin authorization required.<br>Click <strong>Authorize</strong> to activate the vault.</p>';
+      adminUI.innerHTML = `
+        <button class="btn btn-primary btn-sm" id="authorizeBtn">🔑 Admin Login</button>
+        <button class="btn btn-outline btn-sm" id="userLoginBtn">👤 User Login</button>
+      `;
+      $('authorizeBtn').addEventListener('click', startAdminAuth);
+      $('userLoginBtn').addEventListener('click', startUserAuth);
+      fileGrid.innerHTML = '<p style="grid-column:1/-1;text-align:center;color:var(--text-secondary);padding:40px;">Please log in as admin or user.</p>';
       storageStats.textContent = '';
+      document.querySelector('.hint-text').style.display = 'none';
     }
-  } catch (e) {
+  } catch(e) {
     adminUI.textContent = '⚠️ Offline';
-    storageStats.textContent = '';
-    adminBar.classList.add('hidden');
   }
 }
 
-async function startAuth() {
-  try {
-    const res = await fetch(`${WORKER_BASE}/auth-url`);
-    if (!res.ok) throw new Error('Failed to get auth URL');
-    const { authUrl } = await res.json();
-    window.location.href = authUrl;
-  } catch (e) {
-    toast('Failed to start authorization: ' + e.message, 'error');
-  }
+async function startAdminAuth() {
+  const res = await fetch(`${WORKER_BASE}/admin-auth-url`);
+  const { authUrl } = await res.json();
+  window.location.href = authUrl;
 }
 
-// ==================== ADMIN ACTIONS ====================
-$('btnUnauthorize').addEventListener('click', async () => {
-  if (!confirm('Remove admin access? The vault will stop working for everyone.')) return;
-  await fetch(`${WORKER_BASE}/unauthorize`, { method: 'POST' });
-  location.reload();
-});
+async function startUserAuth() {
+  const res = await fetch(`${WORKER_BASE}/user-auth-url`);
+  const { authUrl } = await res.json();
+  window.location.href = authUrl;
+}
 
+function showApprovalNeeded(email) {
+  document.querySelector('.hint-text').style.display = 'none';
+  adminBar.classList.add('hidden');
+  adminUI.innerHTML = '';
+  fileGrid.innerHTML = `
+    <div style="grid-column:1/-1; text-align:center; padding:40px;">
+      <h2>🔐 Approval Required</h2>
+      <p>Your email <strong>${email}</strong> has not been approved yet.</p>
+      <button class="btn btn-primary" id="requestAccessBtn">Request Access</button>
+      <p id="pendingNote" style="margin-top:12px; color:var(--success); display:none;">✅ Access requested. Waiting for admin approval.</p>
+    </div>`;
+  $('requestAccessBtn').addEventListener('click', async () => {
+    await fetch(`${WORKER_BASE}/request-access`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ email })
+    });
+    $('pendingNote').style.display = 'block';
+  });
+}
+
+// ========== ADMIN ACTIONS ==========
 $('btnSync').addEventListener('click', async () => {
-  toast('Syncing files from Google Drive…', 'info');
-  try {
-    const res = await fetch(`${WORKER_BASE}/sync`, { method: 'POST' });
-    if (res.ok) {
-      await refreshFileList();
-      toast('Sync complete! All Drive files are now visible.', 'success');
-    } else {
-      const err = await res.json().catch(() => ({}));
-      toast('Sync failed: ' + (err.error || 'Unknown error'), 'error');
-    }
-  } catch (e) {
-    toast('Sync failed: ' + e.message, 'error');
-  }
+  toast('Syncing files from Drive…', 'info');
+  await fetch(`${WORKER_BASE}/sync`, { method: 'POST' });
+  await refreshFileList();
+  toast('Sync complete!', 'success');
 });
 
 $('btnApprovals').addEventListener('click', async () => {
@@ -433,47 +328,46 @@ $('btnApprovals').addEventListener('click', async () => {
 });
 
 async function loadApprovals() {
-  try {
-    const res = await fetch(`${WORKER_BASE}/admin/pending`);
-    if (!res.ok) throw new Error('Failed to load');
-    const emails = await res.json();
-    if (!emails.length) {
-      approvalList.innerHTML = '<p style="color:var(--text-secondary);">No pending requests.</p>';
-      return;
-    }
-    approvalList.innerHTML = emails.map(email => `
-      <div class="approval-item">
-        <span>${email}</span>
-        <div style="display:flex;gap:6px;">
-          <button class="btn btn-success btn-sm" onclick="approveUser('${email}')">✅ Approve</button>
-          <button class="btn btn-danger btn-sm" onclick="denyUser('${email}')">❌ Deny</button>
-        </div>
-      </div>
-    `).join('');
-  } catch (e) {
-    approvalList.innerHTML = '<p style="color:var(--danger);">Failed to load approvals.</p>';
+  const res = await fetch(`${WORKER_BASE}/admin/pending`);
+  const emails = await res.json();
+  if (!emails.length) {
+    approvalList.innerHTML = '<p style="color:var(--text-secondary);">No pending requests.</p>';
+    return;
   }
+  approvalList.innerHTML = emails.map(email => `
+    <div class="approval-item">
+      <span>${email}</span>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-sm" style="background:var(--success);color:#fff;" onclick="approveUser('${email}')">✅ Approve</button>
+        <button class="btn btn-sm" style="background:var(--danger);color:#fff;" onclick="denyUser('${email}')">❌ Deny</button>
+      </div>
+    </div>
+  `).join('');
 }
-
 window.approveUser = async function(email) {
   await fetch(`${WORKER_BASE}/admin/approve`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    method: 'POST', headers: {'Content-Type':'application/json'},
     body: JSON.stringify({ email })
   });
   toast(`${email} approved!`, 'success');
-  await loadApprovals();
+  loadApprovals();
 };
-
 window.denyUser = async function(email) {
   await fetch(`${WORKER_BASE}/admin/deny`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ email })
   });
   toast(`${email} denied.`, 'info');
-  await loadApprovals();
+  loadApprovals();
 };
 
-// ==================== DRAG & DROP + PASTE + KEYBOARD ====================
+$('btnUnauthorize').addEventListener('click', async () => {
+  if (!confirm('Remove admin access? The vault will stop working.')) return;
+  await fetch(`${WORKER_BASE}/unauthorize`, { method:'POST' });
+  location.reload();
+});
+
+// ========== DRAG & DROP, PASTE, KEYBOARD ==========
 dropzone.addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', e => {
   if (e.target.files.length) processFiles(e.target.files);
@@ -486,8 +380,6 @@ dropzone.addEventListener('drop', e => {
   dropzone.classList.remove('dragover');
   if (e.dataTransfer.files.length) processFiles(e.dataTransfer.files);
 });
-
-// Paste upload
 document.addEventListener('paste', e => {
   const items = e.clipboardData?.items;
   if (!items) return;
@@ -498,8 +390,6 @@ document.addEventListener('paste', e => {
     }
   }
 });
-
-// Keyboard shortcuts
 document.addEventListener('keydown', e => {
   if (e.ctrlKey && e.key === 'u') { e.preventDefault(); fileInput.click(); }
   if (e.ctrlKey && e.key === 'f') { e.preventDefault(); searchInput.focus(); }
@@ -510,22 +400,15 @@ document.addEventListener('keydown', e => {
   }
 });
 
-// ==================== UPLOAD ENGINE ====================
+// ========== UPLOAD ENGINE ==========
 async function processFiles(files) {
   for (const file of files) {
     const tempId = 'temp_' + Date.now() + Math.random();
-    const optimistic = {
-      publicId: tempId,
-      fileName: file.name,
-      fileType: file.type || 'application/octet-stream',
-      size: file.size,
-      uploadedAt: Date.now(),
-    };
-    currentFileList.unshift(optimistic);
+    currentFileList.unshift({ publicId: tempId, fileName: file.name, fileType: file.type || 'application/octet-stream', size: file.size, uploadedAt: Date.now() });
     renderFileList();
     try {
       await uploadFile(file, tempId);
-    } catch (err) {
+    } catch(err) {
       toast(`Upload failed: ${err.message}`, 'error');
       currentFileList = currentFileList.filter(f => f.publicId !== tempId);
       renderFileList();
@@ -547,10 +430,7 @@ async function uploadFile(file, tempId) {
       body: JSON.stringify({ fileName: file.name, fileSize: file.size, fileType: file.type || 'application/octet-stream' }),
       signal,
     });
-    if (!initRes.ok) {
-      const errData = await initRes.json().catch(() => ({}));
-      throw new Error(errData.error || `Init failed (HTTP ${initRes.status})`);
-    }
+    if (!initRes.ok) throw new Error((await initRes.json().catch(()=>({}))).error || 'Init failed');
     const { publicId } = await initRes.json();
     const entry = currentFileList.find(f => f.publicId === tempId);
     if (entry) entry.publicId = publicId;
@@ -560,20 +440,18 @@ async function uploadFile(file, tempId) {
     try {
       const statusRes = await fetch(`${WORKER_BASE}/upload-status/${publicId}`, { signal });
       if (statusRes.ok) {
-        const data = await statusRes.json();
-        if (data.complete) { progressBox.style.display = 'none'; return; }
-        uploaded = data.uploaded || 0;
+        const d = await statusRes.json();
+        if (d.complete) { progressBox.style.display = 'none'; return; }
+        uploaded = d.uploaded || 0;
       }
-    } catch (e) {}
+    } catch(e) {}
 
     const CHUNK_SIZE = 10 * 1024 * 1024;
     while (uploaded < file.size) {
       if (signal.aborted) throw new Error('Cancelled');
       const end = Math.min(uploaded + CHUNK_SIZE - 1, file.size - 1);
       const chunk = file.slice(uploaded, end + 1);
-
-      let retries = 0;
-      let done = false;
+      let retries = 0, done = false;
       while (retries < 3 && !done) {
         try {
           const res = await fetch(`${WORKER_BASE}/upload-chunk/${publicId}`, {
@@ -582,15 +460,15 @@ async function uploadFile(file, tempId) {
             body: chunk,
             signal,
           });
-          const data = await res.json().catch(() => ({}));
-          if (!res.ok) throw new Error(data.error || `Chunk error HTTP ${res.status}`);
+          const data = await res.json().catch(()=>({}));
+          if (!res.ok) throw new Error(data.error || 'Chunk error');
           if (data.complete) { done = true; break; }
-          if (data.uploaded !== undefined) { uploaded = data.uploaded; updateProgressBar(uploaded, file.size); done = true; }
+          if (data.uploaded !== undefined) { uploaded = data.uploaded; updateProgress(uploaded, file.size); done = true; }
           else throw new Error('Invalid chunk response');
-        } catch (err) {
+        } catch(err) {
           if (retries >= 2) throw err;
           retries++;
-          await sleep(1000 * retries);
+          await new Promise(r => setTimeout(r, 1000 * retries));
         }
       }
       if (done && uploaded >= file.size - 1) break;
@@ -599,7 +477,7 @@ async function uploadFile(file, tempId) {
         if (statusRes.ok) {
           const s = await statusRes.json();
           uploaded = s.uploaded || uploaded;
-          updateProgressBar(uploaded, file.size);
+          updateProgress(uploaded, file.size);
         }
       }
     }
@@ -610,119 +488,93 @@ async function uploadFile(file, tempId) {
   }
 }
 
-function updateProgressBar(uploaded, total) {
+function updateProgress(uploaded, total) {
   const pct = total ? Math.round((uploaded / total) * 100) : 0;
-  progressFill.style.width = `${pct}%`;
-  percentDisplay.textContent = `${pct}%`;
+  progressFill.style.width = pct + '%';
+  percentDisplay.textContent = pct + '%';
   sizeDisplay.textContent = `${fmtBytes(uploaded)} / ${fmtBytes(total)}`;
 }
 function fmtBytes(bytes) {
   if (!bytes) return '0 B';
   const units = ['B','KB','MB','GB','TB'];
-  let i = 0, s = bytes;
-  while (s >= 1024 && i < units.length - 1) { s /= 1024; i++; }
-  return s.toFixed(1) + ' ' + units[i];
+  let i=0, s=bytes;
+  while (s>=1024 && i<units.length-1) { s/=1024; i++; }
+  return s.toFixed(1)+' '+units[i];
 }
-const sleep = ms => new Promise(r => setTimeout(r, ms));
-
 cancelBtn.addEventListener('click', () => {
   if (uploadAbortController) { uploadAbortController.abort(); uploadAbortController = null; progressBox.style.display = 'none'; }
 });
 
-// ==================== FILE LIST ====================
+// ========== FILE LIST ==========
 async function refreshFileList() {
   try {
     const res = await fetch(`${WORKER_BASE}/list`);
-    if (!res.ok) throw new Error(`List failed (HTTP ${res.status})`);
+    if (!res.ok) throw new Error('List failed');
     const serverFiles = await res.json();
     const optimistic = currentFileList.filter(f => f.publicId?.startsWith('temp_'));
-    // Deduplicate: remove optimistic entries that have been replaced by real ones
     const serverIds = new Set(serverFiles.map(f => f.publicId));
-    const filteredOptimistic = optimistic.filter(f => !serverIds.has(f.publicId));
-    currentFileList = [...filteredOptimistic, ...serverFiles];
+    currentFileList = [...optimistic.filter(f => !serverIds.has(f.publicId)), ...serverFiles];
     updateStorageStats();
     renderFileList();
-  } catch (e) {
-    console.error('List error:', e);
-  }
+  } catch(e) { console.error(e); }
 }
 
 function updateStorageStats() {
   const real = currentFileList.filter(f => !f.publicId?.startsWith('temp_'));
-  const total = real.reduce((sum, f) => sum + (f.size || 0), 0);
-  storageStats.textContent = `${real.length} file${real.length !== 1 ? 's' : ''} · ${fmtBytes(total)}`;
+  storageStats.textContent = `${real.length} file${real.length!==1?'s':''} · ${fmtBytes(real.reduce((a,b)=>a+(b.size||0),0))}`;
 }
 
-function getFileIcon(mimeType) {
-  if (!mimeType) return '📄';
-  if (mimeType.startsWith('video/')) return '🎬';
-  if (mimeType.startsWith('audio/')) return '🎵';
-  if (mimeType.startsWith('image/')) return '🖼️';
-  if (mimeType === 'application/pdf') return '📕';
-  if (mimeType.startsWith('text/')) return '📝';
-  if (mimeType.includes('zip') || mimeType.includes('rar') || mimeType.includes('tar')) return '📦';
-  if (mimeType.includes('spreadsheet') || mimeType.includes('excel')) return '📊';
-  if (mimeType.includes('presentation') || mimeType.includes('powerpoint')) return '📽️';
-  if (mimeType.includes('document') || mimeType.includes('word')) return '📃';
+function getFileIcon(mime) {
+  if (!mime) return '📄';
+  if (mime.startsWith('video/')) return '🎬';
+  if (mime.startsWith('audio/')) return '🎵';
+  if (mime.startsWith('image/')) return '🖼️';
+  if (mime === 'application/pdf') return '📕';
+  if (mime.startsWith('text/')) return '📝';
   return '📄';
 }
-
-function getPreviewType(mimeType) {
-  if (!mimeType) return 'other';
-  if (mimeType.startsWith('video/')) return 'video';
-  if (mimeType.startsWith('audio/')) return 'audio';
-  if (mimeType.startsWith('image/')) return 'image';
-  if (mimeType === 'application/pdf') return 'pdf';
-  if (mimeType.startsWith('text/') || mimeType === 'application/json' || mimeType === 'application/javascript') return 'text';
+function getPreviewType(mime) {
+  if (!mime) return 'other';
+  if (mime.startsWith('video/')) return 'video';
+  if (mime.startsWith('audio/')) return 'audio';
+  if (mime.startsWith('image/')) return 'image';
+  if (mime === 'application/pdf') return 'pdf';
+  if (mime.startsWith('text/')||mime==='application/json'||mime==='application/javascript') return 'text';
   return 'other';
 }
 
-function getFilteredAndSortedFiles() {
-  let files = [...currentFileList];
-  if (searchQuery) {
-    files = files.filter(f => f.fileName.toLowerCase().includes(searchQuery.toLowerCase()));
-  }
-  switch (sortOrder) {
-    case 'newest': files.sort((a, b) => (b.uploadedAt || 0) - (a.uploadedAt || 0)); break;
-    case 'oldest': files.sort((a, b) => (a.uploadedAt || 0) - (b.uploadedAt || 0)); break;
-    case 'name-asc': files.sort((a, b) => a.fileName.localeCompare(b.fileName)); break;
-    case 'name-desc': files.sort((a, b) => b.fileName.localeCompare(a.fileName)); break;
-    case 'size-desc': files.sort((a, b) => (b.size || 0) - (a.size || 0)); break;
-    case 'size-asc': files.sort((a, b) => (a.size || 0) - (b.size || 0)); break;
-  }
-  return files;
-}
-
 function renderFileList() {
-  const files = getFilteredAndSortedFiles();
+  let files = [...currentFileList];
+  if (searchQuery) files = files.filter(f => f.fileName.toLowerCase().includes(searchQuery.toLowerCase()));
+  switch(sortOrder) {
+    case 'newest': files.sort((a,b)=>(b.uploadedAt||0)-(a.uploadedAt||0)); break;
+    case 'oldest': files.sort((a,b)=>(a.uploadedAt||0)-(b.uploadedAt||0)); break;
+    case 'name-asc': files.sort((a,b)=>a.fileName.localeCompare(b.fileName)); break;
+    case 'name-desc': files.sort((a,b)=>b.fileName.localeCompare(a.fileName)); break;
+    case 'size-desc': files.sort((a,b)=>(b.size||0)-(a.size||0)); break;
+    case 'size-asc': files.sort((a,b)=>(a.size||0)-(b.size||0)); break;
+  }
   fileGrid.innerHTML = '';
   if (!files.length) {
     fileGrid.innerHTML = `<p style="grid-column:1/-1;text-align:center;color:var(--text-secondary);padding:30px;">${
-      searchQuery ? 'No files match your search.' : 'No files yet. Upload something or click Sync.'
+      searchQuery ? 'No files match your search.' : 'No files yet. Upload or Sync.'
     }</p>`;
     return;
   }
   files.forEach(f => {
     const isUploading = f.publicId?.startsWith('temp_');
     const card = document.createElement('div');
-    card.className = 'card' + (isUploading ? ' uploading' : '') + (selectedFiles.has(f.publicId) ? ' selected' : '');
+    card.className = 'card' + (isUploading?' uploading':'') + (selectedFiles.has(f.publicId)?' selected':'');
     card.dataset.publicId = f.publicId;
     const previewType = getPreviewType(f.fileType);
-    const showPlay = previewType === 'video' || previewType === 'audio';
-    const showPreview = ['image','pdf','text'].includes(previewType);
-    const icon = getFileIcon(f.fileType);
-
     card.innerHTML = `
-      ${!isUploading ? `<input type="checkbox" class="card-checkbox" data-id="${f.publicId}" ${selectedFiles.has(f.publicId) ? 'checked' : ''}>` : ''}
-      <div class="file-icon">${icon}</div>
+      ${!isUploading?`<input type="checkbox" class="card-checkbox" data-id="${f.publicId}" ${selectedFiles.has(f.publicId)?'checked':''}>`:''}
+      <div class="file-icon">${getFileIcon(f.fileType)}</div>
       <div class="file-name">${esc(f.fileName)}</div>
-      <div class="file-meta">
-        ${fmtBytes(f.size)} · ${new Date(f.uploadedAt).toLocaleString()}
-        ${isUploading ? ' · <em>Uploading...</em>' : ''}
-      </div>
+      <div class="file-meta">${fmtBytes(f.size)} · ${new Date(f.uploadedAt).toLocaleString()}${isUploading?' · <em>Uploading...</em>':''}</div>
       <div class="actions">
-        ${showPlay ? `<button class="btn-sm btn-sm-play" data-action="play" data-id="${f.publicId}">▶ Play</button>` : ''}
-        ${showPreview ? `<button class="btn-sm btn-sm-preview" data-action="preview" data-id="${f.publicId}">🔍 Preview</button>` : ''}
+        ${(previewType==='video'||previewType==='audio')?`<button class="btn-sm btn-sm-play" data-action="play" data-id="${f.publicId}">▶ Play</button>`:''}
+        ${['image','pdf','text'].includes(previewType)?`<button class="btn-sm btn-sm-preview" data-action="preview" data-id="${f.publicId}">🔍 Preview</button>`:''}
         <button class="btn-sm btn-sm-download" data-action="download" data-id="${f.publicId}" data-name="${esc(f.fileName)}">⬇</button>
         <button class="btn-sm btn-sm-delete" data-action="delete" data-id="${f.publicId}">🗑</button>
         <button class="btn-sm btn-sm-replace" data-action="replace" data-id="${f.publicId}">🔄</button>
@@ -730,21 +582,19 @@ function renderFileList() {
     fileGrid.appendChild(card);
   });
 
-  // Attach button events
+  // Attach button handlers
   fileGrid.querySelectorAll('.btn-sm[data-action]').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
-      const action = btn.dataset.action;
-      const id = btn.dataset.id;
+      const action = btn.dataset.action, id = btn.dataset.id;
       if (action === 'play') openPreview(id, 'video');
-      else if (action === 'preview') openPreview(id, getPreviewType(currentFileList.find(f => f.publicId === id)?.fileType));
+      else if (action === 'preview') openPreview(id, getPreviewType(currentFileList.find(f=>f.publicId===id)?.fileType));
       else if (action === 'download') downloadFile(id, btn.dataset.name);
       else if (action === 'delete') deleteFile(id);
       else if (action === 'replace') replaceFile(id);
     });
   });
-
-  // Checkbox events
+  // Checkbox & card selection
   fileGrid.querySelectorAll('.card-checkbox').forEach(cb => {
     cb.addEventListener('click', e => {
       e.stopPropagation();
@@ -755,11 +605,9 @@ function renderFileList() {
       renderFileList();
     });
   });
-
-  // Click card to toggle select
   fileGrid.querySelectorAll('.card').forEach(card => {
     card.addEventListener('click', e => {
-      if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
+      if (e.target.tagName==='BUTTON'||e.target.tagName==='INPUT') return;
       const id = card.dataset.publicId;
       if (!id || id.startsWith('temp_')) return;
       if (selectedFiles.has(id)) selectedFiles.delete(id);
@@ -768,192 +616,130 @@ function renderFileList() {
       renderFileList();
     });
   });
-
   updateBulkBar();
 }
+function esc(s) { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
 
-function esc(str) { const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
-
-// ==================== BULK ACTIONS ====================
+// ========== BULK ACTIONS ==========
 function updateBulkBar() {
-  if (selectedFiles.size > 0) {
-    bulkBar.classList.add('active');
-    bulkCount.textContent = `${selectedFiles.size} file${selectedFiles.size > 1 ? 's' : ''} selected`;
-  } else {
-    bulkBar.classList.remove('active');
-  }
+  if (selectedFiles.size) { bulkBar.classList.add('active'); bulkCount.textContent = `${selectedFiles.size} selected`; }
+  else bulkBar.classList.remove('active');
 }
-
-$('btnBulkCancel').addEventListener('click', () => { selectedFiles.clear(); renderFileList(); updateBulkBar(); });
-$('btnBulkDelete').addEventListener('click', async () => {
+$('btnBulkCancel').addEventListener('click', ()=>{ selectedFiles.clear(); renderFileList(); updateBulkBar(); });
+$('btnBulkDelete').addEventListener('click', async ()=>{
   if (!confirm(`Delete ${selectedFiles.size} file(s)?`)) return;
-  let failed = 0;
   for (const id of selectedFiles) {
-    try {
-      const res = await fetch(`${WORKER_BASE}/delete/${id}`, { method: 'DELETE' });
-      if (!res.ok) failed++;
-    } catch (e) { failed++; }
+    try { await fetch(`${WORKER_BASE}/delete`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ publicId: id }) }); } catch(e){}
   }
-  selectedFiles.clear();
-  updateBulkBar();
-  await refreshFileList();
-  if (failed) toast(`${failed} file(s) failed to delete.`, 'error');
-  else toast('Files deleted!', 'success');
+  selectedFiles.clear(); updateBulkBar(); await refreshFileList(); toast('Files deleted', 'success');
 });
 
-// ==================== SEARCH & SORT ====================
-searchInput.addEventListener('input', () => {
-  searchQuery = searchInput.value;
-  renderFileList();
-});
-sortSelect.addEventListener('change', () => {
-  sortOrder = sortSelect.value;
-  renderFileList();
-});
+// ========== SEARCH & SORT ==========
+searchInput.addEventListener('input', ()=>{ searchQuery = searchInput.value; renderFileList(); });
+sortSelect.addEventListener('change', ()=>{ sortOrder = sortSelect.value; renderFileList(); });
 
-// ==================== PREVIEW ====================
+// ========== PREVIEW ==========
 function openPreview(publicId, type) {
   previewContainer.innerHTML = '';
   const url = `${WORKER_BASE}/video/${publicId}`;
   if (type === 'video' || type === 'audio') {
-    const media = document.createElement(type === 'audio' ? 'audio' : 'video');
+    const media = document.createElement(type==='audio'?'audio':'video');
     media.src = url; media.controls = true; media.playsInline = true;
-    media.style.maxWidth = '95%'; media.style.maxHeight = '95%';
-    if (type === 'audio') { media.style.width = '500px'; media.style.maxHeight = '80px'; }
+    media.style.maxWidth='95%'; media.style.maxHeight='95%';
+    if (type==='audio') { media.style.width='500px'; media.style.maxHeight='80px'; }
     previewContainer.appendChild(media);
-    media.play().catch(() => {});
+    media.play().catch(()=>{});
   } else if (type === 'image') {
-    const img = document.createElement('img'); img.src = url;
-    img.style.maxWidth = '95%'; img.style.maxHeight = '95%'; img.style.objectFit = 'contain';
+    const img = document.createElement('img'); img.src = url; img.style.maxWidth='95%'; img.style.maxHeight='95%'; img.style.objectFit='contain';
     previewContainer.appendChild(img);
   } else if (type === 'pdf') {
-    const iframe = document.createElement('iframe'); iframe.src = url;
-    iframe.style.width = '90%'; iframe.style.height = '90%'; previewContainer.appendChild(iframe);
+    const iframe = document.createElement('iframe'); iframe.src = url; iframe.style.width='90%'; iframe.style.height='90%';
+    previewContainer.appendChild(iframe);
   } else if (type === 'text') {
-    fetch(url).then(r => r.text()).then(t => {
+    fetch(url).then(r=>r.text()).then(t=>{
       const pre = document.createElement('pre'); pre.textContent = t; previewContainer.appendChild(pre);
-    }).catch(() => {
-      previewContainer.innerHTML = '<p style="color:#fff;">Failed to load preview</p>';
-    });
+    }).catch(()=>{ previewContainer.innerHTML = '<p style="color:#fff;">Failed to load preview</p>'; });
   } else {
-    downloadFile(publicId, currentFileList.find(f => f.publicId === publicId)?.fileName || 'file');
+    downloadFile(publicId, currentFileList.find(f=>f.publicId===publicId)?.fileName||'file');
     return;
   }
   previewOverlay.classList.add('active');
 }
-
 function closePreview() {
   previewContainer.innerHTML = '';
   previewOverlay.classList.remove('active');
   if (document.fullscreenElement) document.exitFullscreen();
 }
 btnClosePreview.addEventListener('click', closePreview);
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && previewOverlay.classList.contains('active')) closePreview();
-});
-btnFullscreen.addEventListener('click', () => {
+btnFullscreen.addEventListener('click', ()=>{
   if (document.fullscreenElement) document.exitFullscreen();
   else previewOverlay.requestFullscreen();
 });
 
-// ==================== DOWNLOAD / DELETE / REPLACE ====================
+// ========== DOWNLOAD / DELETE / REPLACE ==========
 function downloadFile(publicId, name) {
   const a = document.createElement('a');
   a.href = `${WORKER_BASE}/download/${publicId}`;
   a.download = name || 'file';
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
 }
-
 async function deleteFile(publicId) {
   if (!confirm('Permanently delete this file?')) return;
-  try {
-    const res = await fetch(`${WORKER_BASE}/delete/${publicId}`, { method: 'DELETE' });
-    if (res.ok) {
-      currentFileList = currentFileList.filter(f => f.publicId !== publicId);
-      selectedFiles.delete(publicId);
-      renderFileList();
-      updateBulkBar();
-      updateStorageStats();
-      toast('File deleted', 'success');
-    } else {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || 'Delete failed');
-    }
-  } catch (err) {
-    toast('Delete failed: ' + err.message, 'error');
-  }
+  const res = await fetch(`${WORKER_BASE}/delete`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ publicId })
+  });
+  if (res.ok) {
+    currentFileList = currentFileList.filter(f => f.publicId !== publicId);
+    selectedFiles.delete(publicId);
+    renderFileList(); updateBulkBar(); updateStorageStats();
+    toast('File deleted', 'success');
+  } else toast('Delete failed', 'error');
 }
-
 function replaceFile(publicId) {
   const input = document.createElement('input'); input.type = 'file';
   input.onchange = async () => {
     const file = input.files[0]; if (!file) return;
     try {
       progressBox.style.display = 'block';
-      // Init update session
-      const initRes = await fetch(`${WORKER_BASE}/update/${publicId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileName: file.name, fileType: file.type || 'application/octet-stream' })
+      const initRes = await fetch(`${WORKER_BASE}/update`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ publicId, fileName: file.name, fileType: file.type || 'application/octet-stream' })
       });
-      if (!initRes.ok) {
-        const err = await initRes.json().catch(() => ({}));
-        throw new Error(err.error || 'Update init failed');
-      }
+      if (!initRes.ok) throw new Error((await initRes.json().catch(()=>({}))).error || 'Update init failed');
       const { publicId: newPid } = await initRes.json();
 
-      // Upload chunks
       let uploaded = 0;
-      try {
-        const statusRes = await fetch(`${WORKER_BASE}/upload-status/${newPid}`);
-        if (statusRes.ok) {
-          const data = await statusRes.json();
-          if (data.complete) { progressBox.style.display = 'none'; await refreshFileList(); return; }
-          uploaded = data.uploaded || 0;
-        }
-      } catch (e) {}
-
-      const CHUNK_SIZE = 10 * 1024 * 1024;
+      const CHUNK_SIZE = 10*1024*1024;
       while (uploaded < file.size) {
-        const end = Math.min(uploaded + CHUNK_SIZE - 1, file.size - 1);
-        const chunk = file.slice(uploaded, end + 1);
-        let retries = 0, done = false;
-        while (retries < 3 && !done) {
+        const end = Math.min(uploaded+CHUNK_SIZE-1, file.size-1);
+        const chunk = file.slice(uploaded, end+1);
+        let retries=0, done=false;
+        while(retries<3 && !done) {
           try {
             const res = await fetch(`${WORKER_BASE}/upload-chunk/${newPid}`, {
-              method: 'PUT',
-              headers: { 'Content-Range': `bytes ${uploaded}-${end}/${file.size}` },
-              body: chunk,
+              method:'PUT', headers:{'Content-Range':`bytes ${uploaded}-${end}/${file.size}`}, body: chunk
             });
-            const data = await res.json().catch(() => ({}));
+            const data = await res.json().catch(()=>({}));
             if (!res.ok) throw new Error(data.error || 'Chunk error');
-            if (data.complete) { done = true; break; }
-            if (data.uploaded !== undefined) { uploaded = data.uploaded; updateProgressBar(uploaded, file.size); done = true; }
+            if (data.complete) { done=true; break; }
+            if (data.uploaded !== undefined) { uploaded=data.uploaded; updateProgress(uploaded, file.size); done=true; }
             else throw new Error('Invalid chunk response');
-          } catch (err) {
-            if (retries >= 2) throw err;
-            retries++;
-            await sleep(1000 * retries);
-          }
+          } catch(err) { if (retries>=2) throw err; retries++; await new Promise(r=>setTimeout(r,1000*retries)); }
         }
-        if (done && uploaded >= file.size - 1) break;
+        if (done && uploaded >= file.size-1) break;
       }
       await refreshFileList();
       toast('File replaced!', 'success');
-    } catch (err) {
-      toast('Replace failed: ' + err.message, 'error');
-    } finally {
-      progressBox.style.display = 'none';
-    }
+    } catch(err) { toast('Replace failed: '+err.message, 'error'); }
+    finally { progressBox.style.display = 'none'; }
   };
   input.click();
 }
 
-// ==================== INIT ====================
-checkAdmin();
-
-// Periodic connection check
-setInterval(checkAdmin, 60000);
+// ========== INIT ==========
+checkAuth();
+setInterval(checkAuth, 300000); // refresh auth state every 5 min
 </script>
 </body>
 </html>
