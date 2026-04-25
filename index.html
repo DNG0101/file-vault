@@ -55,6 +55,9 @@
   }
   .dropzone:hover, .dragover { border-color: var(--accent); background: #e8f0fe; }
   .dropzone input { display: none; }
+  .paste-hint {
+    font-size: 0.9rem; color: #666; margin-bottom: 16px; text-align: center;
+  }
   /* Progress */
   .progress-box { margin-bottom: 20px; display: none; }
   .progress-bar { height: 8px; background: #e0e0e0; border-radius: 4px; overflow: hidden; }
@@ -68,7 +71,7 @@
     box-shadow: var(--shadow); display: flex; flex-direction: column;
     position: relative;
   }
-  .card.uploading { opacity: 0.7; }
+  .card.uploading { opacity: 0.6; }
   .file-name { font-weight: 600; word-break: break-all; margin-bottom: 8px; }
   .file-meta { font-size: 0.8rem; color: #666; margin-bottom: 12px; }
   .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; }
@@ -84,10 +87,10 @@
   .btn-download { background: var(--success); color: #fff; }
   .btn-delete { background: var(--danger); color: #fff; }
   .btn-replace { background: var(--warn); color: #222; }
-  /* Preview / video overlay */
+  /* Preview overlay */
   .preview-overlay {
     display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.9); z-index: 1000; justify-content: center; align-items: center;
+    background: rgba(0,0,0,0.95); z-index: 1000; justify-content: center; align-items: center;
     flex-direction: column;
   }
   .preview-overlay.active { display: flex; }
@@ -96,11 +99,14 @@
     position: relative;
   }
   .preview-container img, .preview-container iframe, .preview-container video, .preview-container pre {
-    max-width: 95%; max-height: 95%; object-fit: contain; background: #000;
+    max-width: 95%; max-height: 95%; object-fit: contain;
   }
   .preview-container pre {
     background: #fff; color: #000; padding: 20px; overflow: auto; white-space: pre-wrap; word-break: break-all;
     max-width: 80%; max-height: 80%; border-radius: 8px;
+  }
+  .preview-container audio {
+    width: 80%; max-width: 500px;
   }
   .preview-toolbar {
     position: absolute; top: 16px; right: 16px; display: flex; gap: 10px; z-index: 1001;
@@ -111,9 +117,6 @@
     font-size: 0.9rem;
   }
   .preview-toolbar button:hover { background: rgba(255,255,255,0.3); }
-  .paste-hint {
-    font-size: 0.9rem; color: #666; margin-bottom: 16px; text-align: center;
-  }
   @media (max-width: 500px) {
     body { padding: 12px; }
     .dropzone { padding: 30px 15px; }
@@ -123,14 +126,14 @@
 </head>
 <body>
 
-<!-- Auth prompt -->
+<!-- Auth prompt (visible when not authenticated) -->
 <div id="authPrompt" class="auth-box hidden">
   <h1>📁 Public File Vault</h1>
   <p style="margin-bottom: 20px;">This app needs permission to store files in your Google Drive.</p>
   <button class="auth-btn" id="authBtn">Authorize with Google</button>
 </div>
 
-<!-- Main app -->
+<!-- Main app (visible after auth) -->
 <div id="mainApp" class="hidden">
   <div class="container">
     <div class="header">
@@ -159,7 +162,7 @@
     <div class="file-grid" id="fileGrid"></div>
   </div>
 
-  <!-- Preview overlay (for documents, images, video, audio) -->
+  <!-- Preview overlay -->
   <div class="preview-overlay" id="previewOverlay">
     <div class="preview-container" id="previewContainer"></div>
     <div class="preview-toolbar">
@@ -194,7 +197,6 @@ const btnClosePreview = document.getElementById('btnClosePreview');
 
 let uploadAbortController = null;
 let currentFileList = [];
-let uploadingFiles = {}; // publicId -> {file, status}
 
 // ===================== AUTHENTICATION =====================
 async function checkAuth() {
@@ -257,7 +259,7 @@ function addOptimisticFile(file) {
   const optimisticEntry = {
     publicId: tempId,
     fileName: file.name,
-    fileType: file.type,
+    fileType: file.type || 'application/octet-stream',
     size: file.size,
     uploadedAt: Date.now(),
   };
@@ -269,6 +271,11 @@ function addOptimisticFile(file) {
 function removeOptimisticFile(tempId) {
   currentFileList = currentFileList.filter(f => f.publicId !== tempId);
   renderFileList();
+}
+
+function updateOptimisticFile(tempId, realPublicId) {
+  const entry = currentFileList.find(f => f.publicId === tempId);
+  if (entry) entry.publicId = realPublicId;
 }
 
 // ===================== UPLOAD ENGINE =====================
@@ -283,7 +290,7 @@ async function processFiles(files) {
       removeOptimisticFile(tempId);
     }
   }
-  await refreshFileList(); // Refresh to get real data
+  await refreshFileList(); // Refresh to get real server data
 }
 
 async function uploadFile(file, tempId) {
@@ -301,30 +308,24 @@ async function uploadFile(file, tempId) {
       signal,
     });
     if (!initRes.ok) {
-      const errText = await initRes.text();
-      throw new Error(`Init failed (HTTP ${initRes.status}): ${errText}`);
+      const errData = await initRes.json().catch(() => ({}));
+      throw new Error(errData.error || `Init failed (HTTP ${initRes.status})`);
     }
     const { publicId } = await initRes.json();
+    updateOptimisticFile(tempId, publicId);
 
-    // Update optimistic entry with real publicId
-    const optimisticEntry = currentFileList.find(f => f.publicId === tempId);
-    if (optimisticEntry) optimisticEntry.publicId = publicId;
-
-    // 2. Resume progress
+    // 2. Check if already partially uploaded
     let uploaded = 0;
     try {
       const statusRes = await fetch(`${WORKER_BASE}/upload-status/${publicId}`, { signal });
       if (statusRes.ok) {
         const data = await statusRes.json();
-        if (data.complete) {
-          progressBox.style.display = 'none';
-          return;
-        }
+        if (data.complete) { progressBox.style.display = 'none'; return; }
         uploaded = data.uploaded || 0;
       }
     } catch (e) {}
 
-    // 3. Chunked upload
+    // 3. Chunked upload with explicit error handling
     const CHUNK_SIZE = 10 * 1024 * 1024; // 10 MB
     while (uploaded < file.size) {
       if (signal.aborted) throw new Error('Cancelled');
@@ -341,14 +342,19 @@ async function uploadFile(file, tempId) {
             signal,
           });
           const data = await res.json().catch(() => ({}));
-          if (res.ok && data.complete) { done = true; break; }
-          else if (res.ok && data.uploaded !== undefined) {
+          if (!res.ok) {
+            throw new Error(data.error || `Chunk error HTTP ${res.status}`);
+          }
+          if (data.complete) {
+            done = true;
+            break;
+          }
+          if (data.uploaded !== undefined) {
             uploaded = data.uploaded;
             updateProgress(uploaded, file.size);
             done = true;
           } else {
-            const errorMsg = data.error || `Chunk error HTTP ${res.status}`;
-            throw new Error(errorMsg);
+            throw new Error('Invalid chunk response');
           }
         } catch (err) {
           if (retries >= 2) throw err;
@@ -401,7 +407,10 @@ async function refreshFileList() {
   try {
     const res = await fetch(`${WORKER_BASE}/list`);
     if (!res.ok) throw new Error(`List failed (HTTP ${res.status})`);
-    currentFileList = await res.json();
+    const files = await res.json();
+    // Keep any optimistic entries that haven't been replaced yet (they don't exist on server)
+    const optimistic = currentFileList.filter(f => f.publicId?.startsWith('temp_'));
+    currentFileList = [...files, ...optimistic];
     renderFileList();
   } catch (e) {
     console.error('Refresh list error:', e);
@@ -436,7 +445,7 @@ function renderFileList() {
       <div class="file-name">${escapeHtml(f.fileName)}</div>
       <div class="file-meta">
         ${formatBytes(f.size)} · ${new Date(f.uploadedAt).toLocaleString()}
-        ${isUploading ? ' · Uploading...' : ''}
+        ${isUploading ? ' · <em>Uploading...</em>' : ''}
       </div>
       <div class="actions">
         ${showPlay ? `<button class="btn btn-play" data-action="play" data-id="${f.publicId}">▶ Play</button>` : ''}
@@ -478,8 +487,9 @@ function openPreview(publicId, type) {
     media.src = url;
     media.controls = true;
     media.playsInline = true;
-    media.style.maxWidth = '95%';
+    media.style.maxWidth = type === 'audio' ? '80%' : '95%';
     media.style.maxHeight = '95%';
+    if (type === 'audio') media.style.width = '500px';
     previewContainer.appendChild(media);
     media.play().catch(() => {});
   } else if (type === 'image') {
@@ -609,12 +619,13 @@ async function uploadReplaceFile(file, publicId) {
           body: chunk,
         });
         const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Chunk error');
         if (data.complete) { done = true; break; }
-        else if (res.ok && data.uploaded !== undefined) {
+        if (data.uploaded !== undefined) {
           uploaded = data.uploaded;
           updateProgress(uploaded, file.size);
           done = true;
-        } else throw new Error(data.error || 'Chunk error');
+        } else throw new Error('Invalid chunk response');
       } catch (err) {
         if (retries >= 2) throw err;
         retries++;
