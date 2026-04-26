@@ -1,5 +1,5 @@
 // ==================== CONFIG ====================
-const WORKER_BASE = 'https://gdrive-files-api.donthulanithish53.workers.dev';
+const WORKER_BASE = 'https://gdrive-files-api.donthulanithish53.workers.dev';   // ← CHANGE TO YOUR DOMAIN
 
 // ==================== STATE ====================
 const state = {
@@ -7,7 +7,7 @@ const state = {
   adminToken:  localStorage.getItem('adminToken')  || null,
   isAdmin:     false,
   userEmail:   null,
-  userApproved:false,
+  userApproved: false,
   userRole:    null,
   files:       [],
   selected:    new Set(),
@@ -15,7 +15,7 @@ const state = {
   query:       '',
   uploadCtrl:  null,
   dark:        localStorage.getItem('darkMode') === 'true',
-  polls:       { role: null, approval: null, admin: null },
+  polls:       { role: null, approval: null, admin: null, userPoll: null },
 };
 
 // ==================== DOM REFS ====================
@@ -23,6 +23,7 @@ const $ = id => document.getElementById(id);
 const DOM = {
   stats:        $('storageStats'),
   adminUI:      $('adminUI'),
+  userUI:       $('userUI'),
   adminBar:     $('adminBar'),
   dropzone:     $('dropzone'),
   fileInput:    $('fileInput'),
@@ -60,6 +61,8 @@ const DOM = {
   pnlShare:     $('sharePanel'),
   shareContent: $('shareContent'),
   pendingBadge: $('pendingBadge'),
+  btnClearLogs: $('btnClearLogs'),
+  btnUserLogout:$('btnUserLogout'),
 };
 
 // ==================== UTILITIES ====================
@@ -123,9 +126,9 @@ async function validateAdmin() {
       state.userEmail = data.email;
       showMain();
       DOM.adminBar.classList.remove('hidden');
-      loadPendingCount();
-      fetchFiles();
       startAdminPolling();
+      fetchFiles();
+      loadPendingCount();
     } else {
       localStorage.removeItem('adminToken');
       state.adminToken = null;
@@ -148,6 +151,7 @@ async function fetchUserInfo() {
 function showLogin() {
   DOM.adminBar.classList.add('hidden');
   DOM.adminUI.innerHTML = '';
+  DOM.userUI.innerHTML = '';
   DOM.grid.innerHTML = `
     <div style="grid-column:1/-1; text-align:center; padding:60px;">
       <h2>Welcome to File Vault</h2>
@@ -178,10 +182,29 @@ function showPending() {
 
 function showMain() {
   document.querySelector('.hint-text').style.display = '';
-  if (!state.isAdmin) {
+  if (state.isAdmin) {
+    DOM.adminBar.classList.remove('hidden');
+    DOM.adminUI.innerHTML = '';
+    DOM.userUI.innerHTML = '';
+  } else {
     DOM.adminBar.classList.add('hidden');
-    DOM.adminUI.innerHTML = state.userEmail ? `👤 ${state.userEmail} (${state.userRole||''})` : '';
+    DOM.adminUI.innerHTML = '';
+    DOM.userUI.innerHTML = state.userEmail ? `<span style="font-size:0.85rem;">👤 ${state.userEmail} (${state.userRole||''}) <button class="btn btn-sm btn-outline" id="btnUserLogout">🔒 Logout</button></span>` : '';
+    if (document.getElementById('btnUserLogout')) {
+      document.getElementById('btnUserLogout').onclick = userLogout;
+    }
   }
+}
+
+function userLogout() {
+  localStorage.removeItem('userToken');
+  state.userToken = null;
+  state.userApproved = false;
+  state.userRole = null;
+  state.userEmail = null;
+  clearIntervals();
+  showLogin();
+  toast('You have been logged out.');
 }
 
 function renderUI() {
@@ -193,12 +216,14 @@ function renderUI() {
   applyRoleUI();
   fetchFiles();
   startRolePolling();
+  startUserPolling();
 }
 
 function clearIntervals() {
   if(state.polls.role) clearInterval(state.polls.role);
   if(state.polls.approval) clearInterval(state.polls.approval);
   if(state.polls.admin) clearInterval(state.polls.admin);
+  if(state.polls.userPoll) clearInterval(state.polls.userPoll);
 }
 
 // ==================== ADMIN BAR ====================
@@ -208,7 +233,6 @@ DOM.btnSync.onclick = async ()=>{
   if (r.ok) { await fetchFiles(); toast('Sync done','success'); } else toast('Sync failed','error');
 };
 
-// Toggle panels
 DOM.btnAppr.onclick = ()=>{ DOM.pnlAppr.classList.toggle('hidden'); if(!DOM.pnlAppr.classList.contains('hidden')) loadPending(); };
 DOM.btnAllUsers.onclick = ()=>{ DOM.pnlUsers.classList.toggle('hidden'); if(!DOM.pnlUsers.classList.contains('hidden')) loadAllUsers(); };
 DOM.btnLogs.onclick = ()=>{ DOM.pnlLogs.classList.toggle('hidden'); if(!DOM.pnlLogs.classList.contains('hidden')) loadLogs(); };
@@ -223,13 +247,14 @@ DOM.btnUnAuth.onclick = async ()=>{
   init();
 };
 
-// ── LOAD PENDING / USERS ─────────────────────────────────
+// ── Pending / Users ─────────────────────────────────
 async function loadPendingCount() {
   const r = await fetch(`${WORKER_BASE}/admin/pending`,{headers:{'X-Admin-Token':state.adminToken}});
   const pending = await r.json();
   if (pending.length) { DOM.pendingBadge.textContent = pending.length; DOM.pendingBadge.classList.remove('hidden'); }
   else DOM.pendingBadge.classList.add('hidden');
 }
+
 function loadPending() {
   fetch(`${WORKER_BASE}/admin/pending`,{headers:{'X-Admin-Token':state.adminToken}})
     .then(r=>r.json())
@@ -303,7 +328,7 @@ function loadAllUsers() {
     });
 }
 
-// ── LOGS ──────────────────────────────────────────────
+// ── Logs ──────────────────────────────────────────────
 async function loadLogs() {
   const r = await fetch(`${WORKER_BASE}/admin/logs?limit=100`,{headers:{'X-Admin-Token':state.adminToken}});
   const data = await r.json();
@@ -314,7 +339,13 @@ async function loadLogs() {
   `).join('') : '<p>No logs yet.</p>';
 }
 
-// ── ANALYTICS ──────────────────────────────────────────
+DOM.btnClearLogs.onclick = async () => {
+  if (!confirm('Delete all audit logs?')) return;
+  const r = await fetch(`${WORKER_BASE}/admin/logs/clear`,{method:'POST',headers:{'X-Admin-Token':state.adminToken}});
+  if (r.ok) { loadLogs(); toast('Logs cleared'); } else toast('Failed to clear logs','error');
+};
+
+// ── Analytics ──────────────────────────────────────────
 async function loadAnalytics() {
   const r = await fetch(`${WORKER_BASE}/admin/analytics`,{headers:{'X-Admin-Token':state.adminToken}});
   const d = await r.json();
@@ -328,15 +359,12 @@ async function loadAnalytics() {
   `;
 }
 
-// ── SHARE MANAGEMENT ──────────────────────────────────
+// ── Shares ────────────────────────────────────────────
 async function loadShares() {
-  // The worker doesn't have a list endpoint, just show a placeholder.
   DOM.shareContent.innerHTML = '<p>Create a share link from a file card (🔗 Share).</p>';
 }
 
-// ───────────────────────────────────────────────────────
-// FILE OPERATIONS
-// ───────────────────────────────────────────────────────
+// ==================== FILE OPERATIONS ====================
 async function fetchFiles() {
   const r = await fetch(`${WORKER_BASE}/list`);
   if (!r.ok) return;
@@ -480,19 +508,106 @@ async function shareFile(publicId) {
   if(r.ok) {
     const shareUrl = data.shareUrl;
     toast('Share link created!');
-    // copy to clipboard
     navigator.clipboard.writeText(shareUrl).then(()=>toast('Link copied to clipboard'));
   } else toast('Share failed','error');
 }
 
-// ── UPLOAD (reuse existing) ──
-// (upload logic same as before, not repeated for brevity but included in actual file)
-// ... [processFiles, uploadFile, updateProgress, etc.]
+// ───────────────────────────────────────────────────────
+// UPLOAD (unchanged, included for completeness)
+// ───────────────────────────────────────────────────────
+DOM.dropzone.onclick = ()=>DOM.fileInput.click();
+DOM.fileInput.onchange = e=>{ if(e.target.files.length) processFiles(e.target.files); e.target.value=''; };
+DOM.dropzone.ondragover = e=>{ e.preventDefault(); DOM.dropzone.classList.add('dragover'); };
+DOM.dropzone.ondragleave = ()=>DOM.dropzone.classList.remove('dragover');
+DOM.dropzone.ondrop = e=>{ e.preventDefault(); DOM.dropzone.classList.remove('dragover'); if(e.dataTransfer.files.length) processFiles(e.dataTransfer.files); };
+document.addEventListener('paste', e=>{
+  const items = e.clipboardData?.items; if(!items) return;
+  const files = []; for(const item of items) if(item.kind==='file'){ const f=item.getAsFile(); if(f) files.push(f); }
+  if(files.length){ e.preventDefault(); processFiles(files); }
+});
+document.addEventListener('keydown', e=>{
+  if(e.ctrlKey&&e.key==='u'){e.preventDefault();DOM.fileInput.click();}
+  if(e.ctrlKey&&e.key==='f'){e.preventDefault();DOM.search.focus();}
+  if(e.key==='Escape'){ if(!DOM.previewOv.classList.contains('hidden')) closePreview(); if(state.selected.size){state.selected.clear();renderFiles();updateBulkBar();} }
+});
 
-// ── PREVIEW / DOWNLOAD / DELETE / REPLACE ──
-// (same as before)
+async function processFiles(files){ for(const file of files) await uploadFile(file); await fetchFiles(); }
 
-// ── POLLING ──
+async function uploadFile(file, existingPublicId=null){
+  if(state.uploadCtrl) state.uploadCtrl.abort();
+  state.uploadCtrl = new AbortController(); const signal = state.uploadCtrl.signal;
+  DOM.progressBox.classList.remove('hidden');
+  try{
+    let publicId = existingPublicId;
+    if(!publicId){
+      const ir = await fetch(`${WORKER_BASE}/upload-init`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fileName:file.name,fileSize:file.size,fileType:file.type||'application/octet-stream'}),signal});
+      if(!ir.ok) throw new Error('Init failed');
+      const {publicId:pid} = await ir.json(); publicId = pid;
+    }
+    const CHUNK = 10*1024*1024; let uploaded=0;
+    while(uploaded<file.size){
+      if(signal.aborted) throw new Error('Cancelled');
+      const end = Math.min(uploaded+CHUNK-1, file.size-1);
+      const chunk = file.slice(uploaded,end+1);
+      let retries=3, done=false;
+      while(retries--&&!done){
+        const cr = await fetch(`${WORKER_BASE}/upload-chunk/${publicId}`,{method:'PUT',headers:{'Content-Range':`bytes ${uploaded}-${end}/${file.size}`},body:chunk,signal});
+        const data = await cr.json();
+        if(cr.ok){ uploaded=data.uploadedBytes||end+1; updateProgress(uploaded,file.size); if(data.status==='complete'){done=true;break;} }
+        else { if(retries<=0) throw new Error(data.error||'Chunk error'); await new Promise(r=>setTimeout(r,1000)); }
+      }
+    }
+    toast(`${file.name} uploaded`,'success');
+  }catch(err){ if(err.message!=='Cancelled') toast(`Upload failed: ${err.message}`,'error'); }
+  finally{ DOM.progressBox.classList.add('hidden'); state.uploadCtrl=null; }
+}
+
+function updateProgress(u,t){ const pct=Math.round(u/t*100); DOM.progressFill.style.width=pct+'%'; DOM.percent.textContent=pct+'%'; DOM.sizeDisp.textContent=`${fmtSize(u)} / ${fmtSize(t)}`; }
+DOM.cancelBtn.onclick = ()=>{ if(state.uploadCtrl) state.uploadCtrl.abort(); };
+
+// ==================== PREVIEW ====================
+function openPreview(pid,type){
+  DOM.previewCont.innerHTML=''; const url=`${WORKER_BASE}/video/${pid}`;
+  if(type==='video'||type==='audio'){
+    const media = document.createElement(type==='audio'?'audio':'video');
+    media.src=url; media.controls=true; media.playsInline=true;
+    media.style.width='100%'; media.style.height='100%'; media.style.objectFit='contain';
+    DOM.previewCont.appendChild(media);
+    media.play().catch(()=>{});
+  } else if(type==='image'){
+    const img=document.createElement('img'); img.src=url; img.style.maxWidth='95%'; img.style.maxHeight='95%'; DOM.previewCont.appendChild(img);
+  } else if(type==='pdf'){
+    const ifr=document.createElement('iframe'); ifr.src=url; ifr.style.width='90%'; ifr.style.height='90%'; DOM.previewCont.appendChild(ifr);
+  } else if(type==='text'){
+    fetch(url).then(r=>r.text()).then(t=>{ const pre=document.createElement('pre'); pre.textContent=t; DOM.previewCont.appendChild(pre); });
+  } else { downloadFile(pid); return; }
+  DOM.previewOv.classList.remove('hidden');
+  // Fullscreen on double-click or button
+}
+function closePreview(){ DOM.previewCont.innerHTML=''; DOM.previewOv.classList.add('hidden'); if(document.fullscreenElement) document.exitFullscreen(); }
+DOM.btnCloseP.onclick=closePreview;
+DOM.btnFull.onclick=()=>{ if(document.fullscreenElement) document.exitFullscreen(); else DOM.previewOv.requestFullscreen(); };
+
+// ==================== DOWNLOAD / DELETE / REPLACE ====================
+function downloadFile(pid){ const a=document.createElement('a'); a.href=`${WORKER_BASE}/download/${pid}`; a.download=''; document.body.appendChild(a); a.click(); document.body.removeChild(a); }
+async function deleteFile(pid){
+  if(!confirm('Delete?')) return;
+  const r=await fetch(`${WORKER_BASE}/delete`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':state.adminToken,'X-User-Token':state.userToken},body:JSON.stringify({publicId:pid})});
+  if(r.ok){ state.files=state.files.filter(f=>f.publicId!==pid); state.selected.delete(pid); renderFiles(); updateBulkBar(); toast('Deleted','success'); }
+  else toast('Delete failed','error');
+}
+function replaceFile(pid){
+  const inp=document.createElement('input'); inp.type='file'; inp.onchange=async ()=>{
+    const file=inp.files[0]; if(!file) return;
+    const ir=await fetch(`${WORKER_BASE}/update`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':state.adminToken,'X-User-Token':state.userToken},body:JSON.stringify({publicId:pid,fileName:file.name,fileSize:file.size,fileType:file.type||'application/octet-stream'})});
+    if(!ir.ok){ toast('Update init failed','error'); return; }
+    const {publicId}=await ir.json();
+    await uploadFile(file,publicId); await fetchFiles();
+  };
+  inp.click();
+}
+
+// ==================== POLLING ====================
 function startRolePolling(){
   if(state.polls.role) clearInterval(state.polls.role);
   state.polls.role = setInterval(async ()=>{
@@ -514,7 +629,37 @@ function startApprovalPolling(){
 }
 function startAdminPolling(){
   if(state.polls.admin) clearInterval(state.polls.admin);
-  state.polls.admin = setInterval(async ()=>{ await loadPendingCount(); },30000);
+  let lastTs = 0;
+  const poll = async () => {
+    if(!state.adminToken) return;
+    const r = await fetch(`${WORKER_BASE}/admin/poll?since=${lastTs}&timeout=20`,{headers:{'X-Admin-Token':state.adminToken}});
+    const data = await r.json();
+    if(data.changed){
+      lastTs = data.ts;
+      // Refresh pending count & any open lists
+      loadPendingCount();
+      if(!DOM.pnlAppr.classList.contains('hidden')) loadPending();
+      if(!DOM.pnlUsers.classList.contains('hidden')) loadAllUsers();
+      if(!DOM.pnlLogs.classList.contains('hidden')) loadLogs();
+    }
+    state.polls.admin = setTimeout(poll, 1000); // poll again after 1s
+  };
+  poll();
+}
+function startUserPolling(){
+  if(state.polls.userPoll) clearInterval(state.polls.userPoll);
+  let lastTs = 0;
+  const poll = async () => {
+    if(!state.userToken || !state.userApproved) return;
+    const r = await fetch(`${WORKER_BASE}/poll?utoken=${state.userToken}&since=${lastTs}&timeout=20`);
+    const data = await r.json();
+    if(data.changed){
+      lastTs = data.ts;
+      fetchFiles(); // refresh file list
+    }
+    state.polls.userPoll = setTimeout(poll, 1000);
+  };
+  poll();
 }
 
 function applyRoleUI(){
@@ -524,10 +669,10 @@ function applyRoleUI(){
   renderFiles();
 }
 
-// ── SEARCH / SORT ──
+// ==================== SEARCH / SORT ====================
 DOM.search.oninput=()=>{ state.query=DOM.search.value.toLowerCase(); renderFiles(); };
 DOM.sortSel.onchange=()=>{ state.sort=DOM.sortSel.value; localStorage.setItem('sort',state.sort); renderFiles(); };
 DOM.sortSel.value=state.sort;
 
-// ── INIT ──
+// ==================== INIT ====================
 init();
