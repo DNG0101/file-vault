@@ -82,14 +82,17 @@ const prevType = m => { if(!m) return ''; if(m.startsWith('video')) return 'vide
   document.documentElement.setAttribute('data-theme', ST.dark ? 'dark' : 'light');
   localStorage.setItem('darkMode', ST.dark);
 
+  // Admin can switch storage engine along with theme (if still using hybrid)
   if (ST.isAdmin && ST.token) {
     const newEngine = ST.dark ? 'kv' : 'd1';
-    await fetch(`${WORKER_BASE}/admin/set-engine`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Admin-Token': ST.token },
-      body: JSON.stringify({ engine: newEngine })
-    });
-    toast(`Engine switched to ${newEngine.toUpperCase()}`);
+    try {
+      await fetch(`${WORKER_BASE}/admin/set-engine`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Token': ST.token },
+        body: JSON.stringify({ engine: newEngine })
+      });
+      toast(`Engine switched to ${newEngine.toUpperCase()}`);
+    } catch (e) { /* ignore */ }
   }
 });
 })();
@@ -211,7 +214,6 @@ D.btnAnalytics.onclick = () => { D.pnlAnalytics.classList.toggle('hidden'); if(!
 D.btnShare.onclick = () => { D.pnlShare.classList.toggle('hidden'); if(!D.pnlShare.classList.contains('hidden')) loadShares(); };
 D.btnUnAuth.onclick = async () => {
   if(!confirm('Logout as admin? Vault will still work.')) return;
-  // Admin logout: just remove the token from client; the refresh token remains in KV
   localStorage.removeItem('vtoken');
   ST.token = null; ST.isAdmin = false; ST.email = null;
   clearTimers();
