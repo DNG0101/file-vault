@@ -79,12 +79,17 @@ const prevType = m => { if(!m) return ''; if(m.startsWith('video')) return 'vide
   if(ST.dark) document.documentElement.setAttribute('data-theme','dark');
   D.btnDark.addEventListener('click', async () => {
   ST.dark = !ST.dark;
-  ...
+  document.documentElement.setAttribute('data-theme', ST.dark ? 'dark' : 'light');
+  localStorage.setItem('darkMode', ST.dark);
+
   if (ST.isAdmin && ST.token) {
     const newEngine = ST.dark ? 'kv' : 'd1';
-    try {
-      await fetch(`${WORKER_BASE}/admin/set-engine`, { method: 'POST', ... body: JSON.stringify({ engine: newEngine }) });
-    } catch (e) { /* ignore */ }
+    await fetch(`${WORKER_BASE}/admin/set-engine`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Token': ST.token },
+      body: JSON.stringify({ engine: newEngine })
+    });
+    toast(`Engine switched to ${newEngine.toUpperCase()}`);
   }
 });
 })();
