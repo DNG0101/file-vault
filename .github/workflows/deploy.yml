@@ -1,0 +1,38 @@
+name: Deploy to GitHub Pages
+
+# Run on every push to the main branch
+on:
+  push:
+    branches: [ main ]
+
+# Permissions needed for GitHub Pages deployment
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+# ──────────────────────────────────────────────
+# Concurrency: allows multiple runs to stay alive
+# even if a newer commit is pushed while the old one is still running.
+# ──────────────────────────────────────────────
+concurrency:
+  group: deploy-${{ github.sha }}   # unique group per commit → they never cancel each other
+  cancel-in-progress: false         # keep old runs alive
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Optional: if you need to build/minify (not needed for static HTML/CSS/JS)
+      # - name: Build
+      #   run: echo "No build step required"
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./          # the root of your repo (index.html is here)
+          publish_branch: gh-pages # output branch (GitHub Pages will serve this)
