@@ -3,41 +3,63 @@ const WORKER_BASE = 'https://gdrive-files-api.donthulanithish53.workers.dev';  /
 
 // ==================== STATE ====================
 const ST = {
-  userToken:   localStorage.getItem('userToken') || null,
-  adminToken:  localStorage.getItem('adminToken') || null,
+  token:   localStorage.getItem('vtoken') || null,   // unified token
+  email:   null,
   isAdmin: false,
-  userEmail: null,
   approved: false,
-  role: null,
-  files: [],
-  sel: new Set(),
-  sort: localStorage.getItem('sort') || 'newest',
-  query: '',
+  role:    null,
+  files:   [],
+  sel:     new Set(),
+  sort:    localStorage.getItem('sort') || 'newest',
+  query:   '',
   uploadCtrl: null,
-  dark: localStorage.getItem('darkMode') === 'true',
-  timers: { role: null, approval: null, adminPoll: null, userPoll: null },
+  dark:    localStorage.getItem('darkMode') === 'true',
+  timers:  { role: null, approval: null, adminPoll: null, userPoll: null },
 };
 
 // ==================== DOM ====================
 const $ = id => document.getElementById(id);
 const D = {
-  stats: $('storageStats'), adminUI: $('adminUI'), userUI: $('userUI'), adminBar: $('adminBar'),
-  dropzone: $('dropzone'), fileInp: $('fileInput'), progBox: $('progressBox'),
-  progFill: $('progressFill'), pctDisp: $('percentDisplay'), sizeDisp: $('sizeDisplay'),
-  cancelBtn: $('cancelUpload'), grid: $('fileGrid'),
-  prevOv: $('previewOverlay'), prevCont: $('previewContainer'),
-  btnFull: $('btnFullscreen'), btnCloseP: $('btnClosePreview'),
-  search: $('searchInput'), sortSel: $('sortSelect'),
-  bulkBar: $('bulkBar'), bulkCnt: $('bulkCount'), toastBox: $('toastContainer'),
-  btnDark: $('btnDarkMode'), btnSync: $('btnSync'), btnAppr: $('btnApprovals'),
-  btnAllUsers: $('btnAllUsers'), btnLogs: $('btnLogs'), btnAnalytics: $('btnAnalytics'),
-  btnShare: $('btnShareManager'), btnUnAuth: $('btnUnauthorize'),
-  pnlAppr: $('approvalPanel'), listAppr: $('approvalList'),
-  pnlUsers: $('usersPanel'), listUsers: $('usersList'),
-  pnlLogs: $('logsPanel'), logsCt: $('logsContent'),
-  pnlAnalytics: $('analyticsPanel'), analyticsCt: $('analyticsContent'),
-  pnlShare: $('sharePanel'), shareCt: $('shareContent'),
-  pendingBadge: $('pendingBadge'), btnClearLogs: $('btnClearLogs'),
+  stats:        $('storageStats'),
+  userUI:       $('userUI'),
+  adminBar:     $('adminBar'),
+  dropzone:     $('dropzone'),
+  fileInp:      $('fileInput'),
+  progBox:      $('progressBox'),
+  progFill:     $('progressFill'),
+  pctDisp:      $('percentDisplay'),
+  sizeDisp:     $('sizeDisplay'),
+  cancelBtn:    $('cancelUpload'),
+  grid:         $('fileGrid'),
+  prevOv:       $('previewOverlay'),
+  prevCont:     $('previewContainer'),
+  btnFull:      $('btnFullscreen'),
+  btnCloseP:    $('btnClosePreview'),
+  search:       $('searchInput'),
+  sortSel:      $('sortSelect'),
+  bulkBar:      $('bulkBar'),
+  bulkCnt:      $('bulkCount'),
+  toastBox:     $('toastContainer'),
+  btnDark:      $('btnDarkMode'),
+  btnSync:      $('btnSync'),
+  btnAppr:      $('btnApprovals'),
+  btnAllUsers:  $('btnAllUsers'),
+  btnLogs:      $('btnLogs'),
+  btnAnalytics: $('btnAnalytics'),
+  btnShare:     $('btnShareManager'),
+  btnUnAuth:    $('btnAdminLogout'), // admin logout button
+  pnlAppr:      $('approvalPanel'),
+  listAppr:     $('approvalList'),
+  pnlUsers:     $('usersPanel'),
+  listUsers:    $('usersList'),
+  pnlLogs:      $('logsPanel'),
+  logsCt:       $('logsContent'),
+  pnlAnalytics: $('analyticsPanel'),
+  analyticsCt:  $('analyticsContent'),
+  pnlShare:     $('sharePanel'),
+  shareCt:      $('shareContent'),
+  pendingBadge: $('pendingBadge'),
+  btnClearLogs: $('btnClearLogs'),
 };
 
 // ==================== HELPERS ====================
@@ -65,43 +87,36 @@ const prevType = m => { if(!m) return ''; if(m.startsWith('video')) return 'vide
 // ==================== AUTH ====================
 async function init() {
   const p = new URLSearchParams(location.search);
-  const a = p.get('admin_token'), u = p.get('utoken'), e = p.get('auth_error');
+  const u = p.get('utoken'), e = p.get('auth_error');
   if(e) { toast('Auth error: '+e.replace(/_/g,' '), 'error'); history.replaceState({},'',location.pathname); }
-  if(a) { ST.adminToken = a; localStorage.setItem('adminToken', a); history.replaceState({},'',location.pathname); await valAdmin(); return; }
-  if(u) { ST.userToken = u; localStorage.setItem('userToken', u); history.replaceState({},'',location.pathname); await getUserInfo(); render(); return; }
-  if(ST.adminToken) { await valAdmin(); if(ST.isAdmin) return; }
-  if(ST.userToken) { await getUserInfo(); render(); return; }
+  if(u) { ST.token = u; localStorage.setItem('vtoken', u); history.replaceState({},'',location.pathname); await fetchUserInfo(); render(); return; }
+  if(ST.token) { await fetchUserInfo(); render(); return; }
   showLogin();
 }
 
-async function valAdmin() {
-  try {
-    const r = await fetch(`${WORKER_BASE}/admin-session?token=${ST.adminToken}`);
-    const d = await r.json();
-    if(d.admin) { ST.isAdmin = true; ST.userEmail = d.email; showMain(); D.adminBar.classList.remove('hidden'); startAdminPoll(); fetchFiles(); loadPendingCount(); }
-    else { ST.adminToken = null; ST.isAdmin = false; localStorage.removeItem('adminToken'); showLogin(); }
-  } catch { showLogin(); }
-}
-
-async function getUserInfo() {
-  if(!ST.userToken) return;
-  const r = await fetch(`${WORKER_BASE}/user-info?utoken=${ST.userToken}`);
-  if(!r.ok) { ST.userToken = null; localStorage.removeItem('userToken'); return; }
+async function fetchUserInfo() {
+  if(!ST.token) return;
+  const r = await fetch(`${WORKER_BASE}/user-info?utoken=${ST.token}`);
+  if(!r.ok) { ST.token = null; localStorage.removeItem('vtoken'); return; }
   const i = await r.json();
-  ST.userEmail = i.email; ST.approved = i.approved; ST.role = i.role;
+  ST.email    = i.email;
+  ST.isAdmin  = i.isAdmin === true;
+  ST.approved = i.approved;
+  ST.role     = i.role;
 }
 
 function showLogin() {
-  D.adminBar.classList.add('hidden'); D.adminUI.innerHTML = ''; D.userUI.innerHTML = '';
+  D.adminBar.classList.add('hidden'); D.userUI.innerHTML = '';
   D.grid.innerHTML = `
     <div style="grid-column:1/-1;text-align:center;padding:60px;">
       <h2>Welcome to File Vault</h2>
-      <p style="margin:16px 0;">Choose how to access:</p>
-      <button class="btn btn-primary" id="btnAdminLogin">🔑 Admin Login</button>
-      <button class="btn btn-outline" id="btnUserLogin" style="margin-left:12px;">👤 User Login</button>
+      <p style="margin:16px 0;">Sign in to access your files.</p>
+      <button class="btn btn-primary" id="btnLogin">🔑 Login with Google</button>
     </div>`;
-  document.getElementById('btnAdminLogin').onclick = async () => { const r = await fetch(`${WORKER_BASE}/admin-auth-url`); window.location = (await r.json()).authUrl; };
-  document.getElementById('btnUserLogin').onclick = async () => { const r = await fetch(`${WORKER_BASE}/user-auth-url`); window.location = (await r.json()).authUrl; };
+  document.getElementById('btnLogin').onclick = async () => {
+    const r = await fetch(`${WORKER_BASE}/auth-url`);
+    window.location = (await r.json()).authUrl;
+  };
 }
 
 function showPending() {
@@ -111,7 +126,7 @@ function showPending() {
   D.grid.innerHTML = `
     <div style="grid-column:1/-1;text-align:center;padding:60px;">
       <h2>🔐 Waiting for Approval</h2>
-      <p>Your email: <strong>${ST.userEmail}</strong></p>
+      <p>Your email: <strong>${ST.email}</strong></p>
       <p>You will be notified automatically.</p>
       <button class="btn btn-outline btn-sm" onclick="location.reload()">🔄 Refresh</button>
       <button class="btn btn-danger btn-sm" id="btnSelfRevoke" style="margin-left:8px;">❌ Cancel Request</button>
@@ -123,16 +138,14 @@ function showPending() {
 function showMain() {
   document.querySelector('.hint-text').style.display = '';
   if(ST.isAdmin) {
-    D.dropzone.style.display = '';
     D.adminBar.classList.remove('hidden');
-    D.adminUI.innerHTML = '';
     D.userUI.innerHTML = '';
+    D.dropzone.style.display = '';
   } else {
     D.adminBar.classList.add('hidden');
-    D.adminUI.innerHTML = '';
     const roleStr = ST.role ? ` (${ST.role})` : '';
-    D.userUI.innerHTML = ST.userEmail
-      ? `<span style="font-size:0.85rem;">👤 ${ST.userEmail}${roleStr} <button class="btn btn-sm btn-outline" id="btnUserLogout">🔒 Logout</button></span>`
+    D.userUI.innerHTML = ST.email
+      ? `<span style="font-size:0.85rem;">👤 ${ST.email}${roleStr} <button class="btn btn-sm btn-outline" id="btnUserLogout">🔒 Logout</button></span>`
       : '';
     const btn = document.getElementById('btnUserLogout');
     if(btn) btn.onclick = userLogout;
@@ -140,29 +153,29 @@ function showMain() {
 }
 
 function userLogout() {
-  localStorage.removeItem('userToken');
-  ST.userToken = null; ST.approved = false; ST.role = null; ST.userEmail = null;
+  localStorage.removeItem('vtoken');
+  ST.token = null; ST.isAdmin = false; ST.approved = false; ST.role = null; ST.email = null;
   clearTimers();
   showLogin();
   toast('Logged out.');
 }
 
 async function selfRevoke() {
-  if(!confirm('Cancel your access request? You will need to re-login to request access again.')) return;
-  const res = await fetch(`${WORKER_BASE}/user-revoke-self`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({utoken: ST.userToken}) });
-  if(res.ok) {
-    localStorage.removeItem('userToken');
-    ST.userToken = null; ST.approved = false; ST.role = null;
+  if(!confirm('Cancel your access request?')) return;
+  const r = await fetch(`${WORKER_BASE}/user-revoke-self`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({utoken: ST.token}) });
+  if(r.ok) {
+    localStorage.removeItem('vtoken');
+    ST.token = null; ST.approved = false; ST.role = null; ST.email = null;
     clearTimers();
     showLogin();
-    toast('Your access request has been cancelled.');
-  } else toast('Failed to cancel request', 'error');
+    toast('Access request cancelled.');
+  } else toast('Failed', 'error');
 }
 
 function render() {
   clearTimers();
-  if(ST.isAdmin) { showMain(); fetchFiles(); return; }
-  if(!ST.userEmail) { showLogin(); return; }
+  if(!ST.email) { showLogin(); return; }
+  if(ST.isAdmin) { showMain(); fetchFiles(); startAdminPoll(); return; }
   if(!ST.approved) { showPending(); return; }
   showMain();
   applyRoleUI();
@@ -178,7 +191,7 @@ function clearTimers() {
 // ==================== ADMIN BAR ====================
 D.btnSync.onclick = async () => {
   toast('Syncing…','info');
-  const r = await fetch(`${WORKER_BASE}/sync`,{method:'POST',headers:{'X-Admin-Token':ST.adminToken}});
+  const r = await fetch(`${WORKER_BASE}/sync`,{method:'POST',headers:{'X-Admin-Token':ST.token}});
   if(r.ok) { await fetchFiles(); toast('Sync done','success'); } else toast('Sync failed','error');
 };
 D.btnAppr.onclick = () => { D.pnlAppr.classList.toggle('hidden'); if(!D.pnlAppr.classList.contains('hidden')) loadPending(); };
@@ -188,20 +201,22 @@ D.btnAnalytics.onclick = () => { D.pnlAnalytics.classList.toggle('hidden'); if(!
 D.btnShare.onclick = () => { D.pnlShare.classList.toggle('hidden'); if(!D.pnlShare.classList.contains('hidden')) loadShares(); };
 D.btnUnAuth.onclick = async () => {
   if(!confirm('Logout as admin? Vault will still work.')) return;
-  await fetch(`${WORKER_BASE}/admin-logout`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({admin_token:ST.adminToken})});
-  localStorage.removeItem('adminToken'); ST.adminToken = null; ST.isAdmin = false;
-  D.adminBar.classList.add('hidden'); D.adminUI.innerHTML = ''; toast('Admin logged out');
-  init();
+  // Admin logout: just remove the token from client; the refresh token remains in KV
+  localStorage.removeItem('vtoken');
+  ST.token = null; ST.isAdmin = false; ST.email = null;
+  clearTimers();
+  showLogin();
+  toast('Admin logged out');
 };
 
 // ── Pending / Users ─────────────────────────────────
 async function loadPendingCount() {
-  const r = await fetch(`${WORKER_BASE}/admin/pending`,{headers:{'X-Admin-Token':ST.adminToken}});
+  const r = await fetch(`${WORKER_BASE}/admin/pending`,{headers:{'X-Admin-Token':ST.token}});
   const p = await r.json();
   D.pendingBadge.textContent = p.length; D.pendingBadge.classList.toggle('hidden', p.length===0);
 }
 function loadPending() {
-  fetch(`${WORKER_BASE}/admin/pending`,{headers:{'X-Admin-Token':ST.adminToken}}).then(r=>r.json()).then(data=>{
+  fetch(`${WORKER_BASE}/admin/pending`,{headers:{'X-Admin-Token':ST.token}}).then(r=>r.json()).then(data=>{
     D.listAppr.innerHTML = data.length ? data.map(e=>`
       <div class="approval-item">
         <span>${e.email}</span>
@@ -225,10 +240,10 @@ function loadPending() {
       const email = btn.dataset.email;
       if(btn.dataset.action === 'approve') {
         const role = btn.parentElement.querySelector('.role-sel').value;
-        await fetch(`${WORKER_BASE}/admin/approve`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':ST.adminToken},body:JSON.stringify({email,role})});
+        await fetch(`${WORKER_BASE}/admin/approve`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':ST.token},body:JSON.stringify({email,role})});
         toast(`${email} approved`);
       } else {
-        await fetch(`${WORKER_BASE}/admin/deny`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':ST.adminToken},body:JSON.stringify({email})});
+        await fetch(`${WORKER_BASE}/admin/deny`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':ST.token},body:JSON.stringify({email})});
         toast(`${email} denied`);
       }
       loadPending(); loadPendingCount(); loadAllUsers();
@@ -237,8 +252,7 @@ function loadPending() {
 }
 
 function loadAllUsers() {
-  fetch(`${WORKER_BASE}/admin/users/all`,{headers:{'X-Admin-Token':ST.adminToken}}).then(r=>r.json()).then(users=>{
-    // Separate revoked users
+  fetch(`${WORKER_BASE}/admin/users/all`,{headers:{'X-Admin-Token':ST.token}}).then(r=>r.json()).then(users=>{
     const active = users.filter(u=>u.status!=='revoked'), revoked = users.filter(u=>u.status==='revoked');
     let html = active.map(u=>`
       <div class="approval-item">
@@ -278,10 +292,10 @@ function loadAllUsers() {
         const sel = btn.closest('.approval-item').querySelector('select');
         const role = sel ? sel.value : 'full';
         const endpoint = action==='reapprove' ? 'reapprove' : 'approve';
-        await fetch(`${WORKER_BASE}/admin/${endpoint}`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':ST.adminToken},body:JSON.stringify({email,role})});
+        await fetch(`${WORKER_BASE}/admin/${endpoint}`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':ST.token},body:JSON.stringify({email,role})});
         toast(`${email} updated`);
       } else if(action==='revoke') {
-        await fetch(`${WORKER_BASE}/admin/revoke`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':ST.adminToken},body:JSON.stringify({email})});
+        await fetch(`${WORKER_BASE}/admin/revoke`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':ST.token},body:JSON.stringify({email})});
         toast(`${email} revoked`);
       }
       loadAllUsers(); if(['approve','reapprove'].includes(action)) loadPendingCount();
@@ -290,9 +304,9 @@ function loadAllUsers() {
 }
 
 // ── Logs / Analytics / Shares ───────────────────────
-function loadLogs() { fetch(`${WORKER_BASE}/admin/logs?limit=100`,{headers:{'X-Admin-Token':ST.adminToken}}).then(r=>r.json()).then(d=>{ D.logsCt.innerHTML = d.logs.length ? d.logs.map(l=>`<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:0.8rem;"><strong>${new Date(l.ts).toLocaleString()}</strong> ${l.actor} <span style="color:var(--accent)">${l.action}</span> ${l.target||''}</div>`).join('') : '<p>No logs yet.</p>'; }); }
-D.btnClearLogs.onclick = async () => { if(!confirm('Delete all audit logs?')) return; const r = await fetch(`${WORKER_BASE}/admin/logs/clear`,{method:'POST',headers:{'X-Admin-Token':ST.adminToken}}); if(r.ok) { loadLogs(); toast('Logs cleared'); } else toast('Failed','error'); };
-function loadAnalytics() { fetch(`${WORKER_BASE}/admin/analytics`,{headers:{'X-Admin-Token':ST.adminToken}}).then(r=>r.json()).then(d=>{ D.analyticsCt.innerHTML = `<p><strong>Files:</strong> ${d.files.total} (${fmtSz(d.files.totalSize)})</p><p><strong>Views:</strong> ${d.files.totalViews} | <strong>Downloads:</strong> ${d.files.totalDownloads}</p><p><strong>Users:</strong> ${d.users.total} (pending:${d.users.pending}, approved:${d.users.approved}, revoked:${d.users.revoked})</p><p><strong>Today:</strong> ${d.today.uploads} uploads logged</p><h4>Top Files</h4>${d.files.topFiles.map(f=>`<div>${f.name} (views: ${f.views})</div>`).join('')}`; }); }
+function loadLogs() { fetch(`${WORKER_BASE}/admin/logs?limit=100`,{headers:{'X-Admin-Token':ST.token}}).then(r=>r.json()).then(d=>{ D.logsCt.innerHTML = d.logs.length ? d.logs.map(l=>`<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:0.8rem;"><strong>${new Date(l.ts).toLocaleString()}</strong> ${l.actor} <span style="color:var(--accent)">${l.action}</span> ${l.target||''}</div>`).join('') : '<p>No logs yet.</p>'; }); }
+D.btnClearLogs.onclick = async () => { if(!confirm('Delete all audit logs?')) return; const r = await fetch(`${WORKER_BASE}/admin/logs/clear`,{method:'POST',headers:{'X-Admin-Token':ST.token}}); if(r.ok) { loadLogs(); toast('Logs cleared'); } else toast('Failed','error'); };
+function loadAnalytics() { fetch(`${WORKER_BASE}/admin/analytics`,{headers:{'X-Admin-Token':ST.token}}).then(r=>r.json()).then(d=>{ D.analyticsCt.innerHTML = `<p><strong>Files:</strong> ${d.files.total} (${fmtSz(d.files.totalSize)})</p><p><strong>Views:</strong> ${d.files.totalViews} | <strong>Downloads:</strong> ${d.files.totalDownloads}</p><p><strong>Users:</strong> ${d.users.total} (pending:${d.users.pending}, approved:${d.users.approved}, revoked:${d.users.revoked})</p><p><strong>Today:</strong> ${d.today.uploads} uploads logged</p><h4>Top Files</h4>${d.files.topFiles.map(f=>`<div>${f.name} (views: ${f.views})</div>`).join('')}`; }); }
 function loadShares() { D.shareCt.innerHTML = '<p>Create a share link from a file card (🔗 Share).</p>'; }
 
 // ==================== FILE LIST & ACTIONS ====================
@@ -323,6 +337,7 @@ function renderFiles() {
   if(!list.length) { D.grid.innerHTML = '<p style="grid-column:1/-1;text-align:center;padding:30px;">No files yet.</p>'; return; }
   list.forEach(f => {
     const actions = getFileActions(f.publicId);
+    const upBy = f.uploadedBy ? `<div style="font-size:0.7rem; color:var(--text-secondary); margin-bottom:4px;">📤 ${f.uploadedBy}</div>` : '';
     const card = document.createElement('div');
     card.className = `card${ST.sel.has(f.publicId)?' selected':''}`;
     card.innerHTML = `
@@ -331,6 +346,7 @@ function renderFiles() {
       <div class="file-name">${esc(f.name)}</div>
       <div class="file-meta">${fmtSz(f.size)} · ${new Date(f.createdAt).toLocaleString()}</div>
       <div class="file-stats">👁 ${f.views||0} ⬇${f.downloads||0}</div>
+      ${upBy}
       <div class="actions">
         ${actions.includes('play')?`<button class="btn-xs btn-xs-play" data-action="play" data-id="${f.publicId}">▶ Play</button>`:''}
         ${actions.includes('preview')?`<button class="btn-xs btn-xs-preview" data-action="preview" data-id="${f.publicId}">🔍 Preview</button>`:''}
@@ -392,7 +408,7 @@ $('btnBulkCancel').onclick = () => { ST.sel.clear(); renderFiles(); updateBulkBa
 $('btnBulkDelete').onclick = async () => {
   if(!confirm(`Delete ${ST.sel.size} files?`)) return;
   const ids = Array.from(ST.sel);
-  const r = await fetch(`${WORKER_BASE}/bulk-delete`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':ST.adminToken,'X-User-Token':ST.userToken},body:JSON.stringify({publicIds:ids})});
+  const r = await fetch(`${WORKER_BASE}/bulk-delete`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':ST.token,'X-User-Token':ST.token},body:JSON.stringify({publicIds:ids})});
   const d = await r.json();
   ST.sel.clear(); updateBulkBar(); await fetchFiles();
   toast(`${d.deleted} deleted, ${d.failed} failed`);
@@ -481,7 +497,7 @@ D.btnFull.onclick = () => { if(document.fullscreenElement) document.exitFullscre
 function downloadFile(pid) { const a = document.createElement('a'); a.href = `${WORKER_BASE}/download/${pid}`; a.download = ''; document.body.appendChild(a); a.click(); document.body.removeChild(a); }
 async function deleteFile(pid) {
   if(!confirm('Delete?')) return;
-  const r = await fetch(`${WORKER_BASE}/delete`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':ST.adminToken,'X-User-Token':ST.userToken},body:JSON.stringify({publicId:pid})});
+  const r = await fetch(`${WORKER_BASE}/delete`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':ST.token,'X-User-Token':ST.token},body:JSON.stringify({publicId:pid})});
   if(r.ok) { ST.files = ST.files.filter(f=>f.publicId!==pid); ST.sel.delete(pid); renderFiles(); updateBulkBar(); toast('Deleted','success'); }
   else toast('Delete failed','error');
 }
@@ -489,7 +505,7 @@ function replaceFile(pid) {
   const inp = document.createElement('input'); inp.type = 'file';
   inp.onchange = async () => {
     const file = inp.files[0]; if(!file) return;
-    const ir = await fetch(`${WORKER_BASE}/update`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':ST.adminToken,'X-User-Token':ST.userToken},body:JSON.stringify({publicId:pid,fileName:file.name,fileSize:file.size,fileType:file.type||'application/octet-stream'})});
+    const ir = await fetch(`${WORKER_BASE}/update`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':ST.token,'X-User-Token':ST.token},body:JSON.stringify({publicId:pid,fileName:file.name,fileSize:file.size,fileType:file.type||'application/octet-stream'})});
     if(!ir.ok) { toast('Update init failed','error'); return; }
     const {publicId} = await ir.json();
     await uploadFile(file, publicId); await fetchFiles();
@@ -500,25 +516,25 @@ async function renameFile(pid) {
   const file = ST.files.find(f=>f.publicId===pid); if(!file) return;
   const newName = prompt('New name:', file.name);
   if(!newName||newName===file.name) return;
-  const r = await fetch(`${WORKER_BASE}/rename`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':ST.adminToken,'X-User-Token':ST.userToken},body:JSON.stringify({publicId:pid,newName})});
+  const r = await fetch(`${WORKER_BASE}/rename`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':ST.token,'X-User-Token':ST.token},body:JSON.stringify({publicId:pid,newName})});
   if(r.ok) { toast('Renamed'); await fetchFiles(); } else toast('Rename failed','error');
 }
 async function shareFile(pid) {
   const label = prompt('Share label (optional):','');
   const expires = prompt('Expires in hours (default 1):','1');
   const maxDownloads = parseInt(prompt('Max downloads (0=unlimited):','0'),10);
-  const r = await fetch(`${WORKER_BASE}/share/create`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':ST.adminToken,'X-User-Token':ST.userToken},body:JSON.stringify({publicId:pid,expiresIn:(parseInt(expires||'1',10)*3600),maxDownloads,label})});
+  const r = await fetch(`${WORKER_BASE}/share/create`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':ST.token,'X-User-Token':ST.token},body:JSON.stringify({publicId:pid,expiresIn:(parseInt(expires||'1',10)*3600),maxDownloads,label})});
   const d = await r.json();
   if(r.ok) { toast('Share link created!'); navigator.clipboard.writeText(d.shareUrl).then(()=>toast('Link copied to clipboard')); }
   else toast('Share failed','error');
 }
 
-// ==================== POLLING (efficient) ====================
+// ==================== POLLING (efficient long-polling) ====================
 function startRolePoll() {
   if(ST.timers.role) clearInterval(ST.timers.role);
   ST.timers.role = setInterval(async () => {
-    if(!ST.userToken||!ST.approved) return;
-    const r = await fetch(`${WORKER_BASE}/user-info?utoken=${ST.userToken}`);
+    if(!ST.token||!ST.approved) return;
+    const r = await fetch(`${WORKER_BASE}/user-info?utoken=${ST.token}`);
     if(!r.ok) return;
     const i = await r.json();
     if(i.role !== ST.role) { ST.role = i.role; applyRoleUI(); toast(`Permissions changed to ${ST.role}`); }
@@ -527,8 +543,8 @@ function startRolePoll() {
 function startApprovalPoll() {
   if(ST.timers.approval) clearInterval(ST.timers.approval);
   ST.timers.approval = setInterval(async () => {
-    if(!ST.userToken) return;
-    const r = await fetch(`${WORKER_BASE}/user-info?utoken=${ST.userToken}`);
+    if(!ST.token) return;
+    const r = await fetch(`${WORKER_BASE}/user-info?utoken=${ST.token}`);
     if(!r.ok) return;
     const i = await r.json();
     if(i.approved) { ST.approved = true; ST.role = i.role; clearInterval(ST.timers.approval); toast('Approved!', 'success'); render(); }
@@ -538,8 +554,8 @@ function startAdminPoll() {
   if(ST.timers.adminPoll) clearInterval(ST.timers.adminPoll);
   let lastTs = 0;
   const poll = async () => {
-    if(!ST.adminToken) return;
-    const r = await fetch(`${WORKER_BASE}/admin/poll?since=${lastTs}&timeout=15`,{headers:{'X-Admin-Token':ST.adminToken}});
+    if(!ST.token||!ST.isAdmin) return;
+    const r = await fetch(`${WORKER_BASE}/admin/poll?since=${lastTs}&timeout=15`,{headers:{'X-Admin-Token':ST.token}});
     const d = await r.json();
     if(d.changed) { lastTs = d.ts; loadPendingCount(); if(!D.pnlAppr.classList.contains('hidden')) loadPending(); if(!D.pnlUsers.classList.contains('hidden')) loadAllUsers(); if(!D.pnlLogs.classList.contains('hidden')) loadLogs(); }
     ST.timers.adminPoll = setTimeout(poll, 2000);
@@ -550,8 +566,8 @@ function startUserPoll() {
   if(ST.timers.userPoll) clearInterval(ST.timers.userPoll);
   let lastTs = 0;
   const poll = async () => {
-    if(!ST.userToken||!ST.approved) return;
-    const r = await fetch(`${WORKER_BASE}/poll?utoken=${ST.userToken}&since=${lastTs}&timeout=15`);
+    if(!ST.token||!ST.approved) return;
+    const r = await fetch(`${WORKER_BASE}/poll?utoken=${ST.token}&since=${lastTs}&timeout=15`);
     const d = await r.json();
     if(d.changed) { lastTs = d.ts; fetchFiles(); }
     ST.timers.userPoll = setTimeout(poll, 2000);
