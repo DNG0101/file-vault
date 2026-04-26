@@ -14,6 +14,7 @@
       <div class="header-right">
         <span class="stats" id="storageStats"></span>
         <button class="btn-icon" id="btnDarkMode" title="Dark mode">🌓</button>
+        <span id="userUI"></span>
         <span id="adminUI"></span>
       </div>
     </div>
@@ -42,6 +43,9 @@
     <div class="panel hidden" id="logsPanel">
       <h3>Audit Logs</h3>
       <div id="logsContent"></div>
+      <div style="margin-top:10px;">
+        <button class="btn btn-danger btn-sm" id="btnClearLogs">🗑 Clear All Logs</button>
+      </div>
     </div>
     <div class="panel hidden" id="analyticsPanel">
       <h3>Analytics</h3>
