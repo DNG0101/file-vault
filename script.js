@@ -77,11 +77,24 @@ const prevType = m => { if(!m) return ''; if(m.startsWith('video')) return 'vide
 // ==================== DARK MODE ====================
 (() => {
   if(ST.dark) document.documentElement.setAttribute('data-theme','dark');
-  D.btnDark.addEventListener('click', () => {
-    ST.dark = !ST.dark;
-    document.documentElement.setAttribute('data-theme', ST.dark ? 'dark' : 'light');
-    localStorage.setItem('darkMode', ST.dark);
-  });
+  D.btnDark.addEventListener('click', async () => {
+  ST.dark = !ST.dark;
+  document.documentElement.setAttribute('data-theme', ST.dark ? 'dark' : 'light');
+  localStorage.setItem('darkMode', ST.dark);
+
+  // Admin can switch storage engine along with theme
+  if (ST.isAdmin && ST.token) {
+    const newEngine = ST.dark ? 'kv' : 'd1';
+    try {
+      await fetch(`${WORKER_BASE}/admin/set-engine`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Token': ST.token },
+        body: JSON.stringify({ engine: newEngine })
+      });
+      toast(`Engine switched to ${newEngine.toUpperCase()}`);
+    } catch (e) { /* ignore */ }
+  }
+});
 })();
 
 // ==================== AUTH ====================
