@@ -106,6 +106,8 @@ function showLogin() {
 
 function showPending() {
   D.adminBar.classList.add('hidden'); D.userUI.innerHTML = '';
+  D.dropzone.style.display = 'none';
+  document.querySelector('.hint-text').style.display = 'none';
   D.grid.innerHTML = `
     <div style="grid-column:1/-1;text-align:center;padding:60px;">
       <h2>🔐 Waiting for Approval</h2>
@@ -121,6 +123,7 @@ function showPending() {
 function showMain() {
   document.querySelector('.hint-text').style.display = '';
   if(ST.isAdmin) {
+    D.dropzone.style.display = '';
     D.adminBar.classList.remove('hidden');
     D.adminUI.innerHTML = '';
     D.userUI.innerHTML = '';
@@ -146,8 +149,8 @@ function userLogout() {
 
 async function selfRevoke() {
   if(!confirm('Cancel your access request? You will need to re-login to request access again.')) return;
-  const r = await fetch(`${WORKER_BASE}/user-revoke-self`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({utoken: ST.userToken}) });
-  if(r.ok) {
+  const res = await fetch(`${WORKER_BASE}/user-revoke-self`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({utoken: ST.userToken}) });
+  if(res.ok) {
     localStorage.removeItem('userToken');
     ST.userToken = null; ST.approved = false; ST.role = null;
     clearTimers();
@@ -203,7 +206,14 @@ function loadPending() {
       <div class="approval-item">
         <span>${e.email}</span>
         <div style="display:flex;gap:6px;">
-          <select class="role-sel"><option value="full">Full</option><option value="delete">Delete</option><option value="download">Download</option><option value="read">Read</option><option value="none">None</option></select>
+          <select class="role-sel">
+            <option value="full">Full</option>
+            <option value="delete">Delete</option>
+            <option value="upload">Upload Only</option>
+            <option value="download">Download Only</option>
+            <option value="read">Read Only</option>
+            <option value="none">None</option>
+          </select>
           <button class="btn btn-sm" style="background:var(--success);color:#fff;" data-email="${e.email}" data-action="approve">✅ Approve</button>
           <button class="btn btn-sm" style="background:var(--danger);color:#fff;" data-email="${e.email}" data-action="deny">❌ Deny</button>
         </div>
@@ -228,23 +238,38 @@ function loadPending() {
 
 function loadAllUsers() {
   fetch(`${WORKER_BASE}/admin/users/all`,{headers:{'X-Admin-Token':ST.adminToken}}).then(r=>r.json()).then(users=>{
-    D.listUsers.innerHTML = users.map(u=>`
+    // Separate revoked users
+    const active = users.filter(u=>u.status!=='revoked'), revoked = users.filter(u=>u.status==='revoked');
+    let html = active.map(u=>`
       <div class="approval-item">
         <span>${u.email} <span class="status-badge status-${u.status}">${u.status}</span> ${u.role?`(${u.role})`:''}</span>
         <div style="display:flex;gap:6px;">
           ${u.status==='pending'?`
-            <select class="role-${u.email}"><option value="full">Full</option><option value="delete">Delete</option><option value="download">Download</option><option value="read">Read</option><option value="none">None</option></select>
+            <select class="role-${u.email}"><option value="full">Full</option><option value="delete">Delete</option><option value="upload">Upload Only</option><option value="download">Download</option><option value="read">Read</option><option value="none">None</option></select>
             <button class="btn btn-sm btn-success" data-action="approve" data-email="${u.email}">✅ Approve</button>
           `:''}
-          ${u.status==='approved'||u.status==='revoked'?`
-            <select class="role-${u.email}"><option value="full" ${u.role==='full'?'selected':''}>Full</option><option value="delete" ${u.role==='delete'?'selected':''}>Delete</option><option value="download" ${u.role==='download'?'selected':''}>Download</option><option value="read" ${u.role==='read'?'selected':''}>Read</option><option value="none" ${u.role==='none'?'selected':''}>None</option></select>
+          ${u.status==='approved'?`
+            <select class="role-${u.email}"><option value="full" ${u.role==='full'?'selected':''}>Full</option><option value="delete" ${u.role==='delete'?'selected':''}>Delete</option><option value="upload" ${u.role==='upload'?'selected':''}>Upload Only</option><option value="download" ${u.role==='download'?'selected':''}>Download</option><option value="read" ${u.role==='read'?'selected':''}>Read</option><option value="none" ${u.role==='none'?'selected':''}>None</option></select>
             <button class="btn btn-sm btn-primary" data-action="update" data-email="${u.email}">Update</button>
-            ${u.status==='revoked'?`<button class="btn btn-sm btn-warn" data-action="reapprove" data-email="${u.email}">Re‑approve</button>`:''}
             <button class="btn btn-sm btn-danger" data-action="revoke" data-email="${u.email}">Revoke</button>
           `:''}
         </div>
       </div>
     `).join('');
+    if(revoked.length>0) {
+      html += `<hr><h4 style="margin-top:12px;margin-bottom:8px;">Revoked Users</h4>`;
+      html += revoked.map(u=>`
+        <div class="approval-item">
+          <span>${u.email} <span class="status-badge status-revoked">revoked</span> ${u.role?`(${u.role})`:''}</span>
+          <div style="display:flex;gap:6px;">
+            <select class="role-${u.email}"><option value="full">Full</option><option value="delete">Delete</option><option value="upload">Upload Only</option><option value="download">Download</option><option value="read">Read</option><option value="none">None</option></select>
+            <button class="btn btn-sm btn-warn" data-action="reapprove" data-email="${u.email}">Re‑approve</button>
+            <button class="btn btn-sm btn-danger" data-action="revoke" data-email="${u.email}" disabled>Revoke</button>
+          </div>
+        </div>
+      `).join('');
+    }
+    D.listUsers.innerHTML = html || '<p>No users found.</p>';
     D.listUsers.onclick = async (ev) => {
       const btn = ev.target.closest('button');
       if(!btn) return;
@@ -345,9 +370,9 @@ function getFileActions(pid) {
   if(!file) return [];
   const a = [];
   const pt = prevType(file.mimeType);
-  if((pt==='video'||pt==='audio') && ['full','delete','download','read'].includes(ST.role)) a.push('play');
-  if(['image','pdf','text'].includes(pt) && ['full','delete','download','read'].includes(ST.role)) a.push('preview');
-  if(['full','delete','download'].includes(ST.role)) a.push('download');
+  if((pt==='video'||pt==='audio') && ['full','delete','upload','download','read'].includes(ST.role)) a.push('play');
+  if(['image','pdf','text'].includes(pt) && ['full','delete','upload','download','read'].includes(ST.role)) a.push('preview');
+  if(['full','delete','upload','download'].includes(ST.role)) a.push('download');
   if(['full'].includes(ST.role)) a.push('rename','share');
   if(['full','delete'].includes(ST.role)) a.push('delete');
   if(ST.role==='full') a.push('replace');
@@ -488,7 +513,7 @@ async function shareFile(pid) {
   else toast('Share failed','error');
 }
 
-// ==================== POLLING ====================
+// ==================== POLLING (efficient) ====================
 function startRolePoll() {
   if(ST.timers.role) clearInterval(ST.timers.role);
   ST.timers.role = setInterval(async () => {
@@ -517,7 +542,7 @@ function startAdminPoll() {
     const r = await fetch(`${WORKER_BASE}/admin/poll?since=${lastTs}&timeout=15`,{headers:{'X-Admin-Token':ST.adminToken}});
     const d = await r.json();
     if(d.changed) { lastTs = d.ts; loadPendingCount(); if(!D.pnlAppr.classList.contains('hidden')) loadPending(); if(!D.pnlUsers.classList.contains('hidden')) loadAllUsers(); if(!D.pnlLogs.classList.contains('hidden')) loadLogs(); }
-    ST.timers.adminPoll = setTimeout(poll, 2000); // poll again after 2s if no change, or after response
+    ST.timers.adminPoll = setTimeout(poll, 2000);
   };
   poll();
 }
@@ -534,7 +559,7 @@ function startUserPoll() {
   poll();
 }
 function applyRoleUI() {
-  const can = ST.role==='full'||ST.role==='delete'||ST.role==='download';
+  const can = ST.role==='full'||ST.role==='delete'||ST.role==='upload'||ST.role==='download';
   D.dropzone.style.display = can ? '' : 'none';
   document.querySelector('.hint-text').style.display = can ? '' : 'none';
   renderFiles();
