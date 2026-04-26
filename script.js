@@ -212,61 +212,84 @@ async function loadPendingCount() {
   if (pending.length) { DOM.pendingBadge.textContent = pending.length; DOM.pendingBadge.classList.remove('hidden'); }
   else DOM.pendingBadge.classList.add('hidden');
 }
-async function loadPending() {
-  const r = await fetch(`${WORKER_BASE}/admin/pending`,{headers:{'X-Admin-Token':state.adminToken}});
-  const pending = await r.json();
-  DOM.listAppr.innerHTML = pending.length ? pending.map(e=>`
-    <div class="approval-item">
-      <span>${e.email}</span>
-      <div style="display:flex;gap:6px;">
-        <select class="role-sel"><option value="full">Full</option><option value="delete">Delete</option><option value="download">Download</option><option value="read">Read</option><option value="none">None</option></select>
-        <button class="btn btn-sm" style="background:var(--success);color:#fff;" data-email="${e.email}" data-action="approve">✅ Approve</button>
-        <button class="btn btn-sm" style="background:var(--danger);color:#fff;" data-email="${e.email}" data-action="deny">❌ Deny</button>
-      </div>
-    </div>
-  `).join('') : '<p>No pending users.</p>';
-  DOM.listAppr.querySelectorAll('button').forEach(b=>{
-    b.onclick = async ()=>{
-      const email = b.dataset.email;
-      if(b.dataset.action==='approve'){
-        const role = b.parentElement.querySelector('.role-sel').value;
-        await fetch(`${WORKER_BASE}/admin/approve`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':state.adminToken},body:JSON.stringify({email,role})});
-        toast(`${email} approved`);
-      } else {
-        await fetch(`${WORKER_BASE}/admin/deny`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':state.adminToken},body:JSON.stringify({email})});
-        toast(`${email} denied`);
-      }
-      loadPending(); loadAllUsers(); loadPendingCount();
-    };
-  });
+
+// ---- Inline approve/deny for pending panel (prevents multiple bindings) ----
+function loadPending() {
+  fetch(`${WORKER_BASE}/admin/pending`,{headers:{'X-Admin-Token':state.adminToken}})
+    .then(r=>r.json())
+    .then(pending=>{
+      DOM.listAppr.innerHTML = pending.length ? pending.map(e=>`
+        <div class="approval-item">
+          <span>${e.email}</span>
+          <div style="display:flex;gap:6px;">
+            <select class="role-sel"><option value="full">Full</option><option value="delete">Delete</option><option value="download">Download</option><option value="read">Read</option><option value="none">None</option></select>
+            <button class="btn btn-sm" style="background:var(--success);color:#fff;" data-email="${e.email}" data-action="approve">✅ Approve</button>
+            <button class="btn btn-sm" style="background:var(--danger);color:#fff;" data-email="${e.email}" data-action="deny">❌ Deny</button>
+          </div>
+        </div>
+      `).join('') : '<p>No pending users.</p>';
+      // Attach events only once per button using event delegation
+      DOM.listAppr.onclick = async (ev) => {
+        const btn = ev.target.closest('button');
+        if (!btn) return;
+        const email = btn.dataset.email;
+        if (btn.dataset.action === 'approve') {
+          const role = btn.parentElement.querySelector('.role-sel').value;
+          await fetch(`${WORKER_BASE}/admin/approve`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':state.adminToken},body:JSON.stringify({email,role})});
+          toast(`${email} approved`);
+        } else {
+          await fetch(`${WORKER_BASE}/admin/deny`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':state.adminToken},body:JSON.stringify({email})});
+          toast(`${email} denied`);
+        }
+        loadPending(); loadPendingCount(); loadAllUsers(); // refresh related panels
+      };
+    });
 }
 
-async function loadAllUsers() {
-  const r = await fetch(`${WORKER_BASE}/admin/users/all`,{headers:{'X-Admin-Token':state.adminToken}});
-  const users = await r.json();
-  DOM.listUsers.innerHTML = users.map(u=>`
-    <div class="approval-item">
-      <span>${u.email} <span class="status-badge status-${u.status}">${u.status}</span> ${u.role?`(${u.role})`:''}</span>
-      <div style="display:flex;gap:6px;">
-        ${u.status==='pending'?`
-          <select class="role-${u.email}"><option value="full">Full</option><option value="delete">Delete</option><option value="download">Download</option><option value="read">Read</option><option value="none">None</option></select>
-          <button class="btn btn-sm btn-success" onclick="approveUser('${u.email}')">✅ Approve</button>
-        `:''}
-        ${u.status==='approved'||u.status==='revoked'?`
-          <select class="role-${u.email}"><option value="full" ${u.role==='full'?'selected':''}>Full</option><option value="delete" ${u.role==='delete'?'selected':''}>Delete</option><option value="download" ${u.role==='download'?'selected':''}>Download</option><option value="read" ${u.role==='read'?'selected':''}>Read</option><option value="none" ${u.role==='none'?'selected':''}>None</option></select>
-          <button class="btn btn-sm btn-primary" onclick="updateRole('${u.email}')">Update</button>
-          ${u.status==='revoked'?`<button class="btn btn-sm btn-warn" onclick="reapprove('${u.email}')">Re‑approve</button>`:''}
-          <button class="btn btn-sm btn-danger" onclick="revokeUser('${u.email}')">Revoke</button>
-        `:''}
-      </div>
-    </div>
-  `).join('');
-}
+// ---- All Users panel (uses event delegation for all actions) ----
+function loadAllUsers() {
+  fetch(`${WORKER_BASE}/admin/users/all`,{headers:{'X-Admin-Token':state.adminToken}})
+    .then(r=>r.json())
+    .then(users=>{
+      DOM.listUsers.innerHTML = users.map(u=>`
+        <div class="approval-item">
+          <span>${u.email} <span class="status-badge status-${u.status}">${u.status}</span> ${u.role?`(${u.role})`:''}</span>
+          <div style="display:flex;gap:6px;">
+            ${u.status==='pending'?`
+              <select class="role-${u.email}"><option value="full">Full</option><option value="delete">Delete</option><option value="download">Download</option><option value="read">Read</option><option value="none">None</option></select>
+              <button class="btn btn-sm btn-success" data-action="approve" data-email="${u.email}">✅ Approve</button>
+            `:''}
+            ${u.status==='approved'||u.status==='revoked'?`
+              <select class="role-${u.email}"><option value="full" ${u.role==='full'?'selected':''}>Full</option><option value="delete" ${u.role==='delete'?'selected':''}>Delete</option><option value="download" ${u.role==='download'?'selected':''}>Download</option><option value="read" ${u.role==='read'?'selected':''}>Read</option><option value="none" ${u.role==='none'?'selected':''}>None</option></select>
+              <button class="btn btn-sm btn-primary" data-action="update" data-email="${u.email}">Update</button>
+              ${u.status==='revoked'?`<button class="btn btn-sm btn-warn" data-action="reapprove" data-email="${u.email}">Re‑approve</button>`:''}
+              <button class="btn btn-sm btn-danger" data-action="revoke" data-email="${u.email}">Revoke</button>
+            `:''}
+          </div>
+        </div>
+      `).join('');
 
-window.approveUser = async(email)=>{ const r=document.querySelector(`.role-${email}`); const role=r?r.value:'full'; await fetch(`${WORKER_BASE}/admin/approve`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':state.adminToken},body:JSON.stringify({email,role})}); toast(`${email} approved`); loadAllUsers(); };
-window.updateRole  = async(email)=>{ const r=document.querySelector(`.role-${email}`); const role=r?r.value:'full'; await fetch(`${WORKER_BASE}/admin/update-role`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':state.adminToken},body:JSON.stringify({email,role})}); toast(`Role updated for ${email}`); loadAllUsers(); };
-window.revokeUser  = async(email)=>{ await fetch(`${WORKER_BASE}/admin/revoke`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':state.adminToken},body:JSON.stringify({email})}); toast(`${email} revoked`); loadAllUsers(); };
-window.reapprove   = async(email)=>{ const r=document.querySelector(`.role-${email}`); const role=r?r.value:'full'; await fetch(`${WORKER_BASE}/admin/reapprove`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':state.adminToken},body:JSON.stringify({email,role})}); toast(`${email} re‑approved`); loadAllUsers(); };
+      // Single delegated click handler for the whole list
+      DOM.listUsers.onclick = async (ev) => {
+        const btn = ev.target.closest('button');
+        if (!btn) return;
+        const email = btn.dataset.email;
+        const action = btn.dataset.action;
+        if (action === 'approve' || action === 'reapprove' || action === 'update') {
+          const select = btn.closest('.approval-item').querySelector('select');
+          const role = select ? select.value : 'full';
+          const endpoint = action === 'reapprove' ? 'reapprove' : 'approve';
+          await fetch(`${WORKER_BASE}/admin/${endpoint}`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':state.adminToken},body:JSON.stringify({email,role})});
+          toast(`${email} ${action==='reapprove'?'re‑approved':'updated'}`);
+        } else if (action === 'revoke') {
+          await fetch(`${WORKER_BASE}/admin/revoke`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':state.adminToken},body:JSON.stringify({email})});
+          toast(`${email} revoked`);
+        }
+        loadAllUsers(); // refresh panel
+        if (action === 'approve' || action === 'reapprove') loadPendingCount();
+      };
+    });
+}
 
 // ==================== FILE OPERATIONS ====================
 async function fetchFiles() {
@@ -308,7 +331,30 @@ function renderFiles() {
       </div>`;
     DOM.grid.appendChild(card);
   });
-  attachFileEvents();
+  // Use event delegation on the grid for performance
+  DOM.grid.onclick = (ev) => {
+    const btn = ev.target.closest('button');
+    if (btn) {
+      ev.stopPropagation();
+      const action = btn.dataset.action;
+      const id = btn.dataset.id;
+      if (action) actionBtn(action, id);
+      return;
+    }
+    const card = ev.target.closest('.card');
+    if (card) {
+      const cb = card.querySelector('.card-checkbox');
+      if (cb && ev.target !== cb) {
+        toggleSelect(card.dataset.publicId, !cb.checked);
+      }
+    }
+  };
+  DOM.grid.onchange = (ev) => {
+    const cb = ev.target.closest('.card-checkbox');
+    if (cb) {
+      toggleSelect(cb.dataset.id, cb.checked);
+    }
+  };
 }
 
 function availableActions(pid) {
@@ -326,22 +372,20 @@ function availableActions(pid) {
   return a;
 }
 
-function attachFileEvents() {
-  DOM.grid.querySelectorAll('.card-checkbox').forEach(cb=>cb.onclick=function(e){e.stopPropagation(); toggleSelect(this.dataset.id, this.checked);});
-  DOM.grid.querySelectorAll('[data-action]').forEach(btn=>btn.onclick=function(e){e.stopPropagation(); actionBtn(this.dataset.action, this.dataset.id);});
-  DOM.grid.querySelectorAll('.card').forEach(card=>card.onclick=()=>{if(event.target.tagName!=='BUTTON'&&event.target.tagName!=='INPUT') toggleSelect(card.dataset.publicId,null);});
-}
-
 function toggleSelect(id, checked) {
-  if(checked===true || !state.selected.has(id)) state.selected.add(id);
+  if(checked) state.selected.add(id);
   else state.selected.delete(id);
   updateBulkBar();
-  renderFiles();
+  // instead of full re-render, just update the card's selected class
+  const card = document.querySelector(`.card[data-publicid="${id}"]`);
+  if (card) card.classList.toggle('selected', checked);
 }
+
 function updateBulkBar() {
   if(state.selected.size) { DOM.bulkBar.classList.remove('hidden'); DOM.bulkCnt.textContent=`${state.selected.size} selected`; }
   else DOM.bulkBar.classList.add('hidden');
 }
+
 $('btnBulkCancel').onclick = ()=>{ state.selected.clear(); renderFiles(); updateBulkBar(); };
 $('btnBulkDelete').onclick = async ()=>{
   if(!confirm(`Delete ${state.selected.size} files?`)) return;
