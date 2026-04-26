@@ -1,92 +1,92 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>File Vault</title>
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>File Vault</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div class="container">
-  <div class="header">
-    <h1>📁 File Vault</h1>
-    <div class="header-right">
-      <span class="stats" id="storageStats"></span>
-      <button class="btn-icon" id="btnDarkMode" title="Dark mode">🌓</button>
-      <span id="adminUI"></span>
+  <div class="container">
+    <div class="header">
+      <h1>📁 File Vault</h1>
+      <div class="header-right">
+        <span class="stats" id="storageStats"></span>
+        <button class="btn-icon" id="btnDarkMode" title="Dark mode">🌓</button>
+        <span id="adminUI"></span>
+      </div>
+    </div>
+
+    <div class="admin-bar hidden" id="adminBar">
+      <strong>🛡️ Admin</strong>
+      <button class="btn btn-outline btn-sm" id="btnSync">🔄 Sync</button>
+      <button class="btn btn-outline btn-sm" id="btnApprovals">👥 Approvals <span id="pendingBadge" class="badge-count hidden">0</span></button>
+      <button class="btn btn-outline btn-sm" id="btnUsers">👤 Manage</button>
+      <button class="btn btn-danger btn-sm" id="btnUnauthorize">🔒 Logout</button>
+    </div>
+
+    <div class="panel hidden" id="approvalPanel">
+      <h3>Pending Approvals</h3>
+      <div id="approvalList"></div>
+    </div>
+
+    <div class="panel hidden" id="usersPanel">
+      <h3>Manage Users</h3>
+      <div id="usersList"></div>
+    </div>
+
+    <div class="toolbar">
+      <input type="text" class="search-box" id="searchInput" placeholder="Search files... (Ctrl+F)">
+      <select class="sort-select" id="sortSelect">
+        <option value="newest">Newest</option>
+        <option value="oldest">Oldest</option>
+        <option value="name-asc">Name A‑Z</option>
+        <option value="name-desc">Name Z‑A</option>
+        <option value="size-desc">Largest</option>
+        <option value="size-asc">Smallest</option>
+      </select>
+    </div>
+
+    <div class="bulk-bar hidden" id="bulkBar">
+      <span id="bulkCount">0 selected</span>
+      <button id="btnBulkDelete">🗑 Delete</button>
+      <button id="btnBulkCancel">✕</button>
+    </div>
+
+    <div class="hint-text">
+      <kbd>Ctrl</kbd>+<kbd>V</kbd> paste &nbsp;|&nbsp;
+      <kbd>Ctrl</kbd>+<kbd>U</kbd> upload &nbsp;|&nbsp;
+      <kbd>Ctrl</kbd>+<kbd>F</kbd> search &nbsp;|&nbsp;
+      <kbd>Esc</kbd> close
+    </div>
+
+    <div class="dropzone" id="dropzone">
+      <p>📂 <strong>Drop files here</strong> or click to browse</p>
+      <input type="file" id="fileInput" multiple>
+    </div>
+
+    <div class="progress-box hidden" id="progressBox">
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-text">
+        <span id="percentDisplay">0%</span>
+        <span id="sizeDisplay">0 / 0 B</span>
+        <button class="cancel-btn" id="cancelUpload">Cancel</button>
+      </div>
+    </div>
+
+    <div class="file-grid" id="fileGrid"></div>
+  </div>
+
+  <div class="preview-overlay hidden" id="previewOverlay">
+    <div class="preview-container" id="previewContainer"></div>
+    <div class="preview-toolbar">
+      <button id="btnFullscreen">⛶ Fullscreen</button>
+      <button id="btnClosePreview">✕ Close</button>
     </div>
   </div>
 
-  <div class="admin-bar hidden" id="adminBar">
-    <strong>🛡️ Admin</strong>
-    <button class="btn btn-outline btn-sm" id="btnSync">🔄 Sync</button>
-    <button class="btn btn-outline btn-sm" id="btnApprovals">👥 Approvals <span id="pendingBadge" class="badge-count hidden">0</span></button>
-    <button class="btn btn-outline btn-sm" id="btnUsers">👤 Manage</button>
-    <button class="btn btn-danger btn-sm" id="btnUnauthorize">🔒 Logout</button>
-  </div>
+  <div class="toast-container" id="toastContainer"></div>
 
-  <div class="panel hidden" id="approvalPanel">
-    <h3>Pending Approvals</h3>
-    <div id="approvalList"></div>
-  </div>
-
-  <div class="panel hidden" id="usersPanel">
-    <h3>Manage Users</h3>
-    <div id="usersList"></div>
-  </div>
-
-  <div class="toolbar">
-    <input type="text" class="search-box" id="searchInput" placeholder="Search files... (Ctrl+F)">
-    <select class="sort-select" id="sortSelect">
-      <option value="newest">Newest</option>
-      <option value="oldest">Oldest</option>
-      <option value="name-asc">Name A‑Z</option>
-      <option value="name-desc">Name Z‑A</option>
-      <option value="size-desc">Largest</option>
-      <option value="size-asc">Smallest</option>
-    </select>
-  </div>
-
-  <div class="bulk-bar hidden" id="bulkBar">
-    <span id="bulkCount">0 selected</span>
-    <button id="btnBulkDelete">🗑 Delete</button>
-    <button id="btnBulkCancel">✕</button>
-  </div>
-
-  <div class="hint-text">
-    <kbd>Ctrl</kbd>+<kbd>V</kbd> paste &nbsp;|&nbsp;
-    <kbd>Ctrl</kbd>+<kbd>U</kbd> upload &nbsp;|&nbsp;
-    <kbd>Ctrl</kbd>+<kbd>F</kbd> search &nbsp;|&nbsp;
-    <kbd>Esc</kbd> close
-  </div>
-
-  <div class="dropzone" id="dropzone">
-    <p>📂 <strong>Drop files here</strong> or click to browse</p>
-    <input type="file" id="fileInput" multiple>
-  </div>
-
-  <div class="progress-box hidden" id="progressBox">
-    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-    <div class="progress-text">
-      <span id="percentDisplay">0%</span>
-      <span id="sizeDisplay">0 / 0 B</span>
-      <button class="cancel-btn" id="cancelUpload">Cancel</button>
-    </div>
-  </div>
-
-  <div class="file-grid" id="fileGrid"></div>
-</div>
-
-<div class="preview-overlay hidden" id="previewOverlay">
-  <div class="preview-container" id="previewContainer"></div>
-  <div class="preview-toolbar">
-    <button id="btnFullscreen">⛶ Fullscreen</button>
-    <button id="btnClosePreview">✕ Close</button>
-  </div>
-</div>
-
-<div class="toast-container" id="toastContainer"></div>
-
-<script src="script.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
