@@ -18,6 +18,7 @@ body {
 }
 .container { max-width: 1200px; margin: 0 auto; }
 .hidden { display: none !important; }
+
 /* Header */
 .header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 24px; }
 .header h1 { font-size: clamp(1.8rem, 6vw, 2.2rem); font-weight: 700; }
@@ -31,25 +32,32 @@ body {
 .btn-danger { background: var(--danger); color: white; border-color: var(--danger); }
 .btn-outline { background: transparent; }
 .btn-sm { padding: 6px 12px; font-size: 0.8rem; border-radius: 6px; min-height: 36px; }
+
 /* Toolbar */
 .toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
 .search-box { flex: 1; min-width: 200px; padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--card-bg); color: var(--text); outline: none; transition: border-color 0.2s; }
 .search-box:focus { border-color: var(--accent); }
 .sort-select { padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--card-bg); color: var(--text); cursor: pointer; }
+
+/* Stats */
 .stats { font-size: 0.85rem; color: var(--text-secondary); white-space: nowrap; }
+
 /* Dropzone */
 .dropzone { border: 2px dashed var(--border); border-radius: 16px; padding: 48px 20px; text-align: center; background: var(--card-bg); cursor: pointer; transition: border-color 0.2s, background 0.2s; margin-bottom: 20px; user-select: none; }
 .dropzone:hover, .dragover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 5%, var(--card-bg)); }
 .dropzone input { display: none; }
+
 /* Hint */
 .hint-text { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 16px; text-align: center; }
 .hint-text kbd { background: var(--card-bg); border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; font-family: monospace; }
+
 /* Progress */
 .progress-box { margin-bottom: 20px; }
 .progress-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
 .progress-fill { height: 100%; width: 0%; background: var(--accent); transition: width 0.2s; }
 .progress-text { display: flex; justify-content: space-between; font-size: 0.75rem; margin-top: 6px; color: var(--text-secondary); }
 .cancel-btn { background: var(--danger); color: white; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; }
+
 /* File Grid */
 .file-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
 .card { background: var(--card-bg); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); border: 1px solid var(--border); display: flex; flex-direction: column; position: relative; transition: box-shadow 0.2s, transform 0.2s; }
@@ -68,6 +76,7 @@ body {
 .btn-xs-download { background: var(--success); color: #fff; }
 .btn-xs-delete { background: var(--danger); color: #fff; }
 .btn-xs-replace { background: var(--warn); color: #222; }
+
 /* Admin Bar & Panels */
 .admin-bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 12px; background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 16px; }
 .admin-bar.hidden { display: none; }
@@ -79,10 +88,12 @@ body {
 .status-approved { background: #d1fae5; color: #065f46; }
 .status-revoked { background: #fee2e2; color: #991b1b; }
 .status-denied { background: #f3f4f6; color: #374151; }
+
 /* Bulk Bar */
 .bulk-bar { display: flex; align-items: center; gap: 10px; padding: 10px 16px; background: var(--accent); color: #fff; border-radius: 8px; margin-bottom: 12px; }
 .bulk-bar.hidden { display: none; }
 .bulk-bar button { background: rgba(255,255,255,0.2); color: #fff; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; }
+
 /* Preview Overlay */
 .preview-overlay { position: fixed; inset: 0; background: var(--overlay-bg); z-index: 1000; display: flex; justify-content: center; align-items: center; flex-direction: column; }
 .preview-overlay.hidden { display: none; }
@@ -92,12 +103,14 @@ body {
 .preview-toolbar { position: absolute; top: 16px; right: 16px; display: flex; gap: 10px; z-index: 1001; }
 .preview-toolbar button { background: rgba(255,255,255,0.12); border: none; color: #fff; padding: 10px 16px; border-radius: 8px; cursor: pointer; backdrop-filter: blur(8px); font-size: 0.9rem; transition: background 0.2s; }
 .preview-toolbar button:hover { background: rgba(255,255,255,0.25); }
+
 /* Toast */
 .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column-reverse; gap: 8px; max-width: 400px; }
 .toast { padding: 12px 16px; border-radius: 8px; color: var(--toast-text); background: var(--toast-bg); font-size: 0.85rem; font-weight: 500; box-shadow: 0 8px 20px rgba(0,0,0,0.2); animation: slideIn 0.3s ease; display: flex; align-items: center; gap: 8px; }
 .toast.error { background: var(--danger); }
 .toast.success { background: var(--success); }
 @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
 @media (max-width: 600px) {
   body { padding: 10px; }
   .dropzone { padding: 30px 14px; }
