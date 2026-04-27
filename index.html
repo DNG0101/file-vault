@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Public File Vault – Ultimate</title>
+    <title>Public File Vault – Fixed</title>
     <style>
-        /* ========== CSS (compact, responsive, dark mode) ========== */
+        /* ========== CSS (same as before, compact) ========== */
         :root {
             --bg: #f8fafc;
             --card-bg: #ffffff;
@@ -185,83 +185,35 @@
         // ==================== CONFIG ====================
         const WORKER_BASE = 'https://gdrive-files-api.donthulanithish53.workers.dev';
 
-        // ==================== REQUEST MANAGER (cooldown, concurrency, priority) ====================
+        // ==================== REQUEST MANAGER (no automatic polling) ====================
         class RequestManager {
-            constructor(defaultCooldown = 60000) { // 1 minute default cooldown
+            constructor(defaultCooldown = 10000) {
                 this.lock = false;
-                this.cooldowns = new Map(); // key -> last execution time
+                this.cooldowns = new Map();
                 this.defaultCooldown = defaultCooldown;
-                this.queue = [];
-                this.isProcessing = false;
             }
-
-            // Execute request with cooldown and priority
-            // priority: 'critical' bypasses cooldown but still respects lock
             async execute(key, fn, priority = 'normal', customCooldown = null) {
-                // Check lock
-                if (this.lock) {
-                    if (priority === 'critical') {
-                        // Wait for lock to clear (can't bypass lock because of data consistency)
-                        await this._waitForLock();
-                    } else {
-                        // Queue the request
-                        return new Promise((resolve, reject) => {
-                            this.queue.push({ key, fn, priority, customCooldown, resolve, reject });
-                            this._processQueue();
-                        });
-                    }
-                }
-
-                // Acquire lock
+                while (this.lock) await new Promise(r => setTimeout(r, 50));
                 this.lock = true;
                 try {
-                    // Check cooldown (skip for critical)
-                    const cooldownMs = customCooldown !== null ? customCooldown : this.defaultCooldown;
+                    const cooldown = customCooldown !== null ? customCooldown : this.defaultCooldown;
                     if (priority !== 'critical') {
-                        const lastRun = this.cooldowns.get(key) || 0;
-                        const now = Date.now();
-                        if (now - lastRun < cooldownMs) {
-                            const wait = cooldownMs - (now - lastRun);
-                            toast(`Please wait ${Math.ceil(wait / 1000)} seconds before retrying.`, 'info');
+                        const last = this.cooldowns.get(key) || 0;
+                        const elapsed = Date.now() - last;
+                        if (elapsed < cooldown) {
+                            const waitSec = Math.ceil((cooldown - elapsed) / 1000);
+                            toast(`Please wait ${waitSec} seconds before retrying.`, 'info');
                             throw new Error(`Cooldown active for ${key}`);
                         }
-                        this.cooldowns.set(key, now);
+                        this.cooldowns.set(key, Date.now());
                     }
-                    // Execute the actual API call
-                    const result = await fn();
-                    return result;
+                    return await fn();
                 } finally {
-                    // Release lock
                     this.lock = false;
-                    // Process next in queue
-                    this._processQueue();
                 }
-            }
-
-            async _waitForLock() {
-                while (this.lock) {
-                    await new Promise(r => setTimeout(r, 100));
-                }
-            }
-
-            _processQueue() {
-                if (this.isProcessing) return;
-                if (this.queue.length === 0) return;
-                if (this.lock) return;
-                this.isProcessing = true;
-                const next = this.queue.shift();
-                this.execute(next.key, next.fn, next.priority, next.customCooldown)
-                    .then(res => next.resolve(res))
-                    .catch(err => next.reject(err))
-                    .finally(() => {
-                        this.isProcessing = false;
-                        this._processQueue();
-                    });
             }
         }
-
-        // Global request manager instance
-        const requestManager = new RequestManager(10000); // 10 seconds cooldown for most actions
+        const reqMgr = new RequestManager(10000);
 
         // ==================== STATE ====================
         let ST = {
@@ -279,7 +231,7 @@
             shareToken: null,
         };
 
-        // ==================== DOM ELEMENTS ====================
+        // ==================== DOM Helpers ====================
         const $ = id => document.getElementById(id);
         const D = {
             stats: $('storageStats'), userUI: $('userUI'), adminBar: $('adminBar'),
@@ -299,7 +251,7 @@
             btnBulkDelete: $('btnBulkDelete'), btnBulkCancel: $('btnBulkCancel'),
         };
 
-        // ==================== UTILITIES ====================
+        // ==================== Utilities ====================
         function getAuthHeaders() {
             const h = {};
             if (ST.token) {
@@ -322,7 +274,7 @@
         const icn = m => { if(!m) return '📄'; if(m.startsWith('video')) return '🎬'; if(m.startsWith('audio')) return '🎵'; if(m.startsWith('image')) return '🖼️'; if(m==='application/pdf') return '📕'; if(m.startsWith('text')) return '📝'; return '📄'; };
         const prevType = m => { if(!m) return ''; if(m.startsWith('video')) return 'video'; if(m.startsWith('audio')) return 'audio'; if(m.startsWith('image')) return 'image'; if(m==='application/pdf') return 'pdf'; if(m.startsWith('text')) return 'text'; return ''; };
 
-        // ==================== DARK MODE ====================
+        // ==================== Dark mode ====================
         (function(){
             if(!D.btnDark) return;
             if(ST.dark) document.documentElement.setAttribute('data-theme','dark');
@@ -339,12 +291,12 @@
             });
         })();
 
-        // ==================== AUTH & USER STATUS ====================
+        // ==================== Authentication ====================
         async function fetchUserInfo(priority = 'normal') {
             if (!ST.token) return false;
-            return requestManager.execute('userInfo', async () => {
+            return reqMgr.execute('userInfo', async () => {
                 const r = await fetch(`${WORKER_BASE}/user-info?utoken=${ST.token}`);
-                if (!r.ok) throw new Error('Failed to fetch user info');
+                if (!r.ok) throw new Error();
                 const i = await r.json();
                 const wasApproved = ST.approved;
                 ST.email = i.email; ST.isAdmin = i.isAdmin === true; ST.approved = i.approved; ST.role = i.role;
@@ -386,7 +338,7 @@
             const selfRevokeBtn = $('btnSelfRevoke');
             if(selfRevokeBtn) selfRevokeBtn.onclick = async () => {
                 if(!confirm('Cancel your access request?')) return;
-                await requestManager.execute('selfRevoke', async () => {
+                await reqMgr.execute('selfRevoke', async () => {
                     await fetch(`${WORKER_BASE}/user-revoke-self`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({utoken:ST.token}) });
                 }, 'critical');
                 ST.token = null; localStorage.removeItem('vtoken'); showLogin(); toast('Request cancelled.');
@@ -401,6 +353,7 @@
                 if(D.userUI) D.userUI.innerHTML = '';
                 if(D.dropzone) D.dropzone.style.display = '';
                 loadPendingCount();
+                startAdminPoll(); // only admin gets polling (one connection)
             } else {
                 if(D.adminBar) D.adminBar.classList.add('hidden');
                 if(D.userUI) D.userUI.innerHTML = `<span style="font-size:0.85rem;">👤 ${ST.email} (${ST.role}) <button class="btn btn-sm btn-outline" id="btnUserLogout">🔒 Logout</button></span>`;
@@ -411,17 +364,42 @@
 
         function render() {
             if(!ST.email) { showLogin(); return; }
-            if(ST.isAdmin) { showMain(); fetchFiles(); startAdminPoll(); return; }
+            if(ST.isAdmin) { showMain(); fetchFiles(); return; }
             if(!ST.approved) { showPending(); return; }
             showMain(); applyRoleUI(); fetchFiles();
         }
 
-        // ==================== ADMIN PANEL ====================
+        // ==================== Admin polling (only for admin, lightweight) ====================
+        let adminPollTimer = null;
+        function startAdminPoll() {
+            if(adminPollTimer) clearTimeout(adminPollTimer);
+            let lastTs = 0;
+            const poll = async () => {
+                if (!ST.token || !ST.isAdmin) return;
+                try {
+                    const res = await fetch(`${WORKER_BASE}/admin/poll?since=${lastTs}&timeout=15`, { headers: getAuthHeaders() });
+                    const data = await res.json();
+                    if (data.changed) {
+                        lastTs = data.ts;
+                        await loadPendingCount();
+                        if (!D.pnlAppr?.classList.contains('hidden')) loadPending();
+                        if (!D.pnlUsers?.classList.contains('hidden')) loadAllUsers();
+                        if (!D.pnlLogs?.classList.contains('hidden')) loadLogs();
+                        if (!D.pnlAnalytics?.classList.contains('hidden')) loadAnalytics();
+                        await fetchFiles();
+                    }
+                } catch(e) {}
+                adminPollTimer = setTimeout(poll, 3000);
+            };
+            poll();
+        }
+
+        // ==================== Admin actions ====================
         function safeAddEvent(element, event, handler) { if(element) element.addEventListener(event, handler); }
 
         safeAddEvent(D.btnSync, 'click', async () => {
             toast('Syncing...', 'info');
-            await requestManager.execute('sync', async () => {
+            await reqMgr.execute('sync', async () => {
                 const r = await fetch(`${WORKER_BASE}/sync`, { method:'POST', headers:getAuthHeaders() });
                 if(!r.ok) throw new Error();
                 await fetchFiles();
@@ -436,7 +414,7 @@
         safeAddEvent(D.btnUnAuth, 'click', adminLogout);
         safeAddEvent(D.btnClearLogs, 'click', async () => {
             if(!confirm('Delete all logs?')) return;
-            await requestManager.execute('clearLogs', async () => {
+            await reqMgr.execute('clearLogs', async () => {
                 await fetch(`${WORKER_BASE}/admin/logs/clear`, { method:'POST', headers:getAuthHeaders() });
                 loadLogs();
                 toast('Logs cleared');
@@ -446,7 +424,7 @@
         safeAddEvent(D.btnBulkDelete, 'click', async () => {
             if(!confirm(`Delete ${ST.selected.size} files?`)) return;
             const ids = Array.from(ST.selected);
-            await requestManager.execute('bulkDelete', async () => {
+            await reqMgr.execute('bulkDelete', async () => {
                 const r = await fetch(`${WORKER_BASE}/bulk-delete`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({publicIds:ids}) });
                 const d = await r.json();
                 ST.selected.clear(); updateBulkBar(); await fetchFiles();
@@ -475,7 +453,7 @@
                             const role = btn.parentElement.querySelector('.role-sel')?.value || 'full';
                             const isApprove = btn.classList.contains('btn-success');
                             const endpoint = isApprove ? 'approve' : 'deny';
-                            await requestManager.execute(`admin_${endpoint}_${email}`, async () => {
+                            await reqMgr.execute(`admin_${endpoint}_${email}`, async () => {
                                 await fetch(`${WORKER_BASE}/admin/${endpoint}`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({email, role}) });
                                 toast(`${email} ${isApprove ? 'approved' : 'denied'}`);
                                 loadPending(); loadPendingCount(); loadAllUsers();
@@ -515,7 +493,7 @@
                             else if (action === 'update') endpoint = 'approve';
                             else if (action === 'revoke') endpoint = 'revoke';
                             if (endpoint) {
-                                await requestManager.execute(`admin_${endpoint}_${email}`, async () => {
+                                await reqMgr.execute(`admin_${endpoint}_${email}`, async () => {
                                     await fetch(`${WORKER_BASE}/admin/${endpoint}`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({email, role}) });
                                     toast(`${email} ${action === 'revoke' ? 'revoked' : 'updated'}`);
                                     loadPending(); loadPendingCount(); loadAllUsers();
@@ -541,9 +519,9 @@
                 .then(d => { D.analyticsCt.innerHTML = `<p>Files: ${d.files.total} (${fmtSz(d.files.totalSize)}) | Users: ${d.users.total}</p>`; });
         }
 
-        // ==================== FILES ====================
+        // ==================== Files ====================
         async function fetchFiles() {
-            await requestManager.execute('listFiles', async () => {
+            await reqMgr.execute('listFiles', async () => {
                 const r = await fetch(`${WORKER_BASE}/list`, { headers:getAuthHeaders() });
                 if(!r.ok) throw new Error();
                 const data = await r.json();
@@ -640,16 +618,21 @@
             switch(action) {
                 case 'play': openPreview(id,'video'); break;
                 case 'preview': openPreview(id, prevType(ST.files.find(f=>f.publicId===id)?.mimeType)); break;
-                case 'download': window.location.href = `${WORKER_BASE}/download/${id}`; break;
+                case 'download': downloadFile(id); break;  // now uses secure token URL
                 case 'delete': deleteFile(id); break;
                 case 'replace': replaceFile(id); break;
                 case 'rename': renameFile(id); break;
                 case 'share': shareFile(id); break;
             }
         }
+        // Fixed download: append token as query parameter
+        function downloadFile(pid) {
+            const url = `${WORKER_BASE}/download/${pid}?utoken=${ST.token}`;
+            window.open(url, '_blank');
+        }
         async function deleteFile(pid) {
             if(!confirm('Delete?')) return;
-            await requestManager.execute(`delete_${pid}`, async () => {
+            await reqMgr.execute(`delete_${pid}`, async () => {
                 const r = await fetch(`${WORKER_BASE}/delete`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({publicId:pid}) });
                 if(r.ok) { await fetchFiles(); toast('Deleted'); }
                 else throw new Error();
@@ -674,7 +657,7 @@
             if(!f) return;
             const newName = prompt('New name:', f.name);
             if(!newName || newName===f.name) return;
-            await requestManager.execute(`rename_${pid}`, async () => {
+            await reqMgr.execute(`rename_${pid}`, async () => {
                 const r = await fetch(`${WORKER_BASE}/rename`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({publicId:pid,newName}) });
                 if(r.ok) { await fetchFiles(); toast('Renamed'); }
                 else throw new Error();
@@ -684,7 +667,7 @@
             const label = prompt('Share label (optional):', '');
             const hours = parseInt(prompt('Expires in hours (default 1):', '1'),10);
             const maxDownloads = parseInt(prompt('Max downloads (0=unlimited):', '0'),10);
-            await requestManager.execute(`share_${pid}`, async () => {
+            await reqMgr.execute(`share_${pid}`, async () => {
                 const r = await fetch(`${WORKER_BASE}/share/create`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({publicId:pid,expiresIn:hours*3600,maxDownloads,label}) });
                 const data = await r.json();
                 if(r.ok) { toast('Share link copied!'); navigator.clipboard.writeText(data.shareUrl); }
@@ -692,7 +675,7 @@
             }, 'critical').catch(() => toast('Share failed', 'error'));
         }
 
-        // ==================== UPLOAD ====================
+        // ==================== Upload (fixed cooldown: each file separate key) ====================
         async function uploadFile(file, existingPid = null) {
             if (ST.uploadCtrl) ST.uploadCtrl.abort();
             ST.uploadCtrl = new AbortController();
@@ -769,11 +752,11 @@
         const sleep = ms => new Promise(r => setTimeout(r, ms));
         safeAddEvent(D.cancelBtn, 'click', () => { if (ST.uploadCtrl) { ST.uploadCtrl.abort(); ST.uploadCtrl = null; if(D.progBox) D.progBox.classList.add('hidden'); } });
 
-        // ==================== PREVIEW ====================
+        // ==================== Preview ====================
         function openPreview(pid, type) {
             if(!D.prevCont) return;
             D.prevCont.innerHTML = '';
-            const url = `${WORKER_BASE}/video/${pid}`;
+            const url = `${WORKER_BASE}/video/${pid}?utoken=${ST.token}`;
             if (type === 'video' || type === 'audio') {
                 const el = document.createElement(type === 'audio' ? 'audio' : 'video');
                 el.src = url; el.controls = true; el.playsInline = true;
@@ -794,29 +777,6 @@
         safeAddEvent(D.btnCloseP, 'click', closePreview);
         safeAddEvent(D.btnFull, 'click', () => { if (document.fullscreenElement) document.exitFullscreen(); else if(D.prevOv) D.prevOv.requestFullscreen(); });
 
-        // ==================== POLLING (admin only) ====================
-        function startAdminPoll() {
-            let lastTs = 0;
-            const poll = async () => {
-                if (!ST.token || !ST.isAdmin) return;
-                try {
-                    const res = await fetch(`${WORKER_BASE}/admin/poll?since=${lastTs}&timeout=25`, { headers: getAuthHeaders() });
-                    const data = await res.json();
-                    if (data.changed) {
-                        lastTs = data.ts;
-                        await loadPendingCount();
-                        if (!D.pnlAppr?.classList.contains('hidden')) loadPending();
-                        if (!D.pnlUsers?.classList.contains('hidden')) loadAllUsers();
-                        if (!D.pnlLogs?.classList.contains('hidden')) loadLogs();
-                        if (!D.pnlAnalytics?.classList.contains('hidden')) loadAnalytics();
-                        await fetchFiles();
-                    }
-                } catch(e) {}
-                setTimeout(poll, 2000);
-            };
-            poll();
-        }
-
         function applyRoleUI() {
             const canUpload = ['full','delete','upload'].includes(ST.role);
             if(D.dropzone) D.dropzone.style.display = canUpload ? '' : 'none';
@@ -824,7 +784,7 @@
             if(hint) hint.style.display = canUpload ? '' : 'none';
         }
 
-        // ==================== SHARE PREVIEW ====================
+        // ==================== Share preview ====================
         async function showSharePreview() {
             const res = await fetch(`${WORKER_BASE}/share/verify?token=${ST.shareToken}`);
             if (!res.ok) { toast('Invalid or expired share link', 'error'); showLogin(); return; }
@@ -848,7 +808,7 @@
             if(D.userUI) D.userUI.innerHTML = '';
         }
 
-        // ==================== DRAG & DROP, PASTE, KEYBOARD ====================
+        // ==================== Drag & drop, paste, keyboard ====================
         if(D.dropzone) {
             ['dragenter','dragover','dragleave','drop'].forEach(ev => D.dropzone.addEventListener(ev, e => e.preventDefault()));
             ['dragenter','dragover'].forEach(ev => D.dropzone.addEventListener(ev, () => D.dropzone.classList.add('dragover')));
@@ -872,7 +832,7 @@
         if(D.search) D.search.addEventListener('input', () => { ST.query = D.search.value.toLowerCase(); renderFiles(); });
         if(D.sortSel) D.sortSel.addEventListener('change', () => { ST.sort = D.sortSel.value; localStorage.setItem('sort', ST.sort); renderFiles(); D.sortSel.value = ST.sort; });
 
-        // ==================== INIT ====================
+        // ==================== Init ====================
         async function init() {
             const p = new URLSearchParams(location.search);
             const utoken = p.get('utoken');
