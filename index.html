@@ -3,18 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Public File Vault – Final</title>
+    <title>Public File Vault – Final Working</title>
     <style>
-        /* Same CSS as before, included for completeness */
+        /* ========== CSS (same as before) ========== */
         :root {
-            --bg: #f8fafc; --card-bg: #ffffff; --text: #1e293b; --text-secondary: #64748b;
-            --border: #e2e8f0; --accent: #3b82f6; --accent-hover: #2563eb; --success: #10b981;
-            --danger: #ef4444; --warn: #f59e0b; --purple: #8b5cf6; --radius: 14px;
-            --shadow: 0 4px 12px rgba(0,0,0,0.05); --toast-bg: #1e293b; --toast-text: #f1f5f9;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warn: #f59e0b;
+            --purple: #8b5cf6;
+            --radius: 14px;
+            --shadow: 0 4px 12px rgba(0,0,0,0.05);
+            --toast-bg: #1e293b;
+            --toast-text: #f1f5f9;
             --transition: 0.2s ease;
         }
-        [data-theme="dark"] { --bg: #0f172a; --card-bg: #1e293b; --text: #e2e8f0; --text-secondary: #94a3b8;
-            --border: #334155; --shadow: 0 4px 12px rgba(0,0,0,0.3); --toast-bg: #475569; }
+        [data-theme="dark"] {
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --text: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --border: #334155;
+            --shadow: 0 4px 12px rgba(0,0,0,0.3);
+            --toast-bg: #475569;
+        }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: system-ui, -apple-system, 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 20px; transition: background var(--transition), color var(--transition); }
         .container { max-width: 1300px; margin: 0 auto; }
@@ -105,13 +123,12 @@
             <button class="btn btn-outline btn-sm" id="btnAnalytics">📊 Analytics</button>
             <button class="btn btn-outline btn-sm" id="btnShareManager">🔗 Shares</button>
             <button class="btn btn-danger btn-sm" id="btnAdminLogout">🔒 Logout</button>
-            <button class="btn btn-outline btn-sm" id="btnRefreshAdmin">🔄 Refresh All</button>
         </div>
 
-        <div class="panel hidden" id="approvalPanel"><h3>Pending Approvals <button class="btn-sm btn-outline" id="refreshPendingBtn">🔄 Refresh</button></h3><div id="approvalList"></div></div>
-        <div class="panel hidden" id="usersPanel"><h3>Active Users <button class="btn-sm btn-outline" id="refreshUsersBtn">🔄 Refresh</button></h3><div id="usersList"></div></div>
-        <div class="panel hidden" id="logsPanel"><h3>Audit Logs (Delete Only) <button class="btn-sm btn-outline" id="refreshLogsBtn">🔄 Refresh</button></h3><div id="logsContent"></div><button class="btn btn-danger btn-sm" id="btnClearLogs">🗑 Clear All Logs</button></div>
-        <div class="panel hidden" id="analyticsPanel"><h3>Analytics <button class="btn-sm btn-outline" id="refreshAnalyticsBtn">🔄 Refresh</button></h3><div id="analyticsContent"></div></div>
+        <div class="panel hidden" id="approvalPanel"><h3>Pending Approvals</h3><div id="approvalList"></div></div>
+        <div class="panel hidden" id="usersPanel"><h3>Active Users</h3><div id="usersList"></div></div>
+        <div class="panel hidden" id="logsPanel"><h3>Audit Logs (Delete Only)</h3><div id="logsContent"></div><button class="btn btn-danger btn-sm" id="btnClearLogs">🗑 Clear All Logs</button></div>
+        <div class="panel hidden" id="analyticsPanel"><h3>Analytics</h3><div id="analyticsContent"></div></div>
         <div class="panel hidden" id="sharePanel"><h3>Share Manager</h3><div id="shareContent"></div></div>
 
         <div class="toolbar">
@@ -169,6 +186,39 @@
         // ==================== CONFIG ====================
         const WORKER_BASE = 'https://gdrive-files-api.donthulanithish53.workers.dev';
 
+        // ==================== REQUEST MANAGER ====================
+        let isRequestInProgress = false;
+        let requestQueue = [];
+        
+        async function makeRequest(key, fn, priority = 'normal') {
+            // If a request is already in progress, queue this one
+            if (isRequestInProgress) {
+                if (priority === 'critical') {
+                    // Wait for current request to finish
+                    while (isRequestInProgress) {
+                        await new Promise(r => setTimeout(r, 100));
+                    }
+                } else {
+                    return new Promise((resolve, reject) => {
+                        requestQueue.push({ key, fn, priority, resolve, reject });
+                    });
+                }
+            }
+            
+            isRequestInProgress = true;
+            try {
+                const result = await fn();
+                return result;
+            } finally {
+                isRequestInProgress = false;
+                // Process next in queue
+                if (requestQueue.length > 0) {
+                    const next = requestQueue.shift();
+                    makeRequest(next.key, next.fn, next.priority).then(next.resolve).catch(next.reject);
+                }
+            }
+        }
+
         // ==================== STATE ====================
         let ST = {
             token: localStorage.getItem('vtoken'),
@@ -183,6 +233,7 @@
             uploadCtrl: null,
             dark: localStorage.getItem('darkMode') === 'true',
             shareToken: null,
+            checkInterval: null,
         };
 
         // ==================== DOM Helpers ====================
@@ -203,9 +254,7 @@
             analyticsCt: $('analyticsContent'), pnlShare: $('sharePanel'), shareCt: $('shareContent'),
             pendingBadge: $('pendingBadge'), btnClearLogs: $('btnClearLogs'),
             btnBulkDelete: $('btnBulkDelete'), btnBulkCancel: $('btnBulkCancel'),
-            refreshFilesBtn: $('refreshFilesBtn'), refreshAdminBtn: $('refreshAdminBtn'),
-            refreshPendingBtn: $('refreshPendingBtn'), refreshUsersBtn: $('refreshUsersBtn'),
-            refreshLogsBtn: $('refreshLogsBtn'), refreshAnalyticsBtn: $('refreshAnalyticsBtn'),
+            refreshFilesBtn: $('refreshFilesBtn'),
         };
 
         // ==================== Utilities ====================
@@ -217,8 +266,12 @@
             }
             return h;
         }
-        function getDownloadUrl(pid) { return `${WORKER_BASE}/download/${pid}?utoken=${ST.token}`; }
-        function getPreviewUrl(pid) { return `${WORKER_BASE}/video/${pid}?utoken=${ST.token}`; }
+        function getDownloadUrl(pid) {
+            return `${WORKER_BASE}/download/${pid}?utoken=${ST.token}`;
+        }
+        function getPreviewUrl(pid) {
+            return `${WORKER_BASE}/video/${pid}?utoken=${ST.token}`;
+        }
         function toast(msg, type='info') {
             if (!D.toastBox) return;
             const el = document.createElement('div');
@@ -251,26 +304,38 @@
         })();
 
         // ==================== Authentication ====================
-        async function fetchUserInfo(showToast = true) {
+        async function fetchUserInfoAndCheckApproval() {
             if (!ST.token) return false;
             try {
                 const r = await fetch(`${WORKER_BASE}/user-info?utoken=${ST.token}`);
                 if (!r.ok) throw new Error();
                 const i = await r.json();
+                console.log('User info:', i);
                 const wasApproved = ST.approved;
                 ST.email = i.email; ST.isAdmin = i.isAdmin === true; ST.approved = i.approved; ST.role = i.role;
                 if (!wasApproved && ST.approved) {
                     toast('You have been approved! Reloading page...', 'success');
                     setTimeout(() => window.location.reload(), 500);
-                } else if (showToast && !ST.approved) {
-                    toast('Still pending approval.', 'info');
                 }
                 return true;
             } catch(e) {
+                console.error(e);
                 ST.token = null;
                 localStorage.removeItem('vtoken');
                 return false;
             }
+        }
+
+        function startApprovalCheck() {
+            if (ST.checkInterval) clearInterval(ST.checkInterval);
+            // Check every 2 seconds while in pending state
+            ST.checkInterval = setInterval(async () => {
+                if (!ST.token || ST.approved) {
+                    clearInterval(ST.checkInterval);
+                    return;
+                }
+                await fetchUserInfoAndCheckApproval();
+            }, 2000);
         }
 
         function showLogin() {
@@ -293,18 +358,21 @@
             if(D.dropzone) D.dropzone.style.display = 'none';
             const hint = document.querySelector('.hint-text');
             if(hint) hint.style.display = 'none';
-            if(D.grid) D.grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;"><h2>🔐 Waiting for Approval</h2><p>Your email: <strong>${ST.email}</strong></p><p>After admin approves you, click <strong>Refresh Status</strong> to access files.</p><div style="margin-top:16px;"><button class="btn btn-outline btn-sm" id="manualRefreshBtn">🔄 Refresh Status</button> <button class="btn btn-danger btn-sm" id="btnSelfRevoke">❌ Cancel Request</button></div></div>`;
+            if(D.grid) D.grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;"><h2>🔐 Waiting for Approval</h2><p>Your email: <strong>${ST.email}</strong></p><p>Auto‑checking every 2 seconds...</p><div style="margin-top:16px;"><button class="btn btn-outline btn-sm" id="manualRefreshBtn">🔄 Check Now</button> <button class="btn btn-danger btn-sm" id="btnSelfRevoke">❌ Cancel Request</button></div></div>`;
             const refreshBtn = $('manualRefreshBtn');
             if(refreshBtn) refreshBtn.onclick = async () => {
                 toast('Checking approval status...', 'info');
-                await fetchUserInfo(true);
+                await fetchUserInfoAndCheckApproval();
             };
             const selfRevokeBtn = $('btnSelfRevoke');
             if(selfRevokeBtn) selfRevokeBtn.onclick = async () => {
                 if(!confirm('Cancel your access request?')) return;
-                await fetch(`${WORKER_BASE}/user-revoke-self`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({utoken:ST.token}) });
+                await makeRequest('selfRevoke', async () => {
+                    await fetch(`${WORKER_BASE}/user-revoke-self`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({utoken:ST.token}) });
+                }, 'critical');
                 ST.token = null; localStorage.removeItem('vtoken'); showLogin(); toast('Request cancelled.');
             };
+            startApprovalCheck();
         }
 
         function showMain() {
@@ -335,12 +403,12 @@
 
         safeAddEvent(D.btnSync, 'click', async () => {
             toast('Syncing...', 'info');
-            try {
+            await makeRequest('sync', async () => {
                 const r = await fetch(`${WORKER_BASE}/sync`, { method:'POST', headers:getAuthHeaders() });
                 if(!r.ok) throw new Error();
                 await fetchFiles();
                 toast('Sync done', 'success');
-            } catch(e) { toast('Sync failed', 'error'); }
+            }, 'critical').catch(() => toast('Sync failed', 'error'));
         });
         safeAddEvent(D.btnAppr, 'click', () => togglePanel(D.pnlAppr, loadPending));
         safeAddEvent(D.btnAllUsers, 'click', () => togglePanel(D.pnlUsers, loadAllUsers));
@@ -350,26 +418,24 @@
         safeAddEvent(D.btnUnAuth, 'click', adminLogout);
         safeAddEvent(D.btnClearLogs, 'click', async () => {
             if(!confirm('Delete all logs?')) return;
-            await fetch(`${WORKER_BASE}/admin/logs/clear`, { method:'POST', headers:getAuthHeaders() });
-            loadLogs();
-            toast('Logs cleared');
+            await makeRequest('clearLogs', async () => {
+                await fetch(`${WORKER_BASE}/admin/logs/clear`, { method:'POST', headers:getAuthHeaders() });
+                loadLogs();
+                toast('Logs cleared');
+            }, 'critical');
         });
         safeAddEvent(D.btnBulkCancel, 'click', () => { ST.selected.clear(); renderFiles(); updateBulkBar(); });
         safeAddEvent(D.btnBulkDelete, 'click', async () => {
             if(!confirm(`Delete ${ST.selected.size} files?`)) return;
             const ids = Array.from(ST.selected);
-            const r = await fetch(`${WORKER_BASE}/bulk-delete`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({publicIds:ids}) });
-            const d = await r.json();
-            ST.selected.clear(); updateBulkBar(); await fetchFiles();
-            toast(`${d.deleted} deleted, ${d.failed} failed`);
+            await makeRequest('bulkDelete', async () => {
+                const r = await fetch(`${WORKER_BASE}/bulk-delete`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({publicIds:ids}) });
+                const d = await r.json();
+                ST.selected.clear(); updateBulkBar(); await fetchFiles();
+                toast(`${d.deleted} deleted, ${d.failed} failed`);
+            }, 'critical');
         });
-        // Refresh buttons
         safeAddEvent(D.refreshFilesBtn, 'click', () => fetchFiles());
-        safeAddEvent(D.refreshAdminBtn, 'click', () => { loadPendingCount(); loadPending(); loadAllUsers(); loadLogs(); loadAnalytics(); toast('Admin panels refreshed'); });
-        safeAddEvent(D.refreshPendingBtn, 'click', () => loadPending());
-        safeAddEvent(D.refreshUsersBtn, 'click', () => loadAllUsers());
-        safeAddEvent(D.refreshLogsBtn, 'click', () => loadLogs());
-        safeAddEvent(D.refreshAnalyticsBtn, 'click', () => loadAnalytics());
 
         function togglePanel(panel, loadFn) { if(panel) { panel.classList.toggle('hidden'); if(!panel.classList.contains('hidden')) loadFn(); } }
         async function adminLogout() { if(confirm('Logout as admin?')) { ST.token = null; localStorage.removeItem('vtoken'); showLogin(); toast('Admin logged out'); } }
@@ -392,9 +458,11 @@
                             const role = btn.parentElement.querySelector('.role-sel')?.value || 'full';
                             const isApprove = btn.classList.contains('btn-success');
                             const endpoint = isApprove ? 'approve' : 'deny';
-                            await fetch(`${WORKER_BASE}/admin/${endpoint}`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({email, role}) });
-                            toast(`${email} ${isApprove ? 'approved' : 'denied'}`);
-                            loadPending(); loadPendingCount(); loadAllUsers();
+                            await makeRequest(`admin_${endpoint}_${email}`, async () => {
+                                await fetch(`${WORKER_BASE}/admin/${endpoint}`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({email, role}) });
+                                toast(`${email} ${isApprove ? 'approved' : 'denied'}`);
+                                loadPending(); loadPendingCount(); loadAllUsers();
+                            }, 'critical');
                         });
                     });
                 });
@@ -430,9 +498,11 @@
                             else if (action === 'update') endpoint = 'approve';
                             else if (action === 'revoke') endpoint = 'revoke';
                             if (endpoint) {
-                                await fetch(`${WORKER_BASE}/admin/${endpoint}`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({email, role}) });
-                                toast(`${email} ${action === 'revoke' ? 'revoked' : 'updated'}`);
-                                loadPending(); loadPendingCount(); loadAllUsers();
+                                await makeRequest(`admin_${endpoint}_${email}`, async () => {
+                                    await fetch(`${WORKER_BASE}/admin/${endpoint}`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({email, role}) });
+                                    toast(`${email} ${action === 'revoke' ? 'revoked' : 'updated'}`);
+                                    loadPending(); loadPendingCount(); loadAllUsers();
+                                }, 'critical');
                             }
                         });
                     });
@@ -456,13 +526,13 @@
 
         // ==================== Files ====================
         async function fetchFiles() {
-            try {
+            await makeRequest('listFiles', async () => {
                 const r = await fetch(`${WORKER_BASE}/list`, { headers:getAuthHeaders() });
                 if(!r.ok) throw new Error();
                 const data = await r.json();
                 ST.files = data.files;
                 renderFiles();
-            } catch(e) { toast('Failed to load files', 'error'); }
+            }, 'normal').catch(e => toast('Failed to load files', 'error'));
         }
 
         function renderFiles() {
@@ -562,9 +632,11 @@
         }
         async function deleteFile(pid) {
             if(!confirm('Delete?')) return;
-            const r = await fetch(`${WORKER_BASE}/delete`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({publicId:pid}) });
-            if(r.ok) { await fetchFiles(); toast('Deleted'); }
-            else toast('Delete failed', 'error');
+            await makeRequest(`delete_${pid}`, async () => {
+                const r = await fetch(`${WORKER_BASE}/delete`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({publicId:pid}) });
+                if(r.ok) { await fetchFiles(); toast('Deleted'); }
+                else throw new Error();
+            }, 'critical').catch(() => toast('Delete failed', 'error'));
         }
         function replaceFile(pid) {
             const inp = document.createElement('input'); inp.type='file';
@@ -585,18 +657,22 @@
             if(!f) return;
             const newName = prompt('New name:', f.name);
             if(!newName || newName===f.name) return;
-            const r = await fetch(`${WORKER_BASE}/rename`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({publicId:pid,newName}) });
-            if(r.ok) { await fetchFiles(); toast('Renamed'); }
-            else toast('Rename failed', 'error');
+            await makeRequest(`rename_${pid}`, async () => {
+                const r = await fetch(`${WORKER_BASE}/rename`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({publicId:pid,newName}) });
+                if(r.ok) { await fetchFiles(); toast('Renamed'); }
+                else throw new Error();
+            }, 'critical').catch(() => toast('Rename failed', 'error'));
         }
         async function shareFile(pid) {
             const label = prompt('Share label (optional):', '');
             const hours = parseInt(prompt('Expires in hours (default 1):', '1'),10);
             const maxDownloads = parseInt(prompt('Max downloads (0=unlimited):', '0'),10);
-            const r = await fetch(`${WORKER_BASE}/share/create`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({publicId:pid,expiresIn:hours*3600,maxDownloads,label}) });
-            const data = await r.json();
-            if(r.ok) { toast('Share link copied!'); navigator.clipboard.writeText(data.shareUrl); }
-            else toast('Share failed', 'error');
+            await makeRequest(`share_${pid}`, async () => {
+                const r = await fetch(`${WORKER_BASE}/share/create`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({publicId:pid,expiresIn:hours*3600,maxDownloads,label}) });
+                const data = await r.json();
+                if(r.ok) { toast('Share link copied!'); navigator.clipboard.writeText(data.shareUrl); }
+                else throw new Error();
+            }, 'critical').catch(() => toast('Share failed', 'error'));
         }
 
         // ==================== Upload ====================
@@ -774,7 +850,7 @@
                 localStorage.setItem('vtoken', utoken);
                 history.replaceState({}, '', location.pathname);
             }
-            if (ST.token && await fetchUserInfo(false)) {
+            if (ST.token && await fetchUserInfoAndCheckApproval()) {
                 render();
                 return;
             }
