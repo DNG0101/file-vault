@@ -230,10 +230,9 @@ async function usersHandler(ev) {
 
 // ==================== LOGS / ANALYTICS / SHARES ====================
 function loadLogs() {
-  fetch(`${WORKER_BASE}/admin/logs?limit=100`,{headers:getAuthHeaders()})
+  fetch(`${WORKER_BASE}/admin/logs?limit=200`,{headers:getAuthHeaders()})
     .then(r=>r.json())
     .then(d => {
-      // Filter only DELETE actions
       const deleteLogs = d.logs.filter(l => l.action === 'FILE_DELETED');
       D.logsCt.innerHTML = deleteLogs.length ? deleteLogs.map(l => `<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:0.8rem;"><strong>${new Date(l.ts).toLocaleString()}</strong> ${l.actor} deleted <strong>${l.meta?.fileName || l.target}</strong></div>`).join('') : '<p>No deletion logs yet.</p>';
     });
@@ -244,13 +243,11 @@ function loadShares() { D.shareCt.innerHTML = '<p>Create a share link from a fil
 
 // ==================== FILE LIST & ACTIONS (Sectioned) ====================
 async function fetchFiles() { try { const r = await fetch(`${WORKER_BASE}/list`, { headers: getAuthHeaders() }); if(!r.ok) throw new Error('Failed'); const { files } = await r.json(); ST.files = files; renderFiles(); } catch(e) { console.error(e); toast('Failed to load files', 'error'); } }
-
 function renderFiles() {
   let list = [...ST.files];
   if(ST.query) list = list.filter(f => f.name.toLowerCase().includes(ST.query));
   const s = ST.sort;
   list.sort((a,b) => { switch(s) { case 'newest': return b.createdAt - a.createdAt; case 'oldest': return a.createdAt - b.createdAt; case 'name-asc': return a.name.localeCompare(b.name); case 'name-desc': return b.name.localeCompare(a.name); case 'size-desc': return b.size - a.size; case 'size-asc': return a.size - b.size; default: return 0; } });
-  // Group by uploader email
   const grouped = {};
   list.forEach(f => { const uploader = f.uploadedBy || 'unknown'; if(!grouped[uploader]) grouped[uploader] = []; grouped[uploader].push(f); });
   D.grid.innerHTML = '';
