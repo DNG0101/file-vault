@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Public File Vault – Final Working</title>
+    <title>Public File Vault – Final Fixed</title>
     <style>
-        /* ========== CSS (same as before) ========== */
+        /* ========== CSS (exactly the same as before – compact) ========== */
         :root {
             --bg: #f8fafc;
             --card-bg: #ffffff;
@@ -125,10 +125,10 @@
             <button class="btn btn-danger btn-sm" id="btnAdminLogout">🔒 Logout</button>
         </div>
 
-        <div class="panel hidden" id="approvalPanel"><h3>Pending Approvals</h3><div id="approvalList"></div></div>
-        <div class="panel hidden" id="usersPanel"><h3>Active Users</h3><div id="usersList"></div></div>
-        <div class="panel hidden" id="logsPanel"><h3>Audit Logs (Delete Only)</h3><div id="logsContent"></div><button class="btn btn-danger btn-sm" id="btnClearLogs">🗑 Clear All Logs</button></div>
-        <div class="panel hidden" id="analyticsPanel"><h3>Analytics</h3><div id="analyticsContent"></div></div>
+        <div class="panel hidden" id="approvalPanel"><h3>Pending Approvals</h3><div id="approvalList"></div><button class="btn-sm btn-outline" id="refreshPendingBtn">🔄 Refresh</button></div>
+        <div class="panel hidden" id="usersPanel"><h3>Active Users</h3><div id="usersList"></div><button class="btn-sm btn-outline" id="refreshUsersBtn">🔄 Refresh</button></div>
+        <div class="panel hidden" id="logsPanel"><h3>Audit Logs (Delete Only)</h3><div id="logsContent"></div><button class="btn btn-danger btn-sm" id="btnClearLogs">🗑 Clear All Logs</button><button class="btn-sm btn-outline" id="refreshLogsBtn">🔄 Refresh</button></div>
+        <div class="panel hidden" id="analyticsPanel"><h3>Analytics</h3><div id="analyticsContent"></div><button class="btn-sm btn-outline" id="refreshAnalyticsBtn">🔄 Refresh</button></div>
         <div class="panel hidden" id="sharePanel"><h3>Share Manager</h3><div id="shareContent"></div></div>
 
         <div class="toolbar">
@@ -186,38 +186,35 @@
         // ==================== CONFIG ====================
         const WORKER_BASE = 'https://gdrive-files-api.donthulanithish53.workers.dev';
 
-        // ==================== REQUEST MANAGER ====================
-        let isRequestInProgress = false;
-        let requestQueue = [];
-        
-        async function makeRequest(key, fn, priority = 'normal') {
-            // If a request is already in progress, queue this one
-            if (isRequestInProgress) {
-                if (priority === 'critical') {
-                    // Wait for current request to finish
-                    while (isRequestInProgress) {
-                        await new Promise(r => setTimeout(r, 100));
-                    }
-                } else {
-                    return new Promise((resolve, reject) => {
-                        requestQueue.push({ key, fn, priority, resolve, reject });
-                    });
-                }
+        // ==================== REQUEST MANAGER (no polling, only click) ====================
+        class RequestManager {
+            constructor(defaultCooldown = 5000) {
+                this.lock = false;
+                this.cooldowns = new Map();
+                this.defaultCooldown = defaultCooldown;
             }
-            
-            isRequestInProgress = true;
-            try {
-                const result = await fn();
-                return result;
-            } finally {
-                isRequestInProgress = false;
-                // Process next in queue
-                if (requestQueue.length > 0) {
-                    const next = requestQueue.shift();
-                    makeRequest(next.key, next.fn, next.priority).then(next.resolve).catch(next.reject);
+            async execute(key, fn, priority = 'normal', customCooldown = null) {
+                while (this.lock) await new Promise(r => setTimeout(r, 50));
+                this.lock = true;
+                try {
+                    const cooldown = customCooldown !== null ? customCooldown : this.defaultCooldown;
+                    if (priority !== 'critical') {
+                        const last = this.cooldowns.get(key) || 0;
+                        const elapsed = Date.now() - last;
+                        if (elapsed < cooldown) {
+                            const waitSec = Math.ceil((cooldown - elapsed) / 1000);
+                            toast(`Please wait ${waitSec} seconds before retrying.`, 'info');
+                            throw new Error(`Cooldown active for ${key}`);
+                        }
+                        this.cooldowns.set(key, Date.now());
+                    }
+                    return await fn();
+                } finally {
+                    this.lock = false;
                 }
             }
         }
+        const reqMgr = new RequestManager(5000);
 
         // ==================== STATE ====================
         let ST = {
@@ -233,10 +230,9 @@
             uploadCtrl: null,
             dark: localStorage.getItem('darkMode') === 'true',
             shareToken: null,
-            checkInterval: null,
         };
 
-        // ==================== DOM Helpers ====================
+        // ==================== DOM ====================
         const $ = id => document.getElementById(id);
         const D = {
             stats: $('storageStats'), userUI: $('userUI'), adminBar: $('adminBar'),
@@ -254,7 +250,8 @@
             analyticsCt: $('analyticsContent'), pnlShare: $('sharePanel'), shareCt: $('shareContent'),
             pendingBadge: $('pendingBadge'), btnClearLogs: $('btnClearLogs'),
             btnBulkDelete: $('btnBulkDelete'), btnBulkCancel: $('btnBulkCancel'),
-            refreshFilesBtn: $('refreshFilesBtn'),
+            refreshFilesBtn: $('refreshFilesBtn'), refreshPendingBtn: $('refreshPendingBtn'),
+            refreshUsersBtn: $('refreshUsersBtn'), refreshLogsBtn: $('refreshLogsBtn'), refreshAnalyticsBtn: $('refreshAnalyticsBtn'),
         };
 
         // ==================== Utilities ====================
@@ -304,38 +301,21 @@
         })();
 
         // ==================== Authentication ====================
-        async function fetchUserInfoAndCheckApproval() {
+        async function fetchUserInfo(priority = 'normal') {
             if (!ST.token) return false;
-            try {
+            return reqMgr.execute('userInfo', async () => {
                 const r = await fetch(`${WORKER_BASE}/user-info?utoken=${ST.token}`);
                 if (!r.ok) throw new Error();
                 const i = await r.json();
-                console.log('User info:', i);
+                console.log('User info response:', i);
                 const wasApproved = ST.approved;
                 ST.email = i.email; ST.isAdmin = i.isAdmin === true; ST.approved = i.approved; ST.role = i.role;
                 if (!wasApproved && ST.approved) {
-                    toast('You have been approved! Reloading page...', 'success');
+                    toast('You have been approved! Reloading...', 'success');
                     setTimeout(() => window.location.reload(), 500);
                 }
                 return true;
-            } catch(e) {
-                console.error(e);
-                ST.token = null;
-                localStorage.removeItem('vtoken');
-                return false;
-            }
-        }
-
-        function startApprovalCheck() {
-            if (ST.checkInterval) clearInterval(ST.checkInterval);
-            // Check every 2 seconds while in pending state
-            ST.checkInterval = setInterval(async () => {
-                if (!ST.token || ST.approved) {
-                    clearInterval(ST.checkInterval);
-                    return;
-                }
-                await fetchUserInfoAndCheckApproval();
-            }, 2000);
+            }, priority).catch(e => { console.warn(e); return false; });
         }
 
         function showLogin() {
@@ -358,21 +338,32 @@
             if(D.dropzone) D.dropzone.style.display = 'none';
             const hint = document.querySelector('.hint-text');
             if(hint) hint.style.display = 'none';
-            if(D.grid) D.grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;"><h2>🔐 Waiting for Approval</h2><p>Your email: <strong>${ST.email}</strong></p><p>Auto‑checking every 2 seconds...</p><div style="margin-top:16px;"><button class="btn btn-outline btn-sm" id="manualRefreshBtn">🔄 Check Now</button> <button class="btn btn-danger btn-sm" id="btnSelfRevoke">❌ Cancel Request</button></div></div>`;
+            if(D.grid) D.grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;"><h2>🔐 Waiting for Approval</h2><p>Your email: <strong>${ST.email}</strong></p><p>After admin approves you, click <strong>Refresh Status</strong>.</p><div style="margin-top:16px;"><button class="btn btn-outline btn-sm" id="manualRefreshBtn">🔄 Refresh Status</button> <button class="btn btn-danger btn-sm" id="btnSelfRevoke">❌ Cancel Request</button></div></div>`;
             const refreshBtn = $('manualRefreshBtn');
             if(refreshBtn) refreshBtn.onclick = async () => {
                 toast('Checking approval status...', 'info');
-                await fetchUserInfoAndCheckApproval();
+                const r = await fetch(`${WORKER_BASE}/user-info?utoken=${ST.token}`);
+                if (r.ok) {
+                    const data = await r.json();
+                    console.log('Manual refresh result:', data);
+                    if (data.approved) {
+                        toast('Approved! Reloading...', 'success');
+                        window.location.reload();
+                    } else {
+                        toast('Still pending. Please ask admin to approve you.', 'info');
+                    }
+                } else {
+                    toast('Failed to check status.', 'error');
+                }
             };
             const selfRevokeBtn = $('btnSelfRevoke');
             if(selfRevokeBtn) selfRevokeBtn.onclick = async () => {
                 if(!confirm('Cancel your access request?')) return;
-                await makeRequest('selfRevoke', async () => {
+                await reqMgr.execute('selfRevoke', async () => {
                     await fetch(`${WORKER_BASE}/user-revoke-self`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({utoken:ST.token}) });
                 }, 'critical');
                 ST.token = null; localStorage.removeItem('vtoken'); showLogin(); toast('Request cancelled.');
             };
-            startApprovalCheck();
         }
 
         function showMain() {
@@ -398,12 +389,12 @@
             showMain(); applyRoleUI(); fetchFiles();
         }
 
-        // ==================== Admin actions ====================
+        // ==================== Admin actions (only on click) ====================
         function safeAddEvent(element, event, handler) { if(element) element.addEventListener(event, handler); }
 
         safeAddEvent(D.btnSync, 'click', async () => {
             toast('Syncing...', 'info');
-            await makeRequest('sync', async () => {
+            await reqMgr.execute('sync', async () => {
                 const r = await fetch(`${WORKER_BASE}/sync`, { method:'POST', headers:getAuthHeaders() });
                 if(!r.ok) throw new Error();
                 await fetchFiles();
@@ -418,7 +409,7 @@
         safeAddEvent(D.btnUnAuth, 'click', adminLogout);
         safeAddEvent(D.btnClearLogs, 'click', async () => {
             if(!confirm('Delete all logs?')) return;
-            await makeRequest('clearLogs', async () => {
+            await reqMgr.execute('clearLogs', async () => {
                 await fetch(`${WORKER_BASE}/admin/logs/clear`, { method:'POST', headers:getAuthHeaders() });
                 loadLogs();
                 toast('Logs cleared');
@@ -428,14 +419,19 @@
         safeAddEvent(D.btnBulkDelete, 'click', async () => {
             if(!confirm(`Delete ${ST.selected.size} files?`)) return;
             const ids = Array.from(ST.selected);
-            await makeRequest('bulkDelete', async () => {
+            await reqMgr.execute('bulkDelete', async () => {
                 const r = await fetch(`${WORKER_BASE}/bulk-delete`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({publicIds:ids}) });
                 const d = await r.json();
                 ST.selected.clear(); updateBulkBar(); await fetchFiles();
                 toast(`${d.deleted} deleted, ${d.failed} failed`);
             }, 'critical');
         });
+        // Refresh buttons
         safeAddEvent(D.refreshFilesBtn, 'click', () => fetchFiles());
+        safeAddEvent(D.refreshPendingBtn, 'click', () => loadPending());
+        safeAddEvent(D.refreshUsersBtn, 'click', () => loadAllUsers());
+        safeAddEvent(D.refreshLogsBtn, 'click', () => loadLogs());
+        safeAddEvent(D.refreshAnalyticsBtn, 'click', () => loadAnalytics());
 
         function togglePanel(panel, loadFn) { if(panel) { panel.classList.toggle('hidden'); if(!panel.classList.contains('hidden')) loadFn(); } }
         async function adminLogout() { if(confirm('Logout as admin?')) { ST.token = null; localStorage.removeItem('vtoken'); showLogin(); toast('Admin logged out'); } }
@@ -458,7 +454,7 @@
                             const role = btn.parentElement.querySelector('.role-sel')?.value || 'full';
                             const isApprove = btn.classList.contains('btn-success');
                             const endpoint = isApprove ? 'approve' : 'deny';
-                            await makeRequest(`admin_${endpoint}_${email}`, async () => {
+                            await reqMgr.execute(`admin_${endpoint}_${email}`, async () => {
                                 await fetch(`${WORKER_BASE}/admin/${endpoint}`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({email, role}) });
                                 toast(`${email} ${isApprove ? 'approved' : 'denied'}`);
                                 loadPending(); loadPendingCount(); loadAllUsers();
@@ -498,7 +494,7 @@
                             else if (action === 'update') endpoint = 'approve';
                             else if (action === 'revoke') endpoint = 'revoke';
                             if (endpoint) {
-                                await makeRequest(`admin_${endpoint}_${email}`, async () => {
+                                await reqMgr.execute(`admin_${endpoint}_${email}`, async () => {
                                     await fetch(`${WORKER_BASE}/admin/${endpoint}`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({email, role}) });
                                     toast(`${email} ${action === 'revoke' ? 'revoked' : 'updated'}`);
                                     loadPending(); loadPendingCount(); loadAllUsers();
@@ -526,13 +522,13 @@
 
         // ==================== Files ====================
         async function fetchFiles() {
-            await makeRequest('listFiles', async () => {
+            await reqMgr.execute('listFiles', async () => {
                 const r = await fetch(`${WORKER_BASE}/list`, { headers:getAuthHeaders() });
                 if(!r.ok) throw new Error();
                 const data = await r.json();
                 ST.files = data.files;
                 renderFiles();
-            }, 'normal').catch(e => toast('Failed to load files', 'error'));
+            }, 'normal', 5000).catch(e => toast('Failed to load files', 'error'));
         }
 
         function renderFiles() {
@@ -632,7 +628,7 @@
         }
         async function deleteFile(pid) {
             if(!confirm('Delete?')) return;
-            await makeRequest(`delete_${pid}`, async () => {
+            await reqMgr.execute(`delete_${pid}`, async () => {
                 const r = await fetch(`${WORKER_BASE}/delete`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({publicId:pid}) });
                 if(r.ok) { await fetchFiles(); toast('Deleted'); }
                 else throw new Error();
@@ -657,7 +653,7 @@
             if(!f) return;
             const newName = prompt('New name:', f.name);
             if(!newName || newName===f.name) return;
-            await makeRequest(`rename_${pid}`, async () => {
+            await reqMgr.execute(`rename_${pid}`, async () => {
                 const r = await fetch(`${WORKER_BASE}/rename`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({publicId:pid,newName}) });
                 if(r.ok) { await fetchFiles(); toast('Renamed'); }
                 else throw new Error();
@@ -667,7 +663,7 @@
             const label = prompt('Share label (optional):', '');
             const hours = parseInt(prompt('Expires in hours (default 1):', '1'),10);
             const maxDownloads = parseInt(prompt('Max downloads (0=unlimited):', '0'),10);
-            await makeRequest(`share_${pid}`, async () => {
+            await reqMgr.execute(`share_${pid}`, async () => {
                 const r = await fetch(`${WORKER_BASE}/share/create`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({publicId:pid,expiresIn:hours*3600,maxDownloads,label}) });
                 const data = await r.json();
                 if(r.ok) { toast('Share link copied!'); navigator.clipboard.writeText(data.shareUrl); }
@@ -850,7 +846,7 @@
                 localStorage.setItem('vtoken', utoken);
                 history.replaceState({}, '', location.pathname);
             }
-            if (ST.token && await fetchUserInfoAndCheckApproval()) {
+            if (ST.token && await fetchUserInfo('critical')) {
                 render();
                 return;
             }
