@@ -47,9 +47,13 @@
         .btn-sm { padding: 4px 12px; font-size: 0.8rem; }
         .toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
         .search-box { flex: 1; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--card-bg); color: var(--text); outline: none; }
-        .paste-box { display: flex; gap: 8px; margin-bottom: 20px; align-items: center; }
-        .paste-box input { flex: 1; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--card-bg); color: var(--text); }
-        .dropzone { border: 2px dashed var(--border); border-radius: 16px; padding: 40px 20px; text-align: center; background: var(--card-bg); cursor: pointer; margin-bottom: 20px; transition: all 0.2s; }
+        .paste-box { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin-bottom: 20px; }
+        .paste-box h4 { margin-bottom: 8px; font-size: 0.9rem; }
+        .paste-files { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+        .paste-file-item { background: var(--accent); color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; display: inline-flex; align-items: center; gap: 6px; }
+        .paste-file-item button { background: none; border: none; color: white; cursor: pointer; font-weight: bold; }
+        .paste-actions { display: flex; gap: 10px; margin-top: 8px; }
+        .dropzone { border: 2px dashed var(--border); border-radius: 16px; padding: 30px 20px; text-align: center; background: var(--card-bg); cursor: pointer; margin-bottom: 20px; transition: all 0.2s; }
         .dropzone:hover, .dragover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 5%, var(--card-bg)); }
         .progress-box { margin-bottom: 20px; }
         .progress-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
@@ -64,7 +68,7 @@
         .card.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
         .card-checkbox { position: absolute; top: 10px; right: 10px; width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; z-index: 2; }
         .thumbnail { width: 100%; height: 160px; object-fit: cover; border-radius: 10px; margin-bottom: 10px; background: transparent; display: flex; align-items: center; justify-content: center; font-size: 3rem; }
-        .thumbnail img { width: 100%; height: 100%; object-fit: cover; border-radius: 10px; }
+        .thumbnail img { width: 100%; height: 100%; object-fit: cover; border-radius: 10px; background: transparent; }
         .file-name { font-weight: 600; word-break: break-word; margin-bottom: 6px; font-size: 0.9rem; }
         .file-meta { font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 10px; }
         .actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
@@ -75,7 +79,7 @@
         .btn-xs-delete { background: var(--danger); color: white; }
         .btn-xs-replace { background: var(--warn); color: #222; }
         .btn-xs-rename { background: #6c757d; color: white; }
-        .btn-xs-share { background: #0d6efd; color: white; }
+        .btn-xs-copy { background: #0d6efd; color: white; }
         .comment-section { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 8px; font-size: 0.75rem; }
         .comment-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-weight: 600; cursor: pointer; }
         .comment-icon { font-size: 1rem; }
@@ -97,7 +101,7 @@
         .status-approved { background: #d1fae5; color: #065f46; }
         .status-pending { background: #fef3c7; color: #92400e; }
         .bulk-bar { background: var(--accent); color: white; padding: 8px 16px; border-radius: 8px; margin-bottom: 12px; display: flex; align-items: center; gap: 12px; }
-        .preview-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 1000; display: flex; justify-content: center; align-items: center; flex-direction: column; }
+        .preview-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 1000; display: flex; justify-content: center; align-items: center; flex-direction: column; }
         .preview-overlay.hidden { display: none; }
         .preview-container { width: 90%; height: 90%; display: flex; align-items: center; justify-content: center; }
         .preview-container video, .preview-container audio { max-width: 100%; max-height: 100%; outline: none; }
@@ -133,6 +137,7 @@
             <button class="btn btn-danger btn-sm" id="btnAdminLogout">🔒 Logout</button>
         </div>
 
+        <!-- Admin panels (same as before) -->
         <div class="panel hidden" id="approvalPanel"><h3>Pending Approvals</h3><div id="approvalList"></div><button class="btn-sm btn-outline" id="refreshPendingBtn">🔄 Refresh</button></div>
         <div class="panel hidden" id="usersPanel"><h3>Active Users</h3><div id="usersList"></div><button class="btn-sm btn-outline" id="refreshUsersBtn">🔄 Refresh</button></div>
         <div class="panel hidden" id="logsPanel"><h3>Audit Logs</h3><div id="logsContent"></div><button class="btn btn-danger btn-sm" id="btnClearLogs">🗑 Clear All Logs</button><button class="btn-sm btn-outline" id="refreshLogsBtn">🔄 Refresh</button></div>
@@ -149,10 +154,14 @@
             <button class="btn-sm btn-outline" id="refreshFilesBtn">🔄 Refresh Files</button>
         </div>
 
-        <!-- Paste & Send Box -->
+        <!-- Paste & Send Box (supports multiple files) -->
         <div class="paste-box">
-            <input type="text" id="pasteInput" placeholder="Paste a file here (Ctrl+V) and click Send...">
-            <button class="btn btn-primary" id="sendPasteBtn">📤 Send</button>
+            <h4>📋 Paste files here (Ctrl+V)</h4>
+            <div id="pasteFilesList" class="paste-files"></div>
+            <div class="paste-actions">
+                <button class="btn btn-primary" id="sendPasteBtn">📤 Send All</button>
+                <button class="btn btn-outline" id="clearPasteBtn">🗑 Clear</button>
+            </div>
         </div>
 
         <div class="bulk-bar hidden" id="bulkBar">
@@ -162,7 +171,7 @@
         </div>
 
         <div class="hint-text">
-            <kbd>Ctrl</kbd>+<kbd>V</kbd> paste (anywhere) &nbsp;|&nbsp;
+            <kbd>Ctrl</kbd>+<kbd>V</kbd> paste (multiple files) &nbsp;|&nbsp;
             <kbd>Ctrl</kbd>+<kbd>U</kbd> upload &nbsp;|&nbsp;
             <kbd>Ctrl</kbd>+<kbd>F</kbd> search &nbsp;|&nbsp;
             <kbd>Esc</kbd> close
@@ -225,6 +234,7 @@
         };
         let uploadingFiles = new Set();
         let cardData = new Map(); // publicId -> { comments, ticked, count }
+        let pastedFiles = [];     // array of File objects
 
         // DOM helpers
         const $ = id => document.getElementById(id);
@@ -248,7 +258,7 @@
             btnBulkDelete: $('btnBulkDelete'), btnBulkCancel: $('btnBulkCancel'),
             refreshFilesBtn: $('refreshFilesBtn'), refreshPendingBtn: $('refreshPendingBtn'),
             refreshUsersBtn: $('refreshUsersBtn'), refreshLogsBtn: $('refreshLogsBtn'), refreshAnalyticsBtn: $('refreshAnalyticsBtn'),
-            pasteInput: $('pasteInput'), sendPasteBtn: $('sendPasteBtn'),
+            pasteFilesList: $('pasteFilesList'), sendPasteBtn: $('sendPasteBtn'), clearPasteBtn: $('clearPasteBtn'),
         };
 
         function getAuthHeaders() {
@@ -382,9 +392,8 @@
             showMain(); applyRoleUI(); fetchFiles();
         }
 
-        // Admin panels (simplified but functional)
+        // Admin panels (shortened but functional – same as before)
         function safeAddEvent(element, event, handler) { if(element) element.addEventListener(event, handler); }
-
         safeAddEvent(D.btnSync, 'click', async () => {
             toast('Syncing...', 'info');
             await withLock(async () => {
@@ -398,7 +407,7 @@
         safeAddEvent(D.btnAllUsers, 'click', () => togglePanel(D.pnlUsers, loadAllUsers));
         safeAddEvent(D.btnLogs, 'click', () => togglePanel(D.pnlLogs, loadLogs));
         safeAddEvent(D.btnAnalytics, 'click', () => togglePanel(D.pnlAnalytics, loadAnalytics));
-        safeAddEvent(D.btnShare, 'click', () => togglePanel(D.pnlShare, () => { if(D.shareCt) D.shareCt.innerHTML = '<p>Create a share link from a file card (🔗 Share).</p>'; }));
+        safeAddEvent(D.btnShare, 'click', () => togglePanel(D.pnlShare, () => { if(D.shareCt) D.shareCt.innerHTML = '<p>Create a share link from a file card (🔗 Copy link).</p>'; }));
         safeAddEvent(D.btnUnAuth, 'click', adminLogout);
         safeAddEvent(D.btnClearLogs, 'click', async () => {
             if(!confirm('Delete all logs?')) return;
@@ -424,7 +433,6 @@
         safeAddEvent(D.refreshUsersBtn, 'click', () => loadAllUsers());
         safeAddEvent(D.refreshLogsBtn, 'click', () => loadLogs());
         safeAddEvent(D.refreshAnalyticsBtn, 'click', () => loadAnalytics());
-
         function togglePanel(panel, loadFn) { if(panel) { panel.classList.toggle('hidden'); if(!panel.classList.contains('hidden')) loadFn(); } }
         async function adminLogout() { if(confirm('Logout as admin?')) { ST.token = null; localStorage.removeItem('vtoken'); showLogin(); toast('Admin logged out'); } }
         async function loadPendingCount() {
@@ -520,7 +528,7 @@
                 .then(d => { D.analyticsCt.innerHTML = `<p>Files: ${d.files.total} (${fmtSz(d.files.totalSize)}) | Users: ${d.users.total}</p>`; });
         }
 
-        // ==================== CORE FILE LOGIC ====================
+        // ==================== FILE CORE ====================
         async function fetchFiles() {
             await withLock(async () => {
                 const r = await fetch(`${WORKER_BASE}/list`, { headers:getAuthHeaders() });
@@ -546,15 +554,12 @@
             if (!card) return;
             const newData = await loadCardData(publicId);
             cardData.set(publicId, newData);
-            // Update tick button
             const tickBtn = card.querySelector('.tick-btn');
             if (tickBtn) tickBtn.innerHTML = newData.ticked ? '✅' : '☑️';
             const tickCountSpan = card.querySelector('.tick-count');
             if (tickCountSpan) tickCountSpan.textContent = newData.count;
-            // Update comment icon count
-            const commentIcon = card.querySelector('.comment-header .comment-count');
-            if (commentIcon) commentIcon.textContent = newData.comments.length;
-            // Update comment list
+            const commentCountSpan = card.querySelector('.comment-header .comment-count');
+            if (commentCountSpan) commentCountSpan.textContent = newData.comments.length;
             const commentList = card.querySelector('.comment-list');
             if (commentList) {
                 commentList.innerHTML = newData.comments.map(c => `
@@ -625,6 +630,24 @@
             }).catch(e => toast('Tick failed', 'error'));
         }
 
+        // Copy link (share) function
+        async function copyShareLink(publicId) {
+            await withLock(async () => {
+                const r = await fetch(`${WORKER_BASE}/share/create`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+                    body: JSON.stringify({ publicId, expiresIn: 3600, maxDownloads: 0, label: '' })
+                });
+                const data = await r.json();
+                if (r.ok) {
+                    await navigator.clipboard.writeText(data.shareUrl);
+                    toast('Link copied to clipboard!', 'success');
+                } else {
+                    throw new Error(data.message);
+                }
+            }).catch(e => toast('Failed to create link', 'error'));
+        }
+
         function renderFiles() {
             if (!D.grid) return;
             let list = [...ST.files];
@@ -667,9 +690,9 @@
                             ${actions.includes('preview') ? `<button class="btn-xs btn-xs-preview" data-action="preview" data-id="${f.publicId}">🔍 Preview</button>` : ''}
                             ${actions.includes('download') ? `<button class="btn-xs btn-xs-download" data-action="download" data-id="${f.publicId}">⬇ Download</button>` : ''}
                             ${actions.includes('rename') ? `<button class="btn-xs btn-xs-rename" data-action="rename" data-id="${f.publicId}">✏️ Rename</button>` : ''}
-                            ${actions.includes('share') ? `<button class="btn-xs btn-xs-share" data-action="share" data-id="${f.publicId}">🔗 Share</button>` : ''}
                             ${actions.includes('delete') ? `<button class="btn-xs btn-xs-delete" data-action="delete" data-id="${f.publicId}">🗑 Delete</button>` : ''}
                             ${actions.includes('replace') ? `<button class="btn-xs btn-xs-replace" data-action="replace" data-id="${f.publicId}">🔄 Replace</button>` : ''}
+                            <button class="btn-xs btn-xs-copy" data-action="copy" data-id="${f.publicId}">📋 Copy Link</button>
                             <button class="tick-btn" data-action="tick" data-id="${f.publicId}"></button>
                             <span class="tick-count"></span>
                             <div class="comment-section">
@@ -686,7 +709,6 @@
                         </div>
                     `;
                     gridDiv.appendChild(card);
-                    // Load data asynchronously
                     (async () => {
                         const data = await loadCardData(f.publicId);
                         cardData.set(f.publicId, data);
@@ -750,10 +772,9 @@
                                 }
                             });
                         }
-                        // Comment header toggle
-                        const header = card.querySelector('.comment-header');
-                        if (header) {
-                            header.addEventListener('click', () => {
+                        const commentHeader = card.querySelector('.comment-header');
+                        if (commentHeader) {
+                            commentHeader.addEventListener('click', () => {
                                 const list = card.querySelector('.comment-list');
                                 if (list) list.classList.toggle('show');
                             });
@@ -767,7 +788,7 @@
         }
 
         function getFileActions(pid) {
-            if (ST.isAdmin) return ['play','preview','download','rename','share','delete','replace'];
+            if (ST.isAdmin) return ['play','preview','download','rename','delete','replace']; // copy is always shown
             if (!ST.role) return [];
             const f = ST.files.find(f => f.publicId === pid);
             if (!f) return [];
@@ -776,7 +797,7 @@
             if ((pt === 'video' || pt === 'audio') && ['full','delete','upload','download','read'].includes(ST.role)) a.push('play');
             if (['image','pdf','text'].includes(pt) && ['full','delete','upload','download','read'].includes(ST.role)) a.push('preview');
             if (['full','delete','upload','download'].includes(ST.role)) a.push('download');
-            if (['full'].includes(ST.role)) a.push('rename','share');
+            if (['full'].includes(ST.role)) a.push('rename');
             if (['full','delete'].includes(ST.role)) a.push('delete');
             if (ST.role === 'full') a.push('replace');
             return a;
@@ -804,7 +825,7 @@
         }
         function checkboxHandler(e) { e.stopPropagation(); toggleSelect(e.target.dataset.id, e.target.checked); }
         async function tickHandler(e) { e.stopPropagation(); const pid = e.currentTarget.dataset.id; await toggleTick(pid); }
-        function actionHandler(e) { e.stopPropagation(); const action = e.currentTarget.dataset.action, id = e.currentTarget.dataset.id; if (action && action !== 'tick') fileAction(action, id); }
+        function actionHandler(e) { e.stopPropagation(); const action = e.currentTarget.dataset.action, id = e.currentTarget.dataset.id; if (action === 'copy') copyShareLink(id); else if (action && action !== 'tick') fileAction(action, id); }
         function cardClickHandler(e) { if (e.target.classList.contains('card-checkbox') || e.target.closest('.actions')) return; const cb = this.querySelector('.card-checkbox'); if (cb) toggleSelect(cb.dataset.id, !cb.checked); }
         function toggleSelect(id, checked) { if (checked) ST.selected.add(id); else ST.selected.delete(id); updateBulkBar(); const card = document.querySelector(`.card[data-public-id="${id}"]`); if (card) card.classList.toggle('selected', checked); }
         function updateBulkBar() { if (D.bulkBar) { if (ST.selected.size) { D.bulkBar.classList.remove('hidden'); if (D.bulkCnt) D.bulkCnt.textContent = `${ST.selected.size} selected`; } else D.bulkBar.classList.add('hidden'); } }
@@ -816,7 +837,6 @@
                 case 'delete': deleteFile(id); break;
                 case 'replace': replaceFile(id); break;
                 case 'rename': renameFile(id); break;
-                case 'share': shareFile(id); break;
             }
         }
         async function deleteFile(pid) {
@@ -854,19 +874,8 @@
                 else throw new Error();
             }).catch(() => toast('Rename failed', 'error'));
         }
-        async function shareFile(pid) {
-            const label = prompt('Share label (optional):', '');
-            const hours = parseInt(prompt('Expires in hours (default 1):', '1'),10);
-            const maxDownloads = parseInt(prompt('Max downloads (0=unlimited):', '0'),10);
-            await withLock(async () => {
-                const r = await fetch(`${WORKER_BASE}/share/create`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({publicId:pid,expiresIn:hours*3600,maxDownloads,label}) });
-                const data = await r.json();
-                if (r.ok) { toast('Share link copied!'); navigator.clipboard.writeText(data.shareUrl); }
-                else throw new Error();
-            }).catch(() => toast('Share failed', 'error'));
-        }
 
-        // Upload
+        // Upload (single file)
         async function uploadFile(file, existingPid = null) {
             const fileKey = existingPid || file.name + file.size + file.lastModified;
             if (uploadingFiles.has(fileKey)) { toast(`${file.name} already uploading.`, 'info'); return; }
@@ -944,35 +953,54 @@
         const sleep = ms => new Promise(r => setTimeout(r, ms));
         safeAddEvent(D.cancelBtn, 'click', () => { if (ST.uploadCtrl) { ST.uploadCtrl.abort(); ST.uploadCtrl = null; if (D.progBox) D.progBox.classList.add('hidden'); } });
 
-        // Paste & Send Box
-        async function handlePasteSend() {
-            const text = D.pasteInput.value.trim();
-            if (!text) return;
-            // Try to interpret as file name? Instead we'll treat it as a regular upload via paste event.
-            // Better: use the global paste listener. The send button will trigger uploading from clipboard if any file is stored.
-            toast('Paste a file using Ctrl+V, then click Send.', 'info');
+        // Paste multiple files handling
+        function updatePasteUI() {
+            if (!D.pasteFilesList) return;
+            D.pasteFilesList.innerHTML = pastedFiles.map((f, idx) => `
+                <div class="paste-file-item">
+                    ${esc(f.name)} (${fmtSz(f.size)})
+                    <button data-idx="${idx}">✕</button>
+                </div>
+            `).join('');
+            D.pasteFilesList.querySelectorAll('button').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const idx = parseInt(btn.dataset.idx);
+                    pastedFiles.splice(idx, 1);
+                    updatePasteUI();
+                });
+            });
         }
-        // Global paste capture: store last pasted file
-        let lastPastedFile = null;
         document.addEventListener('paste', (e) => {
             const items = e.clipboardData.items;
+            const newFiles = [];
             for (let i = 0; i < items.length; i++) {
                 if (items[i].kind === 'file') {
-                    lastPastedFile = items[i].getAsFile();
-                    toast('File pasted. Click "Send" to upload.', 'success');
-                    if (D.pasteInput) D.pasteInput.value = `Ready: ${lastPastedFile.name}`;
-                    break;
+                    newFiles.push(items[i].getAsFile());
                 }
+            }
+            if (newFiles.length) {
+                pastedFiles.push(...newFiles);
+                updatePasteUI();
+                toast(`${newFiles.length} file(s) pasted. Click "Send All" to upload.`, 'success');
             }
         });
         safeAddEvent(D.sendPasteBtn, 'click', async () => {
-            if (lastPastedFile) {
-                await uploadFile(lastPastedFile);
-                lastPastedFile = null;
-                if (D.pasteInput) D.pasteInput.value = '';
-            } else {
-                toast('No file pasted. Use Ctrl+V to paste a file first.', 'info');
+            if (pastedFiles.length === 0) {
+                toast('No files pasted. Use Ctrl+V to paste files first.', 'info');
+                return;
             }
+            toast(`Uploading ${pastedFiles.length} file(s)...`, 'info');
+            for (const file of pastedFiles) {
+                await uploadFile(file);
+            }
+            pastedFiles = [];
+            updatePasteUI();
+            toast('All pasted files uploaded.', 'success');
+        });
+        safeAddEvent(D.clearPasteBtn, 'click', () => {
+            pastedFiles = [];
+            updatePasteUI();
+            toast('Cleared pasted files.', 'info');
         });
 
         // Preview
@@ -1010,7 +1038,6 @@
             if (hint) hint.style.display = canUpload ? '' : 'none';
         }
 
-        // Share preview
         async function showSharePreview() {
             const res = await fetch(`${WORKER_BASE}/share/verify?token=${ST.shareToken}`);
             if (!res.ok) { toast('Invalid or expired share link', 'error'); showLogin(); return; }
