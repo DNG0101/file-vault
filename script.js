@@ -398,7 +398,7 @@ function fileAction(action, id) {
   }
 }
 
-// ==================== UPLOAD ====================
+// ==================== UPLOAD (with auth) ====================
 async function uploadFile(file, existPid = null) {
   if(ST.uploadCtrl) ST.uploadCtrl.abort();
   ST.uploadCtrl = new AbortController(); const sig = ST.uploadCtrl.signal;
@@ -438,7 +438,7 @@ function updateProg(u,t) { const p = Math.round(u/t*100); D.progFill.style.width
 const sleep = ms => new Promise(r=>setTimeout(r,ms));
 D.cancelBtn.addEventListener('click', () => { if(ST.uploadCtrl) { ST.uploadCtrl.abort(); ST.uploadCtrl = null; D.progBox.classList.add('hidden'); } });
 
-// ==================== PREVIEW ====================
+// ==================== PREVIEW (with auth) ====================
 function openPreview(pid, type) {
   D.prevCont.innerHTML = ''; const url = `${WORKER_BASE}/video/${pid}`;
   if(type==='video'||type==='audio') {
