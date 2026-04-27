@@ -5,34 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>Public File Vault – Final</title>
     <style>
-        /* ========== CSS (same as before, compact) ========== */
+        /* Same CSS as before, included for completeness */
         :root {
-            --bg: #f8fafc;
-            --card-bg: #ffffff;
-            --text: #1e293b;
-            --text-secondary: #64748b;
-            --border: #e2e8f0;
-            --accent: #3b82f6;
-            --accent-hover: #2563eb;
-            --success: #10b981;
-            --danger: #ef4444;
-            --warn: #f59e0b;
-            --purple: #8b5cf6;
-            --radius: 14px;
-            --shadow: 0 4px 12px rgba(0,0,0,0.05);
-            --toast-bg: #1e293b;
-            --toast-text: #f1f5f9;
+            --bg: #f8fafc; --card-bg: #ffffff; --text: #1e293b; --text-secondary: #64748b;
+            --border: #e2e8f0; --accent: #3b82f6; --accent-hover: #2563eb; --success: #10b981;
+            --danger: #ef4444; --warn: #f59e0b; --purple: #8b5cf6; --radius: 14px;
+            --shadow: 0 4px 12px rgba(0,0,0,0.05); --toast-bg: #1e293b; --toast-text: #f1f5f9;
             --transition: 0.2s ease;
         }
-        [data-theme="dark"] {
-            --bg: #0f172a;
-            --card-bg: #1e293b;
-            --text: #e2e8f0;
-            --text-secondary: #94a3b8;
-            --border: #334155;
-            --shadow: 0 4px 12px rgba(0,0,0,0.3);
-            --toast-bg: #475569;
-        }
+        [data-theme="dark"] { --bg: #0f172a; --card-bg: #1e293b; --text: #e2e8f0; --text-secondary: #94a3b8;
+            --border: #334155; --shadow: 0 4px 12px rgba(0,0,0,0.3); --toast-bg: #475569; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: system-ui, -apple-system, 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 20px; transition: background var(--transition), color var(--transition); }
         .container { max-width: 1300px; margin: 0 auto; }
@@ -187,36 +169,6 @@
         // ==================== CONFIG ====================
         const WORKER_BASE = 'https://gdrive-files-api.donthulanithish53.workers.dev';
 
-        // ==================== REQUEST MANAGER (cooldown, concurrency) ====================
-        class RequestManager {
-            constructor(defaultCooldown = 10000) {
-                this.lock = false;
-                this.cooldowns = new Map();
-                this.defaultCooldown = defaultCooldown;
-            }
-            async execute(key, fn, priority = 'normal', customCooldown = null) {
-                while (this.lock) await new Promise(r => setTimeout(r, 50));
-                this.lock = true;
-                try {
-                    const cooldown = customCooldown !== null ? customCooldown : this.defaultCooldown;
-                    if (priority !== 'critical') {
-                        const last = this.cooldowns.get(key) || 0;
-                        const elapsed = Date.now() - last;
-                        if (elapsed < cooldown) {
-                            const waitSec = Math.ceil((cooldown - elapsed) / 1000);
-                            toast(`Please wait ${waitSec} seconds before retrying.`, 'info');
-                            throw new Error(`Cooldown active for ${key}`);
-                        }
-                        this.cooldowns.set(key, Date.now());
-                    }
-                    return await fn();
-                } finally {
-                    this.lock = false;
-                }
-            }
-        }
-        const reqMgr = new RequestManager(10000);
-
         // ==================== STATE ====================
         let ST = {
             token: localStorage.getItem('vtoken'),
@@ -265,12 +217,8 @@
             }
             return h;
         }
-        function getDownloadUrl(pid) {
-            return `${WORKER_BASE}/download/${pid}?utoken=${ST.token}`;
-        }
-        function getPreviewUrl(pid) {
-            return `${WORKER_BASE}/video/${pid}?utoken=${ST.token}`;
-        }
+        function getDownloadUrl(pid) { return `${WORKER_BASE}/download/${pid}?utoken=${ST.token}`; }
+        function getPreviewUrl(pid) { return `${WORKER_BASE}/video/${pid}?utoken=${ST.token}`; }
         function toast(msg, type='info') {
             if (!D.toastBox) return;
             const el = document.createElement('div');
@@ -303,21 +251,26 @@
         })();
 
         // ==================== Authentication ====================
-        async function fetchUserInfo(priority = 'normal') {
+        async function fetchUserInfo(showToast = true) {
             if (!ST.token) return false;
-            return reqMgr.execute('userInfo', async () => {
+            try {
                 const r = await fetch(`${WORKER_BASE}/user-info?utoken=${ST.token}`);
                 if (!r.ok) throw new Error();
                 const i = await r.json();
                 const wasApproved = ST.approved;
                 ST.email = i.email; ST.isAdmin = i.isAdmin === true; ST.approved = i.approved; ST.role = i.role;
-                console.log('User info:', i); // Debug
                 if (!wasApproved && ST.approved) {
-                    toast('You have been approved! Page will reload.', 'success');
+                    toast('You have been approved! Reloading page...', 'success');
                     setTimeout(() => window.location.reload(), 500);
+                } else if (showToast && !ST.approved) {
+                    toast('Still pending approval.', 'info');
                 }
                 return true;
-            }, priority).catch(e => { console.warn(e); return false; });
+            } catch(e) {
+                ST.token = null;
+                localStorage.removeItem('vtoken');
+                return false;
+            }
         }
 
         function showLogin() {
@@ -340,29 +293,16 @@
             if(D.dropzone) D.dropzone.style.display = 'none';
             const hint = document.querySelector('.hint-text');
             if(hint) hint.style.display = 'none';
-            if(D.grid) D.grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;"><h2>🔐 Waiting for Approval</h2><p>Your email: <strong>${ST.email}</strong></p><p>If you have been approved, click <strong>Refresh Status</strong>.</p><div style="margin-top:16px;"><button class="btn btn-outline btn-sm" id="manualRefreshBtn">🔄 Refresh Status</button> <button class="btn btn-danger btn-sm" id="btnSelfRevoke">❌ Cancel Request</button></div></div>`;
+            if(D.grid) D.grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;"><h2>🔐 Waiting for Approval</h2><p>Your email: <strong>${ST.email}</strong></p><p>After admin approves you, click <strong>Refresh Status</strong> to access files.</p><div style="margin-top:16px;"><button class="btn btn-outline btn-sm" id="manualRefreshBtn">🔄 Refresh Status</button> <button class="btn btn-danger btn-sm" id="btnSelfRevoke">❌ Cancel Request</button></div></div>`;
             const refreshBtn = $('manualRefreshBtn');
             if(refreshBtn) refreshBtn.onclick = async () => {
                 toast('Checking approval status...', 'info');
-                const r = await fetch(`${WORKER_BASE}/user-info?utoken=${ST.token}`);
-                if (r.ok) {
-                    const data = await r.json();
-                    if (data.approved) {
-                        toast('Approved! Reloading page...', 'success');
-                        setTimeout(() => window.location.reload(), 500);
-                    } else {
-                        toast('Still pending approval.', 'info');
-                    }
-                } else {
-                    toast('Failed to check status.', 'error');
-                }
+                await fetchUserInfo(true);
             };
             const selfRevokeBtn = $('btnSelfRevoke');
             if(selfRevokeBtn) selfRevokeBtn.onclick = async () => {
                 if(!confirm('Cancel your access request?')) return;
-                await reqMgr.execute('selfRevoke', async () => {
-                    await fetch(`${WORKER_BASE}/user-revoke-self`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({utoken:ST.token}) });
-                }, 'critical');
+                await fetch(`${WORKER_BASE}/user-revoke-self`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({utoken:ST.token}) });
                 ST.token = null; localStorage.removeItem('vtoken'); showLogin(); toast('Request cancelled.');
             };
         }
@@ -395,12 +335,12 @@
 
         safeAddEvent(D.btnSync, 'click', async () => {
             toast('Syncing...', 'info');
-            await reqMgr.execute('sync', async () => {
+            try {
                 const r = await fetch(`${WORKER_BASE}/sync`, { method:'POST', headers:getAuthHeaders() });
                 if(!r.ok) throw new Error();
                 await fetchFiles();
                 toast('Sync done', 'success');
-            }, 'critical').catch(() => toast('Sync failed', 'error'));
+            } catch(e) { toast('Sync failed', 'error'); }
         });
         safeAddEvent(D.btnAppr, 'click', () => togglePanel(D.pnlAppr, loadPending));
         safeAddEvent(D.btnAllUsers, 'click', () => togglePanel(D.pnlUsers, loadAllUsers));
@@ -410,22 +350,18 @@
         safeAddEvent(D.btnUnAuth, 'click', adminLogout);
         safeAddEvent(D.btnClearLogs, 'click', async () => {
             if(!confirm('Delete all logs?')) return;
-            await reqMgr.execute('clearLogs', async () => {
-                await fetch(`${WORKER_BASE}/admin/logs/clear`, { method:'POST', headers:getAuthHeaders() });
-                loadLogs();
-                toast('Logs cleared');
-            }, 'critical');
+            await fetch(`${WORKER_BASE}/admin/logs/clear`, { method:'POST', headers:getAuthHeaders() });
+            loadLogs();
+            toast('Logs cleared');
         });
         safeAddEvent(D.btnBulkCancel, 'click', () => { ST.selected.clear(); renderFiles(); updateBulkBar(); });
         safeAddEvent(D.btnBulkDelete, 'click', async () => {
             if(!confirm(`Delete ${ST.selected.size} files?`)) return;
             const ids = Array.from(ST.selected);
-            await reqMgr.execute('bulkDelete', async () => {
-                const r = await fetch(`${WORKER_BASE}/bulk-delete`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({publicIds:ids}) });
-                const d = await r.json();
-                ST.selected.clear(); updateBulkBar(); await fetchFiles();
-                toast(`${d.deleted} deleted, ${d.failed} failed`);
-            }, 'critical');
+            const r = await fetch(`${WORKER_BASE}/bulk-delete`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({publicIds:ids}) });
+            const d = await r.json();
+            ST.selected.clear(); updateBulkBar(); await fetchFiles();
+            toast(`${d.deleted} deleted, ${d.failed} failed`);
         });
         // Refresh buttons
         safeAddEvent(D.refreshFilesBtn, 'click', () => fetchFiles());
@@ -456,11 +392,9 @@
                             const role = btn.parentElement.querySelector('.role-sel')?.value || 'full';
                             const isApprove = btn.classList.contains('btn-success');
                             const endpoint = isApprove ? 'approve' : 'deny';
-                            await reqMgr.execute(`admin_${endpoint}_${email}`, async () => {
-                                await fetch(`${WORKER_BASE}/admin/${endpoint}`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({email, role}) });
-                                toast(`${email} ${isApprove ? 'approved' : 'denied'}`);
-                                loadPending(); loadPendingCount(); loadAllUsers();
-                            }, 'critical');
+                            await fetch(`${WORKER_BASE}/admin/${endpoint}`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({email, role}) });
+                            toast(`${email} ${isApprove ? 'approved' : 'denied'}`);
+                            loadPending(); loadPendingCount(); loadAllUsers();
                         });
                     });
                 });
@@ -496,11 +430,9 @@
                             else if (action === 'update') endpoint = 'approve';
                             else if (action === 'revoke') endpoint = 'revoke';
                             if (endpoint) {
-                                await reqMgr.execute(`admin_${endpoint}_${email}`, async () => {
-                                    await fetch(`${WORKER_BASE}/admin/${endpoint}`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({email, role}) });
-                                    toast(`${email} ${action === 'revoke' ? 'revoked' : 'updated'}`);
-                                    loadPending(); loadPendingCount(); loadAllUsers();
-                                }, 'critical');
+                                await fetch(`${WORKER_BASE}/admin/${endpoint}`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({email, role}) });
+                                toast(`${email} ${action === 'revoke' ? 'revoked' : 'updated'}`);
+                                loadPending(); loadPendingCount(); loadAllUsers();
                             }
                         });
                     });
@@ -524,13 +456,13 @@
 
         // ==================== Files ====================
         async function fetchFiles() {
-            await reqMgr.execute('listFiles', async () => {
+            try {
                 const r = await fetch(`${WORKER_BASE}/list`, { headers:getAuthHeaders() });
                 if(!r.ok) throw new Error();
                 const data = await r.json();
                 ST.files = data.files;
                 renderFiles();
-            }, 'normal', 5000).catch(e => toast('Failed to load files', 'error'));
+            } catch(e) { toast('Failed to load files', 'error'); }
         }
 
         function renderFiles() {
@@ -630,11 +562,9 @@
         }
         async function deleteFile(pid) {
             if(!confirm('Delete?')) return;
-            await reqMgr.execute(`delete_${pid}`, async () => {
-                const r = await fetch(`${WORKER_BASE}/delete`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({publicId:pid}) });
-                if(r.ok) { await fetchFiles(); toast('Deleted'); }
-                else throw new Error();
-            }, 'critical').catch(() => toast('Delete failed', 'error'));
+            const r = await fetch(`${WORKER_BASE}/delete`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({publicId:pid}) });
+            if(r.ok) { await fetchFiles(); toast('Deleted'); }
+            else toast('Delete failed', 'error');
         }
         function replaceFile(pid) {
             const inp = document.createElement('input'); inp.type='file';
@@ -655,22 +585,18 @@
             if(!f) return;
             const newName = prompt('New name:', f.name);
             if(!newName || newName===f.name) return;
-            await reqMgr.execute(`rename_${pid}`, async () => {
-                const r = await fetch(`${WORKER_BASE}/rename`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({publicId:pid,newName}) });
-                if(r.ok) { await fetchFiles(); toast('Renamed'); }
-                else throw new Error();
-            }, 'critical').catch(() => toast('Rename failed', 'error'));
+            const r = await fetch(`${WORKER_BASE}/rename`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({publicId:pid,newName}) });
+            if(r.ok) { await fetchFiles(); toast('Renamed'); }
+            else toast('Rename failed', 'error');
         }
         async function shareFile(pid) {
             const label = prompt('Share label (optional):', '');
             const hours = parseInt(prompt('Expires in hours (default 1):', '1'),10);
             const maxDownloads = parseInt(prompt('Max downloads (0=unlimited):', '0'),10);
-            await reqMgr.execute(`share_${pid}`, async () => {
-                const r = await fetch(`${WORKER_BASE}/share/create`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({publicId:pid,expiresIn:hours*3600,maxDownloads,label}) });
-                const data = await r.json();
-                if(r.ok) { toast('Share link copied!'); navigator.clipboard.writeText(data.shareUrl); }
-                else throw new Error();
-            }, 'critical').catch(() => toast('Share failed', 'error'));
+            const r = await fetch(`${WORKER_BASE}/share/create`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({publicId:pid,expiresIn:hours*3600,maxDownloads,label}) });
+            const data = await r.json();
+            if(r.ok) { toast('Share link copied!'); navigator.clipboard.writeText(data.shareUrl); }
+            else toast('Share failed', 'error');
         }
 
         // ==================== Upload ====================
@@ -775,7 +701,6 @@
         safeAddEvent(D.btnCloseP, 'click', closePreview);
         safeAddEvent(D.btnFull, 'click', () => { if (document.fullscreenElement) document.exitFullscreen(); else if(D.prevOv) D.prevOv.requestFullscreen(); });
 
-        // No automatic polling – only manual refresh
         function applyRoleUI() {
             const canUpload = ['full','delete','upload'].includes(ST.role);
             if(D.dropzone) D.dropzone.style.display = canUpload ? '' : 'none';
@@ -849,7 +774,7 @@
                 localStorage.setItem('vtoken', utoken);
                 history.replaceState({}, '', location.pathname);
             }
-            if (ST.token && await fetchUserInfo('critical')) {
+            if (ST.token && await fetchUserInfo(false)) {
                 render();
                 return;
             }
