@@ -5,10 +5,35 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>Public File Vault – Final</title>
     <style>
-        /* Same CSS as before – omitted for brevity, but you can reuse */
-        :root { --bg: #f8fafc; --card-bg: #ffffff; --text: #1e293b; --text-secondary: #64748b; --border: #e2e8f0; --accent: #3b82f6; --accent-hover: #2563eb; --success: #10b981; --danger: #ef4444; --warn: #f59e0b; --purple: #8b5cf6; --radius: 14px; --shadow: 0 4px 12px rgba(0,0,0,0.05); --toast-bg: #1e293b; --toast-text: #f1f5f9; --transition: 0.2s ease; }
-        [data-theme="dark"] { --bg: #0f172a; --card-bg: #1e293b; --text: #e2e8f0; --text-secondary: #94a3b8; --border: #334155; --shadow: 0 4px 12px rgba(0,0,0,0.3); --toast-bg: #475569; }
-        * { margin:0; padding:0; box-sizing:border-box; }
+        /* ========== STYLES (compact, responsive, dark mode) ========== */
+        :root {
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warn: #f59e0b;
+            --purple: #8b5cf6;
+            --radius: 14px;
+            --shadow: 0 4px 12px rgba(0,0,0,0.05);
+            --toast-bg: #1e293b;
+            --toast-text: #f1f5f9;
+            --transition: 0.2s ease;
+        }
+        [data-theme="dark"] {
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --text: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --border: #334155;
+            --shadow: 0 4px 12px rgba(0,0,0,0.3);
+            --toast-bg: #475569;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: system-ui, -apple-system, 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 20px; transition: background var(--transition), color var(--transition); }
         .container { max-width: 1300px; margin: 0 auto; }
         .hidden { display: none !important; }
@@ -179,23 +204,23 @@
         };
 
         // ==================== DOM ELEMENTS ====================
-        const $ = id => document.getElementById(id);
+        function getEl(id) { return document.getElementById(id); }
         const D = {
-            stats: $('storageStats'), userUI: $('userUI'), adminBar: $('adminBar'),
-            dropzone: $('dropzone'), fileInp: $('fileInput'), progBox: $('progressBox'),
-            progFill: $('progressFill'), pctDisp: $('percentDisplay'), speedDisp: $('speedDisplay'),
-            sizeDisp: $('sizeDisplay'), cancelBtn: $('cancelUpload'), grid: $('fileGrid'),
-            prevOv: $('previewOverlay'), prevCont: $('previewContainer'), btnFull: $('btnFullscreen'),
-            btnCloseP: $('btnClosePreview'), search: $('searchInput'), sortSel: $('sortSelect'),
-            bulkBar: $('bulkBar'), bulkCnt: $('bulkCount'), toastBox: $('toastContainer'),
-            btnDark: $('btnDarkMode'), btnSync: $('btnSync'), btnAppr: $('btnApprovals'),
-            btnAllUsers: $('btnAllUsers'), btnLogs: $('btnLogs'), btnAnalytics: $('btnAnalytics'),
-            btnShare: $('btnShareManager'), btnUnAuth: $('btnAdminLogout'), pnlAppr: $('approvalPanel'),
-            listAppr: $('approvalList'), pnlUsers: $('usersPanel'), listUsers: $('usersList'),
-            pnlLogs: $('logsPanel'), logsCt: $('logsContent'), pnlAnalytics: $('analyticsPanel'),
-            analyticsCt: $('analyticsContent'), pnlShare: $('sharePanel'), shareCt: $('shareContent'),
-            pendingBadge: $('pendingBadge'), btnClearLogs: $('btnClearLogs'),
-            btnBulkDelete: $('btnBulkDelete'), btnBulkCancel: $('btnBulkCancel'),
+            stats: getEl('storageStats'), userUI: getEl('userUI'), adminBar: getEl('adminBar'),
+            dropzone: getEl('dropzone'), fileInp: getEl('fileInput'), progBox: getEl('progressBox'),
+            progFill: getEl('progressFill'), pctDisp: getEl('percentDisplay'), speedDisp: getEl('speedDisplay'),
+            sizeDisp: getEl('sizeDisplay'), cancelBtn: getEl('cancelUpload'), grid: getEl('fileGrid'),
+            prevOv: getEl('previewOverlay'), prevCont: getEl('previewContainer'), btnFull: getEl('btnFullscreen'),
+            btnCloseP: getEl('btnClosePreview'), search: getEl('searchInput'), sortSel: getEl('sortSelect'),
+            bulkBar: getEl('bulkBar'), bulkCnt: getEl('bulkCount'), toastBox: getEl('toastContainer'),
+            btnDark: getEl('btnDarkMode'), btnSync: getEl('btnSync'), btnAppr: getEl('btnApprovals'),
+            btnAllUsers: getEl('btnAllUsers'), btnLogs: getEl('btnLogs'), btnAnalytics: getEl('btnAnalytics'),
+            btnShare: getEl('btnShareManager'), btnUnAuth: getEl('btnAdminLogout'), pnlAppr: getEl('approvalPanel'),
+            listAppr: getEl('approvalList'), pnlUsers: getEl('usersPanel'), listUsers: getEl('usersList'),
+            pnlLogs: getEl('logsPanel'), logsCt: getEl('logsContent'), pnlAnalytics: getEl('analyticsPanel'),
+            analyticsCt: getEl('analyticsContent'), pnlShare: getEl('sharePanel'), shareCt: getEl('shareContent'),
+            pendingBadge: getEl('pendingBadge'), btnClearLogs: getEl('btnClearLogs'),
+            btnBulkDelete: getEl('btnBulkDelete'), btnBulkCancel: getEl('btnBulkCancel'),
         };
 
         // ==================== UTILITIES ====================
@@ -222,50 +247,36 @@
         const prevType = m => { if(!m) return ''; if(m.startsWith('video')) return 'video'; if(m.startsWith('audio')) return 'audio'; if(m.startsWith('image')) return 'image'; if(m==='application/pdf') return 'pdf'; if(m.startsWith('text')) return 'text'; return ''; };
 
         // ==================== DARK MODE ====================
-        if(D.btnDark) {
+        (function(){
+            if(!D.btnDark) return;
             if(ST.dark) document.documentElement.setAttribute('data-theme','dark');
             D.btnDark.addEventListener('click', () => {
                 ST.dark = !ST.dark;
                 document.documentElement.setAttribute('data-theme', ST.dark ? 'dark' : 'light');
                 localStorage.setItem('darkMode', ST.dark);
                 if(ST.isAdmin && ST.token) {
-                    fetch(`${WORKER_BASE}/admin/set-engine`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({ engine: ST.dark ? 'kv' : 'd1' }) }).catch(()=>{});
+                    fetch(`${WORKER_BASE}/admin/set-engine`, {
+                        method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()},
+                        body:JSON.stringify({ engine: ST.dark ? 'kv' : 'd1' })
+                    }).catch(()=>{});
                 }
             });
-        }
+        })();
 
-        // ==================== AUTH & RENDER ====================
-        async function init() {
-            const p = new URLSearchParams(location.search);
-            const utoken = p.get('utoken');
-            const share = p.get('share');
-            const err = p.get('auth_error');
-            if (share) {
-                ST.shareToken = share;
-                history.replaceState({}, '', location.pathname);
-                await showSharePreview();
-                return;
-            }
-            if (err) { toast('Auth error: '+err.replace(/_/g,' '), 'error'); history.replaceState({},'',location.pathname); }
-            if (utoken) {
-                ST.token = utoken;
-                localStorage.setItem('vtoken', utoken);
-                history.replaceState({}, '', location.pathname);
-            }
-            await refreshUserInfo(); // always fetch fresh info
-            render();
-        }
-
-        async function refreshUserInfo() {
+        // ==================== AUTH & ROLE POLLING ====================
+        async function fetchUserInfo() {
             if (!ST.token) return false;
             try {
                 const r = await fetch(`${WORKER_BASE}/user-info?utoken=${ST.token}`);
                 if (!r.ok) throw new Error();
                 const i = await r.json();
-                ST.email = i.email;
-                ST.isAdmin = i.isAdmin === true;
-                ST.approved = i.approved;
-                ST.role = i.role;
+                const wasApproved = ST.approved;
+                ST.email = i.email; ST.isAdmin = i.isAdmin === true; ST.approved = i.approved; ST.role = i.role;
+                // If approval status changed from false to true, re-render
+                if (!wasApproved && ST.approved) {
+                    toast('You have been approved!', 'success');
+                    render(); // re-render to show main UI
+                }
                 return true;
             } catch(e) {
                 ST.token = null;
@@ -273,13 +284,9 @@
                 return false;
             }
         }
-
         function showLogin() {
             if(D.adminBar) D.adminBar.classList.add('hidden');
             if(D.userUI) D.userUI.innerHTML = '';
-            if(D.dropzone) D.dropzone.style.display = '';
-            const hint = document.querySelector('.hint-text');
-            if(hint) hint.style.display = '';
             if(D.grid) D.grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;"><h2>Welcome to File Vault</h2><p style="margin:16px 0;">Sign in to access your files.</p><button class="btn btn-primary" id="btnLogin">🔑 Login with Google</button></div>`;
             const loginBtn = document.getElementById('btnLogin');
             if(loginBtn) {
@@ -290,7 +297,6 @@
                 };
             }
         }
-
         function showPending() {
             if(D.adminBar) D.adminBar.classList.add('hidden');
             if(D.userUI) D.userUI.innerHTML = '';
@@ -299,15 +305,12 @@
             if(hint) hint.style.display = 'none';
             if(D.grid) D.grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;"><h2>🔐 Waiting for Approval</h2><p>Your email: <strong>${ST.email}</strong></p><p>You will be notified automatically.</p><button class="btn btn-outline btn-sm" onclick="location.reload()">🔄 Refresh</button><button class="btn btn-danger btn-sm" id="btnSelfRevoke">❌ Cancel Request</button></div>`;
             const selfRevokeBtn = document.getElementById('btnSelfRevoke');
-            if(selfRevokeBtn) selfRevokeBtn.onclick = selfRevoke;
+            if(selfRevokeBtn) selfRevokeBtn.onclick = async () => {
+                if(!confirm('Cancel your access request?')) return;
+                await fetch(`${WORKER_BASE}/user-revoke-self`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({utoken:ST.token}) });
+                ST.token = null; localStorage.removeItem('vtoken'); clearTimers(); showLogin(); toast('Request cancelled.');
+            };
         }
-
-        async function selfRevoke() {
-            if(!confirm('Cancel your access request?')) return;
-            await fetch(`${WORKER_BASE}/user-revoke-self`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({utoken:ST.token}) });
-            ST.token = null; localStorage.removeItem('vtoken'); clearTimers(); showLogin(); toast('Request cancelled.');
-        }
-
         function showMain() {
             const hint = document.querySelector('.hint-text');
             if(hint) hint.style.display = '';
@@ -320,41 +323,19 @@
                 if(D.adminBar) D.adminBar.classList.add('hidden');
                 if(D.userUI) D.userUI.innerHTML = `<span style="font-size:0.85rem;">👤 ${ST.email} (${ST.role}) <button class="btn btn-sm btn-outline" id="btnUserLogout">🔒 Logout</button></span>`;
                 const logoutBtn = document.getElementById('btnUserLogout');
-                if(logoutBtn) logoutBtn.onclick = userLogout;
+                if(logoutBtn) logoutBtn.onclick = () => { ST.token = null; localStorage.removeItem('vtoken'); clearTimers(); showLogin(); toast('Logged out.'); };
             }
         }
-
-        function userLogout() { ST.token = null; localStorage.removeItem('vtoken'); clearTimers(); showLogin(); toast('Logged out.'); }
-
         function render() {
             clearTimers();
-            if(!ST.token || !ST.email) { showLogin(); return; }
-            if(ST.isAdmin) {
-                showMain();
-                fetchFiles();
-                startAdminPoll();
-                startRolePoll();
-                return;
-            }
-            if(!ST.approved) {
-                showPending();
-                startRolePoll();
-                return;
-            }
-            showMain();
-            applyRoleUI();
-            fetchFiles();
-            startUserPoll();
-            startRolePoll();
+            if(!ST.email) { showLogin(); return; }
+            if(ST.isAdmin) { showMain(); fetchFiles(); startAdminPoll(); startRolePoll(); return; }
+            if(!ST.approved) { showPending(); startRolePoll(); return; }
+            showMain(); applyRoleUI(); fetchFiles(); startUserPoll(); startRolePoll();
         }
+        function clearTimers() { ['files','admin','role'].forEach(k => { if(ST.timers[k]) clearTimeout(ST.timers[k]); }); }
 
-        function clearTimers() {
-            if(ST.timers.files) clearTimeout(ST.timers.files);
-            if(ST.timers.admin) clearTimeout(ST.timers.admin);
-            if(ST.timers.role) clearTimeout(ST.timers.role);
-        }
-
-        // ==================== ADMIN & PANELS ====================
+        // ==================== ADMIN PANEL ====================
         function safeAddEvent(element, event, handler) {
             if(element) element.addEventListener(event, handler);
         }
@@ -411,28 +392,55 @@
             fetch(`${WORKER_BASE}/admin/users/all`,{headers:getAuthHeaders()}).then(r=>r.json()).then(users => {
                 const active = users.filter(u=>u.status!=='revoked');
                 const revoked = users.filter(u=>u.status==='revoked');
-                let html = active.map(u => `<div class="approval-item"><span>${u.email} <span class="status-badge status-${u.status}">${u.status}</span> ${u.role?`(${u.role})` : ''}</span><div>${u.status==='pending'?`<select class="role-sel-${u.email}"><option value="full">Full</option><option value="delete">Delete</option><option value="upload">Upload Only</option><option value="download">Download</option><option value="read">Read</option><option value="none">None</option></select><button class="btn-sm btn-success" data-action="approve" data-email="${u.email}">Approve</button>`:''}${u.status==='approved'?`<select class="role-sel-${u.email}"><option value="full" ${u.role==='full'?'selected':''}>Full</option><option value="delete" ${u.role==='delete'?'selected':''}>Delete</option><option value="upload" ${u.role==='upload'?'selected':''}>Upload Only</option><option value="download" ${u.role==='download'?'selected':''}>Download</option><option value="read" ${u.role==='read'?'selected':''}>Read</option><option value="none" ${u.role==='none'?'selected':''}>None</option></select><button class="btn-sm btn-primary" data-action="update" data-email="${u.email}">Update</button><button class="btn-sm btn-danger" data-action="revoke" data-email="${u.email}">Revoke</button>`:''}</div></div>`).join('');
+                let html = '';
+                // Active users section
+                html += active.map(u => `<div class="approval-item">
+                    <span>${u.email} <span class="status-badge status-${u.status}">${u.status}</span> ${u.role?`(${u.role})` : ''}</span>
+                    <div>
+                        ${u.status==='pending' ? 
+                            `<select class="role-sel-${u.email}"><option value="full">Full</option><option value="delete">Delete</option><option value="upload">Upload Only</option><option value="download">Download</option><option value="read">Read</option><option value="none">None</option></select>
+                            <button class="btn-sm btn-success" data-action="approve" data-email="${u.email}">Approve</button>` : ''}
+                        ${u.status==='approved' ? 
+                            `<select class="role-sel-${u.email}"><option value="full" ${u.role==='full'?'selected':''}>Full</option><option value="delete" ${u.role==='delete'?'selected':''}>Delete</option><option value="upload" ${u.role==='upload'?'selected':''}>Upload Only</option><option value="download" ${u.role==='download'?'selected':''}>Download</option><option value="read" ${u.role==='read'?'selected':''}>Read</option><option value="none" ${u.role==='none'?'selected':''}>None</option></select>
+                            <button class="btn-sm btn-primary" data-action="update" data-email="${u.email}">Update</button>
+                            <button class="btn-sm btn-danger" data-action="revoke" data-email="${u.email}">Revoke</button>` : ''}
+                    </div>
+                </div>`).join('');
+                // Revoked users section (with Re-approve)
                 if(revoked.length) {
-                    html += '<hr><h4>Revoked Users</h4>';
-                    html += revoked.map(u => `<div class="approval-item"><span>${u.email} <span class="status-badge status-revoked">revoked</span></span><div><select class="role-sel-${u.email}"><option value="full">Full</option><option value="delete">Delete</option><option value="upload">Upload Only</option><option value="download">Download</option><option value="read">Read</option><option value="none">None</option></select><button class="btn-sm btn-warning" data-action="reapprove" data-email="${u.email}">Re‑approve</button></div></div>`).join('');
+                    html += '<hr><h4>Revoked Users (can be re‑approved)</h4>';
+                    html += revoked.map(u => `<div class="approval-item">
+                        <span>${u.email} <span class="status-badge status-revoked">revoked</span> ${u.role?`(${u.role})` : ''}</span>
+                        <div>
+                            <select class="role-sel-${u.email}"><option value="full">Full</option><option value="delete">Delete</option><option value="upload">Upload Only</option><option value="download">Download</option><option value="read">Read</option><option value="none">None</option></select>
+                            <button class="btn-sm btn-warning" data-action="reapprove" data-email="${u.email}">Re‑approve</button>
+                        </div>
+                    </div>`).join('');
                 }
                 D.listUsers.innerHTML = html || '<p>No users.</p>';
+                // Attach event listeners for all buttons in the users panel
                 D.listUsers.querySelectorAll('button').forEach(btn => {
                     btn.addEventListener('click', async () => {
                         const action = btn.dataset.action;
                         const email = btn.dataset.email;
-                        if(['approve','reapprove','update'].includes(action)) {
-                            let role = 'full';
-                            const sel = btn.parentElement.querySelector(`.role-sel-${email}`);
-                            if(sel) role = sel.value;
-                            const endpoint = action==='reapprove'?'reapprove':'approve';
-                            await fetch(`${WORKER_BASE}/admin/${endpoint}`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({email,role})});
-                            toast(`${email} updated`);
-                        } else if(action==='revoke') {
-                            await fetch(`${WORKER_BASE}/admin/revoke`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({email})});
-                            toast(`${email} revoked`);
+                        let role = 'full';
+                        const sel = btn.parentElement.querySelector(`.role-sel-${email}`);
+                        if(sel) role = sel.value;
+                        let endpoint = '';
+                        if (action === 'approve') endpoint = 'approve';
+                        else if (action === 'reapprove') endpoint = 'reapprove';
+                        else if (action === 'update') endpoint = 'approve'; // update uses same approve endpoint
+                        else if (action === 'revoke') endpoint = 'revoke';
+                        if (endpoint) {
+                            await fetch(`${WORKER_BASE}/admin/${endpoint}`, {
+                                method:'POST',
+                                headers:{'Content-Type':'application/json', ...getAuthHeaders()},
+                                body:JSON.stringify({email, role})
+                            });
+                            toast(`${email} ${action === 'revoke' ? 'revoked' : 'updated'}`);
+                            // Refresh all admin panels
+                            loadPending(); loadPendingCount(); loadAllUsers();
                         }
-                        loadAllUsers(); if(['approve','reapprove'].includes(action)) loadPendingCount();
                     });
                 });
             });
@@ -451,7 +459,7 @@
             });
         }
 
-        // ==================== FILE LIST ====================
+        // ==================== FILE LIST & RENDER ====================
         async function fetchFiles() {
             try {
                 const r = await fetch(`${WORKER_BASE}/list`,{headers:getAuthHeaders()});
@@ -717,10 +725,10 @@
                     if (data.changed) {
                         lastTs = data.ts;
                         await loadPendingCount();
-                        if (D.pnlAppr && !D.pnlAppr.classList.contains('hidden')) loadPending();
-                        if (D.pnlUsers && !D.pnlUsers.classList.contains('hidden')) loadAllUsers();
-                        if (D.pnlLogs && !D.pnlLogs.classList.contains('hidden')) loadLogs();
-                        if (D.pnlAnalytics && !D.pnlAnalytics.classList.contains('hidden')) loadAnalytics();
+                        if (!D.pnlAppr?.classList.contains('hidden')) loadPending();
+                        if (!D.pnlUsers?.classList.contains('hidden')) loadAllUsers();
+                        if (!D.pnlLogs?.classList.contains('hidden')) loadLogs();
+                        if (!D.pnlAnalytics?.classList.contains('hidden')) loadAnalytics();
                         await fetchFiles();
                     }
                 } catch(e) {}
@@ -731,15 +739,7 @@
         function startRolePoll() {
             const poll = async () => {
                 if (!ST.token) return;
-                const oldApproved = ST.approved;
-                const oldRole = ST.role;
-                const ok = await refreshUserInfo();
-                if (!ok) return;
-                if (ST.approved !== oldApproved || ST.role !== oldRole) {
-                    // User's approval/role changed – re-render whole UI
-                    render();
-                    toast(`Permissions updated: ${ST.approved ? 'approved' : 'pending'}, role: ${ST.role || 'none'}`, 'info');
-                }
+                await fetchUserInfo(); // updates ST.approved, ST.role, and triggers re-render if approved changes
                 ST.timers.role = setTimeout(poll, 2000);
             };
             poll();
@@ -799,7 +799,30 @@
         if(D.search) D.search.addEventListener('input', () => { ST.query = D.search.value.toLowerCase(); renderFiles(); });
         if(D.sortSel) D.sortSel.addEventListener('change', () => { ST.sort = D.sortSel.value; localStorage.setItem('sort', ST.sort); renderFiles(); D.sortSel.value = ST.sort; });
 
-        // ==================== START ====================
+        // ==================== INIT ====================
+        async function init() {
+            const p = new URLSearchParams(location.search);
+            const utoken = p.get('utoken');
+            const share = p.get('share');
+            const err = p.get('auth_error');
+            if (share) {
+                ST.shareToken = share;
+                history.replaceState({}, '', location.pathname);
+                await showSharePreview();
+                return;
+            }
+            if (err) { toast('Auth error: '+err.replace(/_/g,' '), 'error'); history.replaceState({},'',location.pathname); }
+            if (utoken) {
+                ST.token = utoken;
+                localStorage.setItem('vtoken', utoken);
+                history.replaceState({}, '', location.pathname);
+            }
+            if (ST.token && await fetchUserInfo()) {
+                render();
+                return;
+            }
+            showLogin();
+        }
         init();
     </script>
 </body>
