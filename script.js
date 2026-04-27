@@ -17,7 +17,7 @@ const ST = {
   timers:  { role: null, approval: null, adminPoll: null, userPoll: null },
 };
 
-// ==================== DOM REFS ====================
+// ==================== DOM ====================
 const $ = id => document.getElementById(id);
 const D = {
   stats:        $('storageStats'),
@@ -65,35 +65,22 @@ const D = {
 // ==================== UTILITIES ====================
 function toast(msg, type = 'info') {
   const el = document.createElement('div');
-  el.className = `toast ${type}`;
-  el.textContent = msg;
+  el.className = `toast ${type}`; el.textContent = msg;
   D.toastBox.appendChild(el);
   setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity 0.3s'; setTimeout(() => el.remove(), 300); }, 3000);
 }
 const esc = s => { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
-const fmtSz = b => { if(!b) return '0 B'; const u=['B','KB','MB','GB','TB']; let i=0, s=b; while(s>=1024 && i<4) { s /= 1024; i++; } return s.toFixed(1)+' '+u[i]; };
+const fmtSz = b => { if(!b) return '0 B'; const u=['B','KB','MB','GB','TB']; let i=0, s=b; while(s>=1024 && i<4) { s/=1024; i++; } return s.toFixed(1)+' '+u[i]; };
 const icn = m => { if(!m) return '📄'; if(m.startsWith('video')) return '🎬'; if(m.startsWith('audio')) return '🎵'; if(m.startsWith('image')) return '🖼️'; if(m==='application/pdf') return '📕'; if(m.startsWith('text')) return '📝'; return '📄'; };
 const prevType = m => { if(!m) return ''; if(m.startsWith('video')) return 'video'; if(m.startsWith('audio')) return 'audio'; if(m.startsWith('image')) return 'image'; if(m==='application/pdf') return 'pdf'; if(m.startsWith('text')) return 'text'; return ''; };
 
-// ==================== DARK MODE + ENGINE TOGGLE ====================
+// ==================== DARK MODE ====================
 (function(){
   if(ST.dark) document.documentElement.setAttribute('data-theme','dark');
-  D.btnDark.addEventListener('click', async () => {
+  D.btnDark.addEventListener('click', () => {
     ST.dark = !ST.dark;
     document.documentElement.setAttribute('data-theme', ST.dark ? 'dark' : 'light');
     localStorage.setItem('darkMode', ST.dark);
-    // If admin, switch storage engine
-    if (ST.isAdmin && ST.token) {
-      const newEngine = ST.dark ? 'kv' : 'd1';
-      try {
-        await fetch(`${WORKER_BASE}/admin/set-engine`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Admin-Token': ST.token },
-          body: JSON.stringify({ engine: newEngine })
-        });
-        toast(`Engine: ${newEngine.toUpperCase()}`);
-      } catch(e) {}
-    }
   });
 })();
 
@@ -112,16 +99,16 @@ async function fetchUserInfo() {
   const r = await fetch(`${WORKER_BASE}/user-info?utoken=${ST.token}`);
   if(!r.ok) { ST.token = null; localStorage.removeItem('vtoken'); return; }
   const i = await r.json();
-  ST.email = i.email;
-  ST.isAdmin = i.isAdmin === true;
+  ST.email    = i.email;
+  ST.isAdmin  = i.isAdmin === true;
   ST.approved = i.approved;
-  ST.role = i.role;
+  ST.role     = i.role;
 }
 
 function showLogin() {
   D.adminBar.classList.add('hidden'); D.userUI.innerHTML = '';
   D.grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;"><h2>Welcome to File Vault</h2><p style="margin:16px 0;">Sign in to access your files.</p><button class="btn btn-primary" id="btnLogin">🔑 Login with Google</button></div>`;
-  document.getElementById('btnLogin').onclick = async () => { const r = await fetch(`${WORKER_BASE}/auth-url`); if(r.ok) window.location = (await r.json()).authUrl; else toast('Login failed','error'); };
+  document.getElementById('btnLogin').onclick = async () => { const r = await fetch(`${WORKER_BASE}/auth-url`); window.location = (await r.json()).authUrl; };
 }
 
 function showPending() {
@@ -136,7 +123,8 @@ function showPending() {
 function showMain() {
   document.querySelector('.hint-text').style.display = '';
   if(ST.isAdmin) {
-    D.adminBar.classList.remove('hidden'); D.userUI.innerHTML = '';
+    D.adminBar.classList.remove('hidden');
+    D.userUI.innerHTML = '';
     D.dropzone.style.display = '';
   } else {
     D.adminBar.classList.add('hidden');
@@ -148,9 +136,8 @@ function showMain() {
 
 async function selfRevoke() {
   if(!confirm('Cancel your access request?')) return;
-  const r = await fetch(`${WORKER_BASE}/user-revoke-self`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({utoken: ST.token}) });
-  if(r.ok) { ST.token = null; localStorage.removeItem('vtoken'); clearTimers(); showLogin(); toast('Request cancelled.'); }
-  else toast('Failed','error');
+  await fetch(`${WORKER_BASE}/user-revoke-self`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({utoken: ST.token}) });
+  ST.token = null; localStorage.removeItem('vtoken'); clearTimers(); showLogin(); toast('Request cancelled.');
 }
 
 function userLogout() { ST.token = null; localStorage.removeItem('vtoken'); clearTimers(); showLogin(); toast('Logged out.'); }
@@ -178,54 +165,39 @@ D.btnAnalytics.addEventListener('click', () => togglePanel(D.pnlAnalytics, loadA
 D.btnShare.addEventListener('click', () => togglePanel(D.pnlShare, loadShares));
 D.btnUnAuth.addEventListener('click', adminLogout);
 
-function togglePanel(panel, loadFn) {
-  panel.classList.toggle('hidden');
-  if (!panel.classList.contains('hidden')) loadFn();
-}
+function togglePanel(panel, loadFn) { panel.classList.toggle('hidden'); if(!panel.classList.contains('hidden')) loadFn(); }
 
 async function syncFiles() {
   toast('Syncing…','info');
   const r = await fetch(`${WORKER_BASE}/sync`,{method:'POST',headers:{'X-Admin-Token':ST.token}});
-  if(r.ok) { await fetchFiles(); toast('Sync done','success'); }
-  else toast('Sync failed','error');
+  if(r.ok) { await fetchFiles(); toast('Sync done','success'); } else toast('Sync failed','error');
 }
 
 async function adminLogout() {
   if(!confirm('Logout as admin? Vault will continue to work.')) return;
-  localStorage.removeItem('vtoken');
-  ST.token = null; ST.isAdmin = false; ST.email = null;
-  clearTimers();
-  showLogin();
-  toast('Admin logged out.');
+  localStorage.removeItem('vtoken'); ST.token = null; clearTimers(); showLogin(); toast('Admin logged out');
 }
 
 // ==================== PENDING / USERS ====================
 async function loadPendingCount() {
   const r = await fetch(`${WORKER_BASE}/admin/pending`,{headers:{'X-Admin-Token':ST.token}});
   const p = await r.json();
-  D.pendingBadge.textContent = p.length;
-  D.pendingBadge.classList.toggle('hidden', p.length===0);
+  D.pendingBadge.textContent = p.length; D.pendingBadge.classList.toggle('hidden', p.length===0);
 }
 
 function loadPending() {
-  fetch(`${WORKER_BASE}/admin/pending`,{headers:{'X-Admin-Token':ST.token}})
-    .then(r=>r.json())
-    .then(users => {
-      D.listAppr.innerHTML = users.length ? users.map(u => `
-        <div class="approval-item">
-          <span>${u.email}</span>
-          <div style="display:flex;gap:6px;">
-            <select class="role-sel">
-              <option value="full">Full</option><option value="delete">Delete</option>
-              <option value="upload">Upload Only</option><option value="download">Download Only</option>
-              <option value="read">Read Only</option><option value="none">None</option>
-            </select>
-            <button class="btn btn-sm" style="background:var(--success);color:#fff;" data-action="approve" data-email="${u.email}">✅ Approve</button>
-            <button class="btn btn-sm" style="background:var(--danger);color:#fff;" data-action="deny" data-email="${u.email}">❌ Deny</button>
-          </div>
-        </div>`).join('') : '<p>No pending users.</p>';
-      D.listAppr.addEventListener('click', pendingHandler);
-    });
+  fetch(`${WORKER_BASE}/admin/pending`,{headers:{'X-Admin-Token':ST.token}}).then(r=>r.json()).then(users => {
+    D.listAppr.innerHTML = users.length ? users.map(u => `
+      <div class="approval-item">
+        <span>${u.email}</span>
+        <div style="display:flex;gap:6px;">
+          <select class="role-sel"><option value="full">Full</option><option value="delete">Delete</option><option value="upload">Upload Only</option><option value="download">Download Only</option><option value="read">Read Only</option><option value="none">None</option></select>
+          <button class="btn btn-sm" style="background:var(--success);color:#fff;" data-action="approve" data-email="${u.email}">✅ Approve</button>
+          <button class="btn btn-sm" style="background:var(--danger);color:#fff;" data-action="deny" data-email="${u.email}">❌ Deny</button>
+        </div>
+      </div>`).join('') : '<p>No pending users.</p>';
+    D.listAppr.addEventListener('click', pendingHandler);
+  });
 }
 
 async function pendingHandler(ev) {
@@ -243,40 +215,31 @@ async function pendingHandler(ev) {
 }
 
 function loadAllUsers() {
-  fetch(`${WORKER_BASE}/admin/users/all`,{headers:{'X-Admin-Token':ST.token}})
-    .then(r=>r.json())
-    .then(users => {
-      const active = users.filter(u=>u.status!=='revoked'), revoked = users.filter(u=>u.status==='revoked');
-      let html = active.map(u => `
+  fetch(`${WORKER_BASE}/admin/users/all`,{headers:{'X-Admin-Token':ST.token}}).then(r=>r.json()).then(users => {
+    const active = users.filter(u=>u.status!=='revoked'), revoked = users.filter(u=>u.status==='revoked');
+    let html = active.map(u => `
+      <div class="approval-item">
+        <span>${u.email} <span class="status-badge status-${u.status}">${u.status}</span> ${u.role?`(${u.role})`:''}</span>
+        <div style="display:flex;gap:6px;">
+          ${u.status==='pending'?`<select class="role-${u.email}"><option value="full">Full</option><option value="delete">Delete</option><option value="upload">Upload Only</option><option value="download">Download</option><option value="read">Read</option><option value="none">None</option></select><button class="btn btn-sm btn-success" data-action="approve" data-email="${u.email}">✅ Approve</button>`:''}
+          ${u.status==='approved'?`<select class="role-${u.email}"><option value="full" ${u.role==='full'?'selected':''}>Full</option><option value="delete" ${u.role==='delete'?'selected':''}>Delete</option><option value="upload" ${u.role==='upload'?'selected':''}>Upload Only</option><option value="download" ${u.role==='download'?'selected':''}>Download</option><option value="read" ${u.role==='read'?'selected':''}>Read</option><option value="none" ${u.role==='none'?'selected':''}>None</option></select><button class="btn btn-sm btn-primary" data-action="update" data-email="${u.email}">Update</button><button class="btn btn-sm btn-danger" data-action="revoke" data-email="${u.email}">Revoke</button>`:''}
+        </div>
+      </div>`).join('');
+    if(revoked.length>0) {
+      html += '<hr><h4 style="margin-top:12px;margin-bottom:8px;">Revoked Users</h4>';
+      html += revoked.map(u => `
         <div class="approval-item">
-          <span>${u.email} <span class="status-badge status-${u.status}">${u.status}</span> ${u.role?`(${u.role})`:''}</span>
+          <span>${u.email} <span class="status-badge status-revoked">revoked</span> ${u.role?`(${u.role})`:''}</span>
           <div style="display:flex;gap:6px;">
-            ${u.status==='pending'?`
-              <select class="role-${u.email}"><option value="full">Full</option><option value="delete">Delete</option><option value="upload">Upload Only</option><option value="download">Download</option><option value="read">Read</option><option value="none">None</option></select>
-              <button class="btn btn-sm btn-success" data-action="approve" data-email="${u.email}">✅ Approve</button>
-            `:''}
-            ${u.status==='approved'?`
-              <select class="role-${u.email}"><option value="full" ${u.role==='full'?'selected':''}>Full</option><option value="delete" ${u.role==='delete'?'selected':''}>Delete</option><option value="upload" ${u.role==='upload'?'selected':''}>Upload Only</option><option value="download" ${u.role==='download'?'selected':''}>Download</option><option value="read" ${u.role==='read'?'selected':''}>Read</option><option value="none" ${u.role==='none'?'selected':''}>None</option></select>
-              <button class="btn btn-sm btn-primary" data-action="update" data-email="${u.email}">Update</button>
-              <button class="btn btn-sm btn-danger" data-action="revoke" data-email="${u.email}">Revoke</button>
-            `:''}
+            <select class="role-${u.email}"><option value="full">Full</option><option value="delete">Delete</option><option value="upload">Upload Only</option><option value="download">Download</option><option value="read">Read</option><option value="none">None</option></select>
+            <button class="btn btn-sm btn-warn" data-action="reapprove" data-email="${u.email}">Re‑approve</button>
+            <button class="btn btn-sm btn-danger" disabled>Revoke</button>
           </div>
         </div>`).join('');
-      if(revoked.length>0) {
-        html += '<hr><h4 style="margin-top:12px;margin-bottom:8px;">Revoked Users</h4>';
-        html += revoked.map(u => `
-          <div class="approval-item">
-            <span>${u.email} <span class="status-badge status-revoked">revoked</span> ${u.role?`(${u.role})`:''}</span>
-            <div style="display:flex;gap:6px;">
-              <select class="role-${u.email}"><option value="full">Full</option><option value="delete">Delete</option><option value="upload">Upload Only</option><option value="download">Download</option><option value="read">Read</option><option value="none">None</option></select>
-              <button class="btn btn-sm btn-warn" data-action="reapprove" data-email="${u.email}">Re‑approve</button>
-              <button class="btn btn-sm btn-danger" disabled>Revoke</button>
-            </div>
-          </div>`).join('');
-      }
-      D.listUsers.innerHTML = html || '<p>No users found.</p>';
-      D.listUsers.addEventListener('click', usersHandler);
-    });
+    }
+    D.listUsers.innerHTML = html || '<p>No users found.</p>';
+    D.listUsers.addEventListener('click', usersHandler);
+  });
 }
 
 async function usersHandler(ev) {
@@ -285,60 +248,30 @@ async function usersHandler(ev) {
   if(['approve','reapprove','update'].includes(action)) {
     const sel = btn.closest('.approval-item').querySelector('select');
     const role = sel ? sel.value : 'full';
-    const endpoint = action === 'reapprove' ? 'reapprove' : 'approve';
+    const endpoint = action==='reapprove'?'reapprove':'approve';
     await fetch(`${WORKER_BASE}/admin/${endpoint}`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':ST.token},body:JSON.stringify({email,role})});
     toast(`${email} updated`);
-  } else if (action === 'revoke') {
+  } else if(action==='revoke') {
     await fetch(`${WORKER_BASE}/admin/revoke`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':ST.token},body:JSON.stringify({email})});
     toast(`${email} revoked`);
   }
-  loadAllUsers();
-  if(['approve','reapprove'].includes(action)) loadPendingCount();
+  loadAllUsers(); if(['approve','reapprove'].includes(action)) loadPendingCount();
 }
 
 // ==================== LOGS / ANALYTICS / SHARES ====================
-function loadLogs() {
-  fetch(`${WORKER_BASE}/admin/logs?limit=100`,{headers:{'X-Admin-Token':ST.token}})
-    .then(r=>r.json())
-    .then(d => { D.logsCt.innerHTML = d.logs.length ? d.logs.map(l => `<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:0.8rem;"><strong>${new Date(l.ts).toLocaleString()}</strong> ${l.actor} <span style="color:var(--accent)">${l.action}</span> ${l.target||''}</div>`).join('') : '<p>No logs yet.</p>'; });
-}
-D.btnClearLogs.addEventListener('click', async () => {
-  if(!confirm('Delete all audit logs?')) return;
-  const r = await fetch(`${WORKER_BASE}/admin/logs/clear`,{method:'POST',headers:{'X-Admin-Token':ST.token}});
-  if(r.ok) { loadLogs(); toast('Logs cleared'); }
-  else toast('Failed','error');
-});
-
-function loadAnalytics() {
-  fetch(`${WORKER_BASE}/admin/analytics`,{headers:{'X-Admin-Token':ST.token}})
-    .then(r=>r.json())
-    .then(d => { D.analyticsCt.innerHTML = `<p><strong>Files:</strong> ${d.files.total} (${fmtSz(d.files.totalSize)})</p><p><strong>Users:</strong> ${d.users.total}</p>`; });
-}
+function loadLogs() { fetch(`${WORKER_BASE}/admin/logs?limit=100`,{headers:{'X-Admin-Token':ST.token}}).then(r=>r.json()).then(d=>{ D.logsCt.innerHTML = d.logs.length ? d.logs.map(l=>`<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:0.8rem;"><strong>${new Date(l.ts).toLocaleString()}</strong> ${l.actor} <span style="color:var(--accent)">${l.action}</span> ${l.target||''}</div>`).join('') : '<p>No logs yet.</p>'; }); }
+D.btnClearLogs.addEventListener('click', async () => { if(!confirm('Delete all audit logs?')) return; await fetch(`${WORKER_BASE}/admin/logs/clear`,{method:'POST',headers:{'X-Admin-Token':ST.token}}); loadLogs(); toast('Logs cleared'); });
+function loadAnalytics() { fetch(`${WORKER_BASE}/admin/analytics`,{headers:{'X-Admin-Token':ST.token}}).then(r=>r.json()).then(d=>{ D.analyticsCt.innerHTML = `<p><strong>Files:</strong> ${d.files.total} (${fmtSz(d.files.totalSize)})</p><p><strong>Users:</strong> ${d.users.total}</p>`; }); }
 function loadShares() { D.shareCt.innerHTML = '<p>Create a share link from a file card (🔗 Share).</p>'; }
 
 // ==================== FILE LIST & ACTIONS ====================
-async function fetchFiles() {
-  try {
-    const r = await fetch(`${WORKER_BASE}/list`);
-    if(!r.ok) throw new Error('Failed');
-    const { files } = await r.json();
-    ST.files = files;
-    renderFiles();
-  } catch(e) { console.error(e); }
-}
+async function fetchFiles() { try { const r = await fetch(`${WORKER_BASE}/list`); if(!r.ok) throw new Error('Failed'); const { files } = await r.json(); ST.files = files; renderFiles(); } catch(e) { console.error(e); } }
 
 function renderFiles() {
   let list = [...ST.files];
   if(ST.query) list = list.filter(f => f.name.toLowerCase().includes(ST.query));
   const s = ST.sort;
-  list.sort((a,b) => {
-    switch(s) {
-      case 'newest': return b.createdAt - a.createdAt; case 'oldest': return a.createdAt - b.createdAt;
-      case 'name-asc': return a.name.localeCompare(b.name); case 'name-desc': return b.name.localeCompare(a.name);
-      case 'size-desc': return b.size - a.size; case 'size-asc': return a.size - b.size;
-      default: return 0;
-    }
-  });
+  list.sort((a,b) => { switch(s) { case 'newest': return b.createdAt - a.createdAt; case 'oldest': return a.createdAt - b.createdAt; case 'name-asc': return a.name.localeCompare(b.name); case 'name-desc': return b.name.localeCompare(a.name); case 'size-desc': return b.size - a.size; case 'size-asc': return a.size - b.size; default: return 0; } });
   D.grid.innerHTML = '';
   if(!list.length) { D.grid.innerHTML = '<p style="grid-column:1/-1;text-align:center;padding:30px;">No files yet.</p>'; return; }
   list.forEach(f => {
@@ -386,41 +319,20 @@ function getFileActions(pid) {
 // ==================== FILE GRID EVENTS ====================
 D.grid.addEventListener('click', ev => {
   const btn = ev.target.closest('button');
-  if (btn) {
-    ev.stopPropagation();
-    const action = btn.dataset.action, id = btn.dataset.id;
-    if (action) fileAction(action, id);
-    return;
-  }
+  if(btn) { ev.stopPropagation(); const action = btn.dataset.action, id = btn.dataset.id; if(action) fileAction(action, id); return; }
   const card = ev.target.closest('.card');
-  if (card) {
-    const cb = card.querySelector('.card-checkbox');
-    if (cb && ev.target !== cb) toggleSelect(card.dataset.publicId, !cb.checked);
-  }
+  if(card) { const cb = card.querySelector('.card-checkbox'); if(cb && ev.target !== cb) toggleSelect(card.dataset.publicId, !cb.checked); }
 });
-D.grid.addEventListener('change', ev => {
-  const cb = ev.target.closest('.card-checkbox');
-  if (cb) toggleSelect(cb.dataset.id, cb.checked);
-});
+D.grid.addEventListener('change', ev => { const cb = ev.target.closest('.card-checkbox'); if(cb) toggleSelect(cb.dataset.id, cb.checked); });
 
-function toggleSelect(id, checked) {
-  if(checked) ST.sel.add(id); else ST.sel.delete(id);
-  updateBulkBar();
-  const card = document.querySelector(`.card[data-public-id="${id}"]`);
-  if(card) card.classList.toggle('selected', checked);
-}
-
-function updateBulkBar() {
-  if(ST.sel.size > 0) { D.bulkBar.classList.remove('hidden'); D.bulkCnt.textContent = `${ST.sel.size} selected`; }
-  else D.bulkBar.classList.add('hidden');
-}
+function toggleSelect(id, checked) { if(checked) ST.sel.add(id); else ST.sel.delete(id); updateBulkBar(); document.querySelector(`.card[data-public-id="${id}"]`)?.classList.toggle('selected', checked); }
+function updateBulkBar() { if(ST.sel.size) { D.bulkBar.classList.remove('hidden'); D.bulkCnt.textContent = `${ST.sel.size} selected`; } else D.bulkBar.classList.add('hidden'); }
 $('btnBulkCancel').addEventListener('click', () => { ST.sel.clear(); renderFiles(); updateBulkBar(); });
 $('btnBulkDelete').addEventListener('click', async () => {
   if(!confirm(`Delete ${ST.sel.size} files?`)) return;
   const ids = Array.from(ST.sel);
   const r = await fetch(`${WORKER_BASE}/bulk-delete`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':ST.token,'X-User-Token':ST.token},body:JSON.stringify({publicIds:ids})});
-  const d = await r.json();
-  ST.sel.clear(); updateBulkBar(); await fetchFiles();
+  const d = await r.json(); ST.sel.clear(); updateBulkBar(); await fetchFiles();
   toast(`${d.deleted} deleted, ${d.failed} failed`);
 });
 
@@ -460,17 +372,11 @@ async function uploadFile(file, existPid = null) {
         if(cr.ok) {
           if(d.complete === true || d.status === 'complete') { done = true; break; }
           if(typeof d.uploadedBytes === 'number') { up = d.uploadedBytes; updateProg(up, file.size); }
-          done = true;   // chunk accepted
-        } else {
-          if(retries <= 0) throw new Error(d.error || 'Chunk error');
-          await sleep(1000);
-        }
+          done = true;
+        } else { if(retries <= 0) throw new Error(d.error || 'Chunk error'); await sleep(1000); }
       }
       if(done && up >= file.size) break;
-      if(!done) {
-        const sr = await fetch(`${WORKER_BASE}/upload-status/${pid}`,{signal:sig});
-        if(sr.ok) { const s = await sr.json(); up = s.uploadedBytes || up; updateProg(up, file.size); }
-      }
+      if(!done) { const sr = await fetch(`${WORKER_BASE}/upload-status/${pid}`,{signal:sig}); if(sr.ok) { const s = await sr.json(); up = s.uploadedBytes || up; updateProg(up, file.size); } }
     }
     toast(`${file.name} uploaded`, 'success');
   } catch(err) { if(err.message!=='Cancelled') toast(`Upload failed: ${err.message}`, 'error'); }
@@ -481,7 +387,66 @@ function updateProg(u,t) { const p = Math.round(u/t*100); D.progFill.style.width
 const sleep = ms => new Promise(r=>setTimeout(r,ms));
 D.cancelBtn.addEventListener('click', () => { if(ST.uploadCtrl) { ST.uploadCtrl.abort(); ST.uploadCtrl = null; D.progBox.classList.add('hidden'); } });
 
-// ... (preview, download, delete, etc. – all unchanged from your last stable version)
+// ==================== PREVIEW (FULLSCREEN) ====================
+function openPreview(pid, type) {
+  D.prevCont.innerHTML = ''; const url = `${WORKER_BASE}/video/${pid}`;
+  if(type==='video'||type==='audio') {
+    const m = document.createElement(type==='audio'?'audio':'video');
+    m.src = url; m.controls = true; m.playsInline = true;
+    m.style.width = '100%'; m.style.height = '100%'; m.style.objectFit = 'contain';
+    D.prevCont.appendChild(m); m.play().catch(()=>{});
+  } else if(type==='image') { const img = document.createElement('img'); img.src = url; img.style.maxWidth='95%'; img.style.maxHeight='95%'; D.prevCont.appendChild(img); }
+  else if(type==='pdf') { const ifr = document.createElement('iframe'); ifr.src = url; ifr.style.width='90%'; ifr.style.height='90%'; D.prevCont.appendChild(ifr); }
+  else if(type==='text') { fetch(url).then(r=>r.text()).then(t=>{ const pre = document.createElement('pre'); pre.textContent = t; D.prevCont.appendChild(pre); }); }
+  else { downloadFile(pid); return; }
+  D.prevOv.classList.remove('hidden');
+}
+function closePreview() { D.prevCont.innerHTML = ''; D.prevOv.classList.add('hidden'); if(document.fullscreenElement) document.exitFullscreen(); }
+D.btnCloseP.addEventListener('click', closePreview);
+D.btnFull.addEventListener('click', () => { if(document.fullscreenElement) document.exitFullscreen(); else D.prevOv.requestFullscreen(); });
 
-// ==================== START ====================
+// ==================== CRUD ====================
+function downloadFile(pid) { const a = document.createElement('a'); a.href = `${WORKER_BASE}/download/${pid}`; a.download = ''; document.body.appendChild(a); a.click(); document.body.removeChild(a); }
+async function deleteFile(pid) {
+  if(!confirm('Delete?')) return;
+  const r = await fetch(`${WORKER_BASE}/delete`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':ST.token,'X-User-Token':ST.token},body:JSON.stringify({publicId:pid})});
+  if(r.ok) { ST.files = ST.files.filter(f=>f.publicId!==pid); ST.sel.delete(pid); renderFiles(); updateBulkBar(); toast('Deleted','success'); } else toast('Delete failed','error');
+}
+function replaceFile(pid) {
+  const inp = document.createElement('input'); inp.type = 'file';
+  inp.onchange = async () => {
+    const file = inp.files[0]; if(!file) return;
+    const ir = await fetch(`${WORKER_BASE}/update`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':ST.token,'X-User-Token':ST.token},body:JSON.stringify({publicId:pid,fileName:file.name,fileSize:file.size,fileType:file.type||'application/octet-stream'})});
+    if(!ir.ok) { toast('Update init failed','error'); return; }
+    const {publicId} = await ir.json();
+    await uploadFile(file, publicId); await fetchFiles();
+  };
+  inp.click();
+}
+async function renameFile(pid) {
+  const file = ST.files.find(f=>f.publicId===pid); if(!file) return;
+  const newName = prompt('New name:', file.name); if(!newName||newName===file.name) return;
+  const r = await fetch(`${WORKER_BASE}/rename`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':ST.token,'X-User-Token':ST.token},body:JSON.stringify({publicId:pid,newName})});
+  if(r.ok) { toast('Renamed'); await fetchFiles(); } else toast('Rename failed','error');
+}
+async function shareFile(pid) {
+  const label = prompt('Share label (optional):',''), expires = prompt('Expires in hours (default 1):','1'), maxDownloads = parseInt(prompt('Max downloads (0=unlimited):','0'),10);
+  const r = await fetch(`${WORKER_BASE}/share/create`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':ST.token,'X-User-Token':ST.token},body:JSON.stringify({publicId:pid,expiresIn:(parseInt(expires||'1',10)*3600),maxDownloads,label})});
+  const d = await r.json();
+  if(r.ok) { toast('Share link created!'); navigator.clipboard.writeText(d.shareUrl).then(()=>toast('Link copied!')); } else toast('Share failed','error');
+}
+
+// ==================== POLLING (EFFICIENT) ====================
+function startRolePoll() { if(ST.timers.role) clearInterval(ST.timers.role); ST.timers.role = setInterval(async () => { if(!ST.token||!ST.approved) return; const r = await fetch(`${WORKER_BASE}/user-info?utoken=${ST.token}`); if(!r.ok) return; const i = await r.json(); if(i.role !== ST.role) { ST.role = i.role; applyRoleUI(); toast(`Permissions changed to ${ST.role}`); } }, 8000); }
+function startApprovalPoll() { if(ST.timers.approval) clearInterval(ST.timers.approval); ST.timers.approval = setInterval(async () => { if(!ST.token) return; const r = await fetch(`${WORKER_BASE}/user-info?utoken=${ST.token}`); if(!r.ok) return; const i = await r.json(); if(i.approved) { ST.approved = true; ST.role = i.role; clearInterval(ST.timers.approval); toast('Approved!','success'); render(); } }, 10000); }
+function startAdminPoll() { if(ST.timers.adminPoll) clearInterval(ST.timers.adminPoll); let lastTs = 0; const poll = async () => { if(!ST.token||!ST.isAdmin) return; const r = await fetch(`${WORKER_BASE}/admin/poll?since=${lastTs}&timeout=15`,{headers:{'X-Admin-Token':ST.token}}); const d = await r.json(); if(d.changed) { lastTs = d.ts; loadPendingCount(); if(!D.pnlAppr.classList.contains('hidden')) loadPending(); if(!D.pnlUsers.classList.contains('hidden')) loadAllUsers(); if(!D.pnlLogs.classList.contains('hidden')) loadLogs(); } ST.timers.adminPoll = setTimeout(poll, 2000); }; poll(); }
+function startUserPoll() { if(ST.timers.userPoll) clearInterval(ST.timers.userPoll); let lastTs = 0; const poll = async () => { if(!ST.token||!ST.approved) return; const r = await fetch(`${WORKER_BASE}/poll?utoken=${ST.token}&since=${lastTs}&timeout=15`); const d = await r.json(); if(d.changed) { lastTs = d.ts; fetchFiles(); } ST.timers.userPoll = setTimeout(poll, 2000); }; poll(); }
+function applyRoleUI() { const can = ST.role==='full'||ST.role==='delete'||ST.role==='upload'||ST.role==='download'; D.dropzone.style.display = can ? '' : 'none'; document.querySelector('.hint-text').style.display = can ? '' : 'none'; renderFiles(); }
+
+// ==================== SEARCH / SORT ====================
+D.search.addEventListener('input', () => { ST.query = D.search.value.toLowerCase(); renderFiles(); });
+D.sortSel.addEventListener('change', () => { ST.sort = D.sortSel.value; localStorage.setItem('sort', ST.sort); renderFiles(); });
+D.sortSel.value = ST.sort;
+
+// ==================== INIT ====================
 init();
