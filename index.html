@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>Public File Vault – Gallery</title>
     <style>
-        /* ========== CSS (gallery style) ========== */
+        /* ========== CSS ========== */
         :root {
             --bg: #f8fafc;
             --card-bg: #ffffff;
@@ -47,6 +47,8 @@
         .btn-sm { padding: 4px 12px; font-size: 0.8rem; }
         .toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
         .search-box { flex: 1; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--card-bg); color: var(--text); outline: none; }
+        .paste-box { display: flex; gap: 8px; margin-bottom: 20px; align-items: center; }
+        .paste-box input { flex: 1; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--card-bg); color: var(--text); }
         .dropzone { border: 2px dashed var(--border); border-radius: 16px; padding: 40px 20px; text-align: center; background: var(--card-bg); cursor: pointer; margin-bottom: 20px; transition: all 0.2s; }
         .dropzone:hover, .dragover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 5%, var(--card-bg)); }
         .progress-box { margin-bottom: 20px; }
@@ -61,7 +63,8 @@
         .card { background: var(--card-bg); border-radius: var(--radius); padding: 12px; box-shadow: var(--shadow); border: 1px solid var(--border); position: relative; transition: all 0.2s; display: flex; flex-direction: column; }
         .card.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
         .card-checkbox { position: absolute; top: 10px; right: 10px; width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; z-index: 2; }
-        .thumbnail { width: 100%; height: 160px; object-fit: cover; border-radius: 10px; margin-bottom: 10px; background: var(--border); }
+        .thumbnail { width: 100%; height: 160px; object-fit: cover; border-radius: 10px; margin-bottom: 10px; background: transparent; display: flex; align-items: center; justify-content: center; font-size: 3rem; }
+        .thumbnail img { width: 100%; height: 100%; object-fit: cover; border-radius: 10px; }
         .file-name { font-weight: 600; word-break: break-word; margin-bottom: 6px; font-size: 0.9rem; }
         .file-meta { font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 10px; }
         .actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
@@ -74,8 +77,8 @@
         .btn-xs-rename { background: #6c757d; color: white; }
         .btn-xs-share { background: #0d6efd; color: white; }
         .comment-section { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 8px; font-size: 0.75rem; }
-        .comment-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-weight: 600; }
-        .comment-icon { cursor: pointer; font-size: 1rem; }
+        .comment-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-weight: 600; cursor: pointer; }
+        .comment-icon { font-size: 1rem; }
         .comment-count { background: var(--accent); color: white; border-radius: 10px; padding: 0 6px; font-size: 0.7rem; }
         .comment-list { max-height: 150px; overflow-y: auto; margin-bottom: 6px; display: none; }
         .comment-list.show { display: block; }
@@ -146,6 +149,12 @@
             <button class="btn-sm btn-outline" id="refreshFilesBtn">🔄 Refresh Files</button>
         </div>
 
+        <!-- Paste & Send Box -->
+        <div class="paste-box">
+            <input type="text" id="pasteInput" placeholder="Paste a file here (Ctrl+V) and click Send...">
+            <button class="btn btn-primary" id="sendPasteBtn">📤 Send</button>
+        </div>
+
         <div class="bulk-bar hidden" id="bulkBar">
             <span id="bulkCount">0 selected</span>
             <button id="btnBulkDelete">🗑 Delete Selected</button>
@@ -153,7 +162,7 @@
         </div>
 
         <div class="hint-text">
-            <kbd>Ctrl</kbd>+<kbd>V</kbd> paste &nbsp;|&nbsp;
+            <kbd>Ctrl</kbd>+<kbd>V</kbd> paste (anywhere) &nbsp;|&nbsp;
             <kbd>Ctrl</kbd>+<kbd>U</kbd> upload &nbsp;|&nbsp;
             <kbd>Ctrl</kbd>+<kbd>F</kbd> search &nbsp;|&nbsp;
             <kbd>Esc</kbd> close
@@ -215,6 +224,7 @@
             shareToken: null,
         };
         let uploadingFiles = new Set();
+        let cardData = new Map(); // publicId -> { comments, ticked, count }
 
         // DOM helpers
         const $ = id => document.getElementById(id);
@@ -238,6 +248,7 @@
             btnBulkDelete: $('btnBulkDelete'), btnBulkCancel: $('btnBulkCancel'),
             refreshFilesBtn: $('refreshFilesBtn'), refreshPendingBtn: $('refreshPendingBtn'),
             refreshUsersBtn: $('refreshUsersBtn'), refreshLogsBtn: $('refreshLogsBtn'), refreshAnalyticsBtn: $('refreshAnalyticsBtn'),
+            pasteInput: $('pasteInput'), sendPasteBtn: $('sendPasteBtn'),
         };
 
         function getAuthHeaders() {
@@ -261,13 +272,14 @@
         const esc = s => { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
         const fmtSz = b => { if(!b) return '0 B'; const u=['B','KB','MB','GB']; let i=0,s=b; while(s>=1024 && i<3) { s/=1024; i++; } return s.toFixed(1)+' '+u[i]; };
         const fmtSpeed = bytesPerSec => { if(bytesPerSec<1024) return bytesPerSec.toFixed(0)+' B/s'; if(bytesPerSec<1048576) return (bytesPerSec/1024).toFixed(1)+' KB/s'; return (bytesPerSec/1048576).toFixed(1)+' MB/s'; };
-        const getThumbnail = (mime, name) => {
-            if (mime.startsWith('image')) return '🖼️';
-            if (mime.startsWith('video')) return '🎬';
-            if (mime.startsWith('audio')) return '🎵';
-            if (mime === 'application/pdf') return '📕';
-            if (mime.startsWith('text')) return '📝';
-            return '📄';
+        const getThumbnailHtml = (mime, name, publicId) => {
+            if (mime.startsWith('image')) {
+                return `<img src="${WORKER_BASE}/video/${publicId}?utoken=${ST.token}" style="width:100%; height:100%; object-fit:cover; border-radius:10px;" onerror="this.style.display='none'; this.parentElement.innerHTML='🖼️'">`;
+            } else if (mime.startsWith('video')) return '🎬';
+            else if (mime.startsWith('audio')) return '🎵';
+            else if (mime === 'application/pdf') return '📕';
+            else if (mime.startsWith('text')) return '📝';
+            else return '📄';
         };
         const prevType = m => {
             if (!m) return '';
@@ -370,7 +382,7 @@
             showMain(); applyRoleUI(); fetchFiles();
         }
 
-        // Admin panels (simplified, same as before but functional)
+        // Admin panels (simplified but functional)
         function safeAddEvent(element, event, handler) { if(element) element.addEventListener(event, handler); }
 
         safeAddEvent(D.btnSync, 'click', async () => {
@@ -519,9 +531,6 @@
             }).catch(e => toast('Failed to load files', 'error'));
         }
 
-        // Keep per‑card data to avoid full refresh on comment/tick
-        let cardData = new Map(); // publicId -> { comments, ticked, count }
-
         async function loadCardData(publicId) {
             const [commentsRes, tickRes] = await Promise.all([
                 fetch(`${WORKER_BASE}/comment/list?fileId=${publicId}`, { headers:getAuthHeaders() }),
@@ -543,8 +552,8 @@
             const tickCountSpan = card.querySelector('.tick-count');
             if (tickCountSpan) tickCountSpan.textContent = newData.count;
             // Update comment icon count
-            const commentIcon = card.querySelector('.comment-icon');
-            if (commentIcon) commentIcon.nextElementSibling.textContent = newData.comments.length;
+            const commentIcon = card.querySelector('.comment-header .comment-count');
+            if (commentIcon) commentIcon.textContent = newData.comments.length;
             // Update comment list
             const commentList = card.querySelector('.comment-list');
             if (commentList) {
@@ -643,13 +652,13 @@
                 files.forEach(f => {
                     const actions = getFileActions(f.publicId);
                     const upBy = f.uploadedBy ? `<div style="font-size:0.7rem; color:var(--text-secondary); margin-bottom:4px;">📤 ${f.uploadedBy}</div>` : '';
-                    const thumbnail = getThumbnail(f.mimeType, f.name);
+                    const thumbnailHtml = getThumbnailHtml(f.mimeType, f.name, f.publicId);
                     const card = document.createElement('div');
                     card.className = `card${ST.selected.has(f.publicId) ? ' selected' : ''}`;
                     card.dataset.publicId = f.publicId;
                     card.innerHTML = `
                         <input type="checkbox" class="card-checkbox" data-id="${f.publicId}" ${ST.selected.has(f.publicId) ? 'checked' : ''}>
-                        <div class="thumbnail" style="font-size:3rem; display:flex; align-items:center; justify-content:center; background:var(--border);">${thumbnail}</div>
+                        <div class="thumbnail">${thumbnailHtml}</div>
                         <div class="file-name">${esc(f.name)}</div>
                         <div class="file-meta">${fmtSz(f.size)} · ${new Date(f.createdAt).toLocaleString()}</div>
                         ${upBy}
@@ -739,6 +748,14 @@
                                     await addComment(f.publicId, text);
                                     commentInput.value = '';
                                 }
+                            });
+                        }
+                        // Comment header toggle
+                        const header = card.querySelector('.comment-header');
+                        if (header) {
+                            header.addEventListener('click', () => {
+                                const list = card.querySelector('.comment-list');
+                                if (list) list.classList.toggle('show');
                             });
                         }
                     })();
@@ -927,6 +944,37 @@
         const sleep = ms => new Promise(r => setTimeout(r, ms));
         safeAddEvent(D.cancelBtn, 'click', () => { if (ST.uploadCtrl) { ST.uploadCtrl.abort(); ST.uploadCtrl = null; if (D.progBox) D.progBox.classList.add('hidden'); } });
 
+        // Paste & Send Box
+        async function handlePasteSend() {
+            const text = D.pasteInput.value.trim();
+            if (!text) return;
+            // Try to interpret as file name? Instead we'll treat it as a regular upload via paste event.
+            // Better: use the global paste listener. The send button will trigger uploading from clipboard if any file is stored.
+            toast('Paste a file using Ctrl+V, then click Send.', 'info');
+        }
+        // Global paste capture: store last pasted file
+        let lastPastedFile = null;
+        document.addEventListener('paste', (e) => {
+            const items = e.clipboardData.items;
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].kind === 'file') {
+                    lastPastedFile = items[i].getAsFile();
+                    toast('File pasted. Click "Send" to upload.', 'success');
+                    if (D.pasteInput) D.pasteInput.value = `Ready: ${lastPastedFile.name}`;
+                    break;
+                }
+            }
+        });
+        safeAddEvent(D.sendPasteBtn, 'click', async () => {
+            if (lastPastedFile) {
+                await uploadFile(lastPastedFile);
+                lastPastedFile = null;
+                if (D.pasteInput) D.pasteInput.value = '';
+            } else {
+                toast('No file pasted. Use Ctrl+V to paste a file first.', 'info');
+            }
+        });
+
         // Preview
         function openPreview(pid, type) {
             if (!D.prevCont) return;
@@ -969,7 +1017,7 @@
             const data = await res.json();
             if (D.grid) D.grid.innerHTML = `
                 <div style="grid-column:1/-1;text-align:center;padding:60px;">
-                    <div class="thumbnail" style="font-size:4rem;">${getThumbnail(data.mimeType, data.fileName)}</div>
+                    <div class="thumbnail" style="font-size:4rem;">${getThumbnailHtml(data.mimeType, data.fileName, '')}</div>
                     <h2>${esc(data.fileName)}</h2>
                     <p>${fmtSz(data.fileSize)}</p>
                     <button class="btn btn-primary" id="shareDownloadBtn">⬇ Download</button>
@@ -986,7 +1034,7 @@
             if (D.userUI) D.userUI.innerHTML = '';
         }
 
-        // Drag & drop, paste, keyboard
+        // Drag & drop, keyboard
         if (D.dropzone) {
             ['dragenter','dragover','dragleave','drop'].forEach(ev => D.dropzone.addEventListener(ev, e => e.preventDefault()));
             ['dragenter','dragover'].forEach(ev => D.dropzone.addEventListener(ev, () => D.dropzone.classList.add('dragover')));
@@ -996,12 +1044,6 @@
         }
         if (D.fileInp) D.fileInp.addEventListener('change', e => handleFiles(e.target.files));
         function handleFiles(files) { for (const f of files) uploadFile(f); }
-        document.addEventListener('paste', e => {
-            const items = e.clipboardData.items;
-            for (let i = 0; i < items.length; i++) {
-                if (items[i].kind === 'file') { uploadFile(items[i].getAsFile()); break; }
-            }
-        });
         document.addEventListener('keydown', e => {
             if (e.ctrlKey && e.key === 'u') { e.preventDefault(); if (D.fileInp) D.fileInp.click(); }
             if (e.ctrlKey && e.key === 'f') { e.preventDefault(); if (D.search) D.search.focus(); }
