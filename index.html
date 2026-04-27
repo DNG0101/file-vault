@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Public File Vault – Ultimate</title>
+    <title>Public File Vault – Gallery</title>
     <style>
-        /* ========== CSS (updated for media gallery, comment buttons) ========== */
+        /* ========== CSS (gallery style) ========== */
         :root {
             --bg: #f8fafc;
             --card-bg: #ffffff;
@@ -22,7 +22,6 @@
             --shadow: 0 4px 12px rgba(0,0,0,0.05);
             --toast-bg: #1e293b;
             --toast-text: #f1f5f9;
-            --transition: 0.2s ease;
         }
         [data-theme="dark"] {
             --bg: #0f172a;
@@ -34,49 +33,39 @@
             --toast-bg: #475569;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: system-ui, -apple-system, 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 20px; transition: background var(--transition), color var(--transition); }
-        .container { max-width: 1300px; margin: 0 auto; }
+        body { font-family: system-ui, -apple-system, 'Inter', sans-serif; background: var(--bg); color: var(--text); padding: 20px; transition: background 0.2s, color 0.2s; }
+        .container { max-width: 1400px; margin: 0 auto; }
         .hidden { display: none !important; }
         .header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 24px; }
         .header h1 { font-size: clamp(1.5rem, 5vw, 2rem); font-weight: 700; }
         .header-right { display: flex; align-items: center; gap: 12px; }
         .btn-icon { padding: 8px; border: 1px solid var(--border); border-radius: 10px; background: var(--card-bg); cursor: pointer; min-width: 42px; min-height: 42px; display: flex; align-items: center; justify-content: center; }
-        .btn-icon:hover { background: var(--border); }
-        .btn { padding: 8px 16px; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; background: var(--card-bg); color: var(--text); border: 1px solid var(--border); transition: all var(--transition); }
-        .btn:hover { background: var(--border); transform: translateY(-1px); }
+        .btn { padding: 8px 16px; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; background: var(--card-bg); color: var(--text); border: 1px solid var(--border); transition: all 0.2s; }
         .btn-primary { background: var(--accent); color: white; border-color: var(--accent); }
-        .btn-primary:hover { background: var(--accent-hover); }
         .btn-danger { background: var(--danger); color: white; border-color: var(--danger); }
         .btn-outline { background: transparent; }
         .btn-sm { padding: 4px 12px; font-size: 0.8rem; }
         .toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
         .search-box { flex: 1; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--card-bg); color: var(--text); outline: none; }
-        .search-box:focus { border-color: var(--accent); }
-        .sort-select { padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--card-bg); }
-        .dropzone { border: 2px dashed var(--border); border-radius: 16px; padding: 40px 20px; text-align: center; background: var(--card-bg); cursor: pointer; margin-bottom: 20px; transition: all var(--transition); }
+        .dropzone { border: 2px dashed var(--border); border-radius: 16px; padding: 40px 20px; text-align: center; background: var(--card-bg); cursor: pointer; margin-bottom: 20px; transition: all 0.2s; }
         .dropzone:hover, .dragover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 5%, var(--card-bg)); }
-        .dropzone input { display: none; }
-        .hint-text { font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 16px; text-align: center; }
-        .hint-text kbd { background: var(--card-bg); border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; font-family: monospace; }
         .progress-box { margin-bottom: 20px; }
         .progress-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
         .progress-fill { height: 100%; width: 0%; background: var(--accent); transition: width 0.3s; }
-        .progress-text { display: flex; justify-content: space-between; font-size: 0.8rem; margin-top: 6px; color: var(--text-secondary); gap: 12px; flex-wrap: wrap; }
+        .progress-text { display: flex; justify-content: space-between; font-size: 0.8rem; margin-top: 6px; }
         .cancel-btn { background: var(--danger); color: white; border: none; padding: 2px 8px; border-radius: 4px; cursor: pointer; }
         .file-section { margin-bottom: 32px; }
         .section-title { font-size: 1.2rem; font-weight: 600; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid var(--accent); color: var(--accent); display: flex; align-items: center; gap: 10px; }
         .section-title span { background: var(--accent); color: white; padding: 2px 8px; border-radius: 20px; font-size: 0.8rem; }
-        .file-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 16px; }
-        .card { background: var(--card-bg); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); border: 1px solid var(--border); position: relative; transition: all var(--transition); display: flex; flex-direction: column; }
+        .file-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+        .card { background: var(--card-bg); border-radius: var(--radius); padding: 12px; box-shadow: var(--shadow); border: 1px solid var(--border); position: relative; transition: all 0.2s; display: flex; flex-direction: column; }
         .card.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
-        .card-checkbox { position: absolute; top: 12px; right: 12px; width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
-        .file-preview { margin-bottom: 12px; text-align: center; min-height: 120px; display: flex; align-items: center; justify-content: center; background: var(--border); border-radius: 8px; overflow: hidden; }
-        .file-preview img, .file-preview video { max-width: 100%; max-height: 120px; object-fit: cover; }
-        .file-icon { font-size: 2rem; text-align: center; margin-bottom: 8px; }
+        .card-checkbox { position: absolute; top: 10px; right: 10px; width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; z-index: 2; }
+        .thumbnail { width: 100%; height: 160px; object-fit: cover; border-radius: 10px; margin-bottom: 10px; background: var(--border); }
         .file-name { font-weight: 600; word-break: break-word; margin-bottom: 6px; font-size: 0.9rem; }
-        .file-meta { font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 12px; }
+        .file-meta { font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 10px; }
         .actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-        .btn-xs { padding: 4px 8px; border: none; border-radius: 6px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all var(--transition); }
+        .btn-xs { padding: 4px 8px; border: none; border-radius: 6px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
         .btn-xs-play { background: var(--accent); color: white; }
         .btn-xs-preview { background: var(--purple); color: white; }
         .btn-xs-download { background: var(--success); color: white; }
@@ -84,19 +73,22 @@
         .btn-xs-replace { background: var(--warn); color: #222; }
         .btn-xs-rename { background: #6c757d; color: white; }
         .btn-xs-share { background: #0d6efd; color: white; }
-        .toggle-comments { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 0.7rem; margin-left: 8px; }
         .comment-section { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 8px; font-size: 0.75rem; }
-        .comment-list { max-height: 150px; overflow-y: auto; margin-bottom: 6px; }
-        .comment { padding: 4px 0; border-bottom: 1px dashed var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .comment-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-weight: 600; }
+        .comment-icon { cursor: pointer; font-size: 1rem; }
+        .comment-count { background: var(--accent); color: white; border-radius: 10px; padding: 0 6px; font-size: 0.7rem; }
+        .comment-list { max-height: 150px; overflow-y: auto; margin-bottom: 6px; display: none; }
+        .comment-list.show { display: block; }
+        .comment { padding: 4px 0; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
         .comment strong { color: var(--accent); }
-        .comment-actions button { background: none; border: none; cursor: pointer; font-size: 0.7rem; margin-left: 6px; color: var(--text-secondary); }
+        .comment-text { word-break: break-word; flex: 1; margin-right: 8px; }
+        .comment-actions button { background: none; border: none; cursor: pointer; font-size: 0.7rem; margin-left: 4px; color: var(--text-secondary); }
         .comment-form { display: flex; gap: 6px; margin-top: 6px; }
         .comment-form input { flex: 1; padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--card-bg); color: var(--text); }
-        .tick-btn { background: none; border: none; cursor: pointer; font-size: 1.2rem; margin-right: 4px; padding: 0 2px; }
+        .tick-btn { background: none; border: none; cursor: pointer; font-size: 1.2rem; margin-right: 8px; padding: 0; }
         .tick-count { font-size: 0.7rem; color: var(--text-secondary); margin-right: 8px; }
-        .tick-users { font-size: 0.6rem; color: var(--text-secondary); margin-left: 4px; }
-        .admin-bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 12px; background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 16px; }
-        .panel { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; max-height: 500px; overflow-y: auto; }
+        .admin-bar, .panel { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; margin-bottom: 16px; }
+        .panel { max-height: 500px; overflow-y: auto; }
         .approval-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); gap: 10px; flex-wrap: wrap; }
         .status-badge { padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; }
         .status-approved { background: #d1fae5; color: #065f46; }
@@ -105,8 +97,7 @@
         .preview-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 1000; display: flex; justify-content: center; align-items: center; flex-direction: column; }
         .preview-overlay.hidden { display: none; }
         .preview-container { width: 90%; height: 90%; display: flex; align-items: center; justify-content: center; }
-        .preview-container video, .preview-container audio { max-width: 100%; max-height: 100%; outline: none; background: #000; }
-        .preview-container img, .preview-container iframe, .preview-container pre { max-width: 95%; max-height: 95%; object-fit: contain; border-radius: 6px; }
+        .preview-container video, .preview-container audio { max-width: 100%; max-height: 100%; outline: none; }
         .preview-toolbar { position: absolute; top: 20px; right: 20px; display: flex; gap: 10px; }
         .preview-toolbar button { background: rgba(0,0,0,0.6); border: none; color: white; padding: 8px 16px; border-radius: 8px; cursor: pointer; }
         #toastContainer { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
@@ -114,7 +105,7 @@
         .toast.error { background: var(--danger); }
         .toast.success { background: var(--success); }
         @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-        @media (max-width: 600px) { body { padding: 10px; } .file-grid { grid-template-columns: 1fr; } .toolbar { flex-direction: column; } }
+        @media (max-width: 600px) { body { padding: 10px; } .file-grid { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
@@ -122,8 +113,8 @@
         <div class="header">
             <h1>📁 File Vault</h1>
             <div class="header-right">
-                <span class="stats" id="storageStats"></span>
-                <button class="btn-icon" id="btnDarkMode" title="Dark mode">🌓</button>
+                <span id="storageStats"></span>
+                <button class="btn-icon" id="btnDarkMode">🌓</button>
                 <span id="userUI"></span>
             </div>
         </div>
@@ -141,7 +132,7 @@
 
         <div class="panel hidden" id="approvalPanel"><h3>Pending Approvals</h3><div id="approvalList"></div><button class="btn-sm btn-outline" id="refreshPendingBtn">🔄 Refresh</button></div>
         <div class="panel hidden" id="usersPanel"><h3>Active Users</h3><div id="usersList"></div><button class="btn-sm btn-outline" id="refreshUsersBtn">🔄 Refresh</button></div>
-        <div class="panel hidden" id="logsPanel"><h3>Audit Logs (Delete & Tick)</h3><div id="logsContent"></div><button class="btn btn-danger btn-sm" id="btnClearLogs">🗑 Clear All Logs</button><button class="btn-sm btn-outline" id="refreshLogsBtn">🔄 Refresh</button></div>
+        <div class="panel hidden" id="logsPanel"><h3>Audit Logs</h3><div id="logsContent"></div><button class="btn btn-danger btn-sm" id="btnClearLogs">🗑 Clear All Logs</button><button class="btn-sm btn-outline" id="refreshLogsBtn">🔄 Refresh</button></div>
         <div class="panel hidden" id="analyticsPanel"><h3>Analytics</h3><div id="analyticsContent"></div><button class="btn-sm btn-outline" id="refreshAnalyticsBtn">🔄 Refresh</button></div>
         <div class="panel hidden" id="sharePanel"><h3>Share Manager</h3><div id="shareContent"></div></div>
 
@@ -200,7 +191,7 @@
         // ==================== CONFIG ====================
         const WORKER_BASE = 'https://gdrive-files-api.donthulanithish53.workers.dev';
 
-        // Global lock for single request
+        // Global lock
         let globalLock = false;
         async function withLock(fn) {
             while (globalLock) await new Promise(r => setTimeout(r, 50));
@@ -222,11 +213,10 @@
             uploadCtrl: null,
             dark: localStorage.getItem('darkMode') === 'true',
             shareToken: null,
-            commentVisibility: {}, // track which cards show comments
         };
         let uploadingFiles = new Set();
 
-        // DOM elements
+        // DOM helpers
         const $ = id => document.getElementById(id);
         const D = {
             stats: $('storageStats'), userUI: $('userUI'), adminBar: $('adminBar'),
@@ -238,10 +228,12 @@
             bulkBar: $('bulkBar'), bulkCnt: $('bulkCount'), toastBox: $('toastContainer'),
             btnDark: $('btnDarkMode'), btnSync: $('btnSync'), btnAppr: $('btnApprovals'),
             btnAllUsers: $('btnAllUsers'), btnLogs: $('btnLogs'), btnAnalytics: $('btnAnalytics'),
-            btnShare: $('btnShareManager'), btnUnAuth: $('btnAdminLogout'), pnlAppr: $('approvalPanel'),
-            listAppr: $('approvalList'), pnlUsers: $('usersPanel'), listUsers: $('usersList'),
-            pnlLogs: $('logsPanel'), logsCt: $('logsContent'), pnlAnalytics: $('analyticsPanel'),
-            analyticsCt: $('analyticsContent'), pnlShare: $('sharePanel'), shareCt: $('shareContent'),
+            btnShare: $('btnShareManager'), btnUnAuth: $('btnAdminLogout'),
+            pnlAppr: $('approvalPanel'), listAppr: $('approvalList'),
+            pnlUsers: $('usersPanel'), listUsers: $('usersList'),
+            pnlLogs: $('logsPanel'), logsCt: $('logsContent'),
+            pnlAnalytics: $('analyticsPanel'), analyticsCt: $('analyticsContent'),
+            pnlShare: $('sharePanel'), shareCt: $('shareContent'),
             pendingBadge: $('pendingBadge'), btnClearLogs: $('btnClearLogs'),
             btnBulkDelete: $('btnBulkDelete'), btnBulkCancel: $('btnBulkCancel'),
             refreshFilesBtn: $('refreshFilesBtn'), refreshPendingBtn: $('refreshPendingBtn'),
@@ -269,9 +261,23 @@
         const esc = s => { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
         const fmtSz = b => { if(!b) return '0 B'; const u=['B','KB','MB','GB']; let i=0,s=b; while(s>=1024 && i<3) { s/=1024; i++; } return s.toFixed(1)+' '+u[i]; };
         const fmtSpeed = bytesPerSec => { if(bytesPerSec<1024) return bytesPerSec.toFixed(0)+' B/s'; if(bytesPerSec<1048576) return (bytesPerSec/1024).toFixed(1)+' KB/s'; return (bytesPerSec/1048576).toFixed(1)+' MB/s'; };
-        const icn = m => { if(!m) return '📄'; if(m.startsWith('video')) return '🎬'; if(m.startsWith('audio')) return '🎵'; if(m.startsWith('image')) return '🖼️'; if(m==='application/pdf') return '📕'; if(m.startsWith('text')) return '📝'; return '📄'; };
-        const prevType = m => { if(!m) return ''; if(m.startsWith('video')) return 'video'; if(m.startsWith('audio')) return 'audio'; if(m.startsWith('image')) return 'image'; if(m==='application/pdf') return 'pdf'; if(m.startsWith('text')) return 'text'; return ''; };
-        const isMedia = m => m && (m.startsWith('image') || m.startsWith('video') || m.startsWith('audio'));
+        const getThumbnail = (mime, name) => {
+            if (mime.startsWith('image')) return '🖼️';
+            if (mime.startsWith('video')) return '🎬';
+            if (mime.startsWith('audio')) return '🎵';
+            if (mime === 'application/pdf') return '📕';
+            if (mime.startsWith('text')) return '📝';
+            return '📄';
+        };
+        const prevType = m => {
+            if (!m) return '';
+            if (m.startsWith('video')) return 'video';
+            if (m.startsWith('audio')) return 'audio';
+            if (m.startsWith('image')) return 'image';
+            if (m === 'application/pdf') return 'pdf';
+            if (m.startsWith('text')) return 'text';
+            return '';
+        };
 
         // Dark mode
         (function(){
@@ -290,7 +296,7 @@
             });
         })();
 
-        // Authentication (no background polling)
+        // Authentication
         async function fetchUserInfo() {
             if (!ST.token) return false;
             return withLock(async () => {
@@ -300,7 +306,7 @@
                 const wasApproved = ST.approved;
                 ST.email = i.email; ST.isAdmin = i.isAdmin === true; ST.approved = i.approved; ST.role = i.role;
                 if (!wasApproved && ST.approved) {
-                    toast('You have been approved! Access granted.', 'success');
+                    toast('Access granted! You have been approved.', 'success');
                     render();
                 }
                 return true;
@@ -310,7 +316,7 @@
         function showLogin() {
             if(D.adminBar) D.adminBar.classList.add('hidden');
             if(D.userUI) D.userUI.innerHTML = '';
-            if(D.grid) D.grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;"><h2>Welcome to File Vault</h2><p style="margin:16px 0;">Sign in to access your files.</p><button class="btn btn-primary" id="btnLogin">🔑 Login with Google</button></div>`;
+            if(D.grid) D.grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;"><h2>Welcome to File Vault</h2><p>Sign in to access your files.</p><button class="btn btn-primary" id="btnLogin">🔑 Login with Google</button></div>`;
             const loginBtn = $('btnLogin');
             if(loginBtn) loginBtn.onclick = async () => {
                 const r = await fetch(`${WORKER_BASE}/auth-url`);
@@ -364,7 +370,7 @@
             showMain(); applyRoleUI(); fetchFiles();
         }
 
-        // -------------------- Admin panels (unchanged) --------------------
+        // Admin panels (simplified, same as before but functional)
         function safeAddEvent(element, event, handler) { if(element) element.addEventListener(event, handler); }
 
         safeAddEvent(D.btnSync, 'click', async () => {
@@ -492,8 +498,7 @@
             fetch(`${WORKER_BASE}/admin/logs?limit=200`, { headers:getAuthHeaders() })
                 .then(r=>r.json())
                 .then(d => {
-                    const del = d.logs.filter(l=>l.action==='FILE_DELETED' || l.action==='TICK_MARK');
-                    D.logsCt.innerHTML = del.length ? del.map(l=>`<div><strong>${new Date(l.ts).toLocaleString()}</strong> ${l.actor} ${l.action} <strong>${l.meta?.fileName||l.target}</strong></div>`).join('') : '<p>No logs.</p>';
+                    D.logsCt.innerHTML = d.logs.length ? d.logs.map(l=>`<div><strong>${new Date(l.ts).toLocaleString()}</strong> ${l.actor} ${l.action} <strong>${l.meta?.fileName||l.target}</strong></div>`).join('') : '<p>No logs.</p>';
                 });
         }
         function loadAnalytics() {
@@ -503,7 +508,7 @@
                 .then(d => { D.analyticsCt.innerHTML = `<p>Files: ${d.files.total} (${fmtSz(d.files.totalSize)}) | Users: ${d.users.total}</p>`; });
         }
 
-        // -------------------- Files, Sections, Comments, Ticks --------------------
+        // ==================== CORE FILE LOGIC ====================
         async function fetchFiles() {
             await withLock(async () => {
                 const r = await fetch(`${WORKER_BASE}/list`, { headers:getAuthHeaders() });
@@ -514,155 +519,229 @@
             }).catch(e => toast('Failed to load files', 'error'));
         }
 
-        async function addComment(fileId, text) {
-            if(!text.trim()) return;
-            await withLock(async () => {
-                await fetch(`${WORKER_BASE}/comment/add`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({fileId, text}) });
-                await fetchFiles(); // refresh UI to show new comment
-            }).catch(e => toast('Comment failed', 'error'));
-        }
+        // Keep per‑card data to avoid full refresh on comment/tick
+        let cardData = new Map(); // publicId -> { comments, ticked, count }
 
-        async function editComment(commentId, newText) {
-            if(!newText.trim()) return;
-            await withLock(async () => {
-                await fetch(`${WORKER_BASE}/comment/edit`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({commentId, text: newText}) });
-                await fetchFiles();
-            }).catch(e => toast('Edit failed', 'error'));
-        }
-
-        async function deleteComment(commentId) {
-            await withLock(async () => {
-                await fetch(`${WORKER_BASE}/comment/delete`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({commentId}) });
-                await fetchFiles();
-            }).catch(e => toast('Delete failed', 'error'));
-        }
-
-        async function toggleTick(fileId) {
-            await withLock(async () => {
-                const r = await fetch(`${WORKER_BASE}/tick/get?fileId=${fileId}`, { headers:getAuthHeaders() });
-                const { ticked } = await r.json();
-                await fetch(`${WORKER_BASE}/tick/set`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({fileId, ticked: !ticked}) });
-                await fetchFiles();
-            }).catch(e => toast('Tick failed', 'error'));
-        }
-
-        async function loadCommentsAndTicks(fileId) {
+        async function loadCardData(publicId) {
             const [commentsRes, tickRes] = await Promise.all([
-                fetch(`${WORKER_BASE}/comment/list?fileId=${fileId}`, { headers:getAuthHeaders() }),
-                fetch(`${WORKER_BASE}/tick/get?fileId=${fileId}`, { headers:getAuthHeaders() })
+                fetch(`${WORKER_BASE}/comment/list?fileId=${publicId}`, { headers:getAuthHeaders() }),
+                fetch(`${WORKER_BASE}/tick/get?fileId=${publicId}`, { headers:getAuthHeaders() })
             ]);
             const comments = await commentsRes.json();
             const tickData = await tickRes.json();
-            return { comments: comments.comments, ticked: tickData.ticked, count: tickData.count, users: tickData.users };
+            return { comments: comments.comments, ticked: tickData.ticked, count: tickData.count };
+        }
+
+        async function refreshCard(publicId) {
+            const card = document.querySelector(`.card[data-public-id="${publicId}"]`);
+            if (!card) return;
+            const newData = await loadCardData(publicId);
+            cardData.set(publicId, newData);
+            // Update tick button
+            const tickBtn = card.querySelector('.tick-btn');
+            if (tickBtn) tickBtn.innerHTML = newData.ticked ? '✅' : '☑️';
+            const tickCountSpan = card.querySelector('.tick-count');
+            if (tickCountSpan) tickCountSpan.textContent = newData.count;
+            // Update comment icon count
+            const commentIcon = card.querySelector('.comment-icon');
+            if (commentIcon) commentIcon.nextElementSibling.textContent = newData.comments.length;
+            // Update comment list
+            const commentList = card.querySelector('.comment-list');
+            if (commentList) {
+                commentList.innerHTML = newData.comments.map(c => `
+                    <div class="comment" data-comment-id="${c.id}">
+                        <span class="comment-text"><strong>${esc(c.user_email)}</strong> ${esc(c.text)}</span>
+                        <div class="comment-actions">
+                            <button class="edit-comment" data-id="${c.id}" data-text="${esc(c.text)}">✏️</button>
+                            <button class="delete-comment" data-id="${c.id}">🗑</button>
+                        </div>
+                    </div>
+                `).join('');
+                commentList.querySelectorAll('.edit-comment').forEach(btn => {
+                    btn.addEventListener('click', async (e) => {
+                        const commentId = btn.dataset.id;
+                        const oldText = btn.dataset.text;
+                        const newText = prompt('Edit comment:', oldText);
+                        if (newText && newText !== oldText) {
+                            await withLock(async () => {
+                                await fetch(`${WORKER_BASE}/comment/edit`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+                                    body: JSON.stringify({ commentId, text: newText })
+                                });
+                                await refreshCard(publicId);
+                            });
+                        }
+                    });
+                });
+                commentList.querySelectorAll('.delete-comment').forEach(btn => {
+                    btn.addEventListener('click', async () => {
+                        if (!confirm('Delete this comment?')) return;
+                        const commentId = btn.dataset.id;
+                        await withLock(async () => {
+                            await fetch(`${WORKER_BASE}/comment/delete`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+                                body: JSON.stringify({ commentId })
+                            });
+                            await refreshCard(publicId);
+                        });
+                    });
+                });
+            }
+        }
+
+        async function addComment(publicId, text) {
+            if (!text.trim()) return;
+            await withLock(async () => {
+                await fetch(`${WORKER_BASE}/comment/add`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+                    body: JSON.stringify({ fileId: publicId, text })
+                });
+                await refreshCard(publicId);
+            }).catch(e => toast('Comment failed', 'error'));
+        }
+
+        async function toggleTick(publicId) {
+            const data = cardData.get(publicId);
+            if (!data) return;
+            await withLock(async () => {
+                await fetch(`${WORKER_BASE}/tick/set`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+                    body: JSON.stringify({ fileId: publicId, ticked: !data.ticked })
+                });
+                await refreshCard(publicId);
+            }).catch(e => toast('Tick failed', 'error'));
         }
 
         function renderFiles() {
-            if(!D.grid) return;
+            if (!D.grid) return;
             let list = [...ST.files];
-            if(ST.query) list = list.filter(f=>f.name.toLowerCase().includes(ST.query));
+            if (ST.query) list = list.filter(f => f.name.toLowerCase().includes(ST.query));
             const s = ST.sort;
-            list.sort((a,b)=>{ switch(s){
-                case 'newest': return b.createdAt - a.createdAt;
-                case 'oldest': return a.createdAt - b.createdAt;
-                case 'name-asc': return a.name.localeCompare(b.name);
-                case 'name-desc': return b.name.localeCompare(a.name);
-                case 'size-desc': return b.size - a.size;
-                case 'size-asc': return a.size - b.size;
-                default: return 0;
-            }});
-            // Group by uploader
+            list.sort((a,b) => {
+                switch(s) {
+                    case 'newest': return b.createdAt - a.createdAt;
+                    case 'oldest': return a.createdAt - b.createdAt;
+                    case 'name-asc': return a.name.localeCompare(b.name);
+                    case 'name-desc': return b.name.localeCompare(a.name);
+                    case 'size-desc': return b.size - a.size;
+                    case 'size-asc': return a.size - b.size;
+                    default: return 0;
+                }
+            });
             const groups = {};
-            list.forEach(f => { const key = f.uploadedBy || 'unknown'; if(!groups[key]) groups[key]=[]; groups[key].push(f); });
+            list.forEach(f => { const key = f.uploadedBy || 'unknown'; if (!groups[key]) groups[key] = []; groups[key].push(f); });
             D.grid.innerHTML = '';
-            if(Object.keys(groups).length===0) { D.grid.innerHTML = '<p style="text-align:center;padding:30px;">No files yet.</p>'; return; }
-            for(const [uploader, files] of Object.entries(groups)) {
-                const section = document.createElement('div'); section.className='file-section';
+            if (Object.keys(groups).length === 0) { D.grid.innerHTML = '<p style="text-align:center;padding:30px;">No files yet.</p>'; return; }
+            for (const [uploader, files] of Object.entries(groups)) {
+                const section = document.createElement('div'); section.className = 'file-section';
                 section.innerHTML = `<div class="section-title">📤 ${esc(uploader)} <span>${files.length}</span></div><div class="file-grid"></div>`;
                 const gridDiv = section.querySelector('.file-grid');
-                files.forEach(async f => {
+                files.forEach(f => {
                     const actions = getFileActions(f.publicId);
                     const upBy = f.uploadedBy ? `<div style="font-size:0.7rem; color:var(--text-secondary); margin-bottom:4px;">📤 ${f.uploadedBy}</div>` : '';
-                    const { comments, ticked, count, users } = await loadCommentsAndTicks(f.publicId);
-                    const previewHtml = isMedia(f.mimeType) ? 
-                        `<div class="file-preview">
-                            ${f.mimeType.startsWith('image') ? `<img src="${getPreviewUrl(f.publicId)}" alt="preview" loading="lazy">` : 
-                              f.mimeType.startsWith('video') ? `<video src="${getPreviewUrl(f.publicId)}" muted preload="metadata" controlslist="nodownload"></video>` : ''}
-                        </div>` : 
-                        `<div class="file-icon">${icn(f.mimeType)}</div>`;
-                    const card = document.createElement('div'); card.className = `card${ST.selected.has(f.publicId)?' selected':''}`;
+                    const thumbnail = getThumbnail(f.mimeType, f.name);
+                    const card = document.createElement('div');
+                    card.className = `card${ST.selected.has(f.publicId) ? ' selected' : ''}`;
                     card.dataset.publicId = f.publicId;
-                    const commentVisible = ST.commentVisibility[f.publicId] || false;
                     card.innerHTML = `
-                        <input type="checkbox" class="card-checkbox" data-id="${f.publicId}" ${ST.selected.has(f.publicId)?'checked':''}>
-                        ${previewHtml}
+                        <input type="checkbox" class="card-checkbox" data-id="${f.publicId}" ${ST.selected.has(f.publicId) ? 'checked' : ''}>
+                        <div class="thumbnail" style="font-size:3rem; display:flex; align-items:center; justify-content:center; background:var(--border);">${thumbnail}</div>
                         <div class="file-name">${esc(f.name)}</div>
                         <div class="file-meta">${fmtSz(f.size)} · ${new Date(f.createdAt).toLocaleString()}</div>
                         ${upBy}
                         <div class="actions">
-                            ${actions.includes('play')?`<button class="btn-xs btn-xs-play" data-action="play" data-id="${f.publicId}">▶ Play</button>`:''}
-                            ${actions.includes('preview')?`<button class="btn-xs btn-xs-preview" data-action="preview" data-id="${f.publicId}">🔍 Preview</button>`:''}
-                            ${actions.includes('download')?`<button class="btn-xs btn-xs-download" data-action="download" data-id="${f.publicId}">⬇ Download</button>`:''}
-                            ${actions.includes('rename')?`<button class="btn-xs btn-xs-rename" data-action="rename" data-id="${f.publicId}">✏️ Rename</button>`:''}
-                            ${actions.includes('share')?`<button class="btn-xs btn-xs-share" data-action="share" data-id="${f.publicId}">🔗 Share</button>`:''}
-                            ${actions.includes('delete')?`<button class="btn-xs btn-xs-delete" data-action="delete" data-id="${f.publicId}">🗑 Delete</button>`:''}
-                            ${actions.includes('replace')?`<button class="btn-xs btn-xs-replace" data-action="replace" data-id="${f.publicId}">🔄 Replace</button>`:''}
-                            <button class="tick-btn" data-action="tick" data-id="${f.publicId}">${ticked ? '✅' : '☑️'}</button>
-                            <span class="tick-count">${count}</span>
-                            <span class="tick-users" title="Users who ticked: ${(users||[]).join(', ')}">${count>0?`👥` : ''}</span>
-                            <button class="toggle-comments" data-action="toggle-comments" data-id="${f.publicId}">💬 ${commentVisible ? 'Hide' : 'Show'} Comments</button>
-                        </div>
-                        <div class="comment-section ${commentVisible ? '' : 'hidden'}" id="comment-section-${f.publicId}">
-                            <div class="comment-list" id="comments-${f.publicId}">
-                                ${comments.map(c => `
-                                    <div class="comment" data-comment-id="${c.id}">
-                                        <div><strong>${esc(c.user_email)}</strong> ${esc(c.text)}</div>
-                                        ${c.user_email === ST.email ? `
-                                        <div class="comment-actions">
-                                            <button class="edit-comment" data-id="${c.id}" data-text="${esc(c.text).replace(/"/g, '&quot;')}">✏️</button>
-                                            <button class="delete-comment" data-id="${c.id}">🗑️</button>
-                                        </div>` : ''}
-                                    </div>
-                                `).join('')}
-                            </div>
-                            <div class="comment-form">
-                                <input type="text" id="comment-input-${f.publicId}" placeholder="Add a comment...">
-                                <button class="btn-xs btn-outline" data-action="comment-submit" data-id="${f.publicId}">Post</button>
+                            ${actions.includes('play') ? `<button class="btn-xs btn-xs-play" data-action="play" data-id="${f.publicId}">▶ Play</button>` : ''}
+                            ${actions.includes('preview') ? `<button class="btn-xs btn-xs-preview" data-action="preview" data-id="${f.publicId}">🔍 Preview</button>` : ''}
+                            ${actions.includes('download') ? `<button class="btn-xs btn-xs-download" data-action="download" data-id="${f.publicId}">⬇ Download</button>` : ''}
+                            ${actions.includes('rename') ? `<button class="btn-xs btn-xs-rename" data-action="rename" data-id="${f.publicId}">✏️ Rename</button>` : ''}
+                            ${actions.includes('share') ? `<button class="btn-xs btn-xs-share" data-action="share" data-id="${f.publicId}">🔗 Share</button>` : ''}
+                            ${actions.includes('delete') ? `<button class="btn-xs btn-xs-delete" data-action="delete" data-id="${f.publicId}">🗑 Delete</button>` : ''}
+                            ${actions.includes('replace') ? `<button class="btn-xs btn-xs-replace" data-action="replace" data-id="${f.publicId}">🔄 Replace</button>` : ''}
+                            <button class="tick-btn" data-action="tick" data-id="${f.publicId}"></button>
+                            <span class="tick-count"></span>
+                            <div class="comment-section">
+                                <div class="comment-header">
+                                    <span class="comment-icon">💬</span>
+                                    <span class="comment-count"></span>
+                                </div>
+                                <div class="comment-list"></div>
+                                <div class="comment-form">
+                                    <input type="text" placeholder="Add a comment...">
+                                    <button class="btn-xs btn-outline post-comment">Post</button>
+                                </div>
                             </div>
                         </div>
                     `;
                     gridDiv.appendChild(card);
-                    // Attach comment toggle
-                    const toggleBtn = card.querySelector(`[data-action="toggle-comments"]`);
-                    if(toggleBtn) toggleBtn.addEventListener('click', async (e) => {
-                        const pid = e.currentTarget.dataset.id;
-                        ST.commentVisibility[pid] = !ST.commentVisibility[pid];
-                        renderFiles(); // re-render to update visibility
-                    });
-                    // Attach comment submit
-                    const submitBtn = card.querySelector(`[data-action="comment-submit"]`);
-                    if(submitBtn) submitBtn.addEventListener('click', async (e) => {
-                        const pid = e.currentTarget.dataset.id;
-                        const input = card.querySelector(`#comment-input-${pid}`);
-                        const text = input.value;
-                        if(text.trim()) {
-                            await addComment(pid, text);
-                            input.value = '';
+                    // Load data asynchronously
+                    (async () => {
+                        const data = await loadCardData(f.publicId);
+                        cardData.set(f.publicId, data);
+                        const tickBtn = card.querySelector('.tick-btn');
+                        if (tickBtn) tickBtn.innerHTML = data.ticked ? '✅' : '☑️';
+                        const tickCountSpan = card.querySelector('.tick-count');
+                        if (tickCountSpan) tickCountSpan.textContent = data.count;
+                        const commentCountSpan = card.querySelector('.comment-count');
+                        if (commentCountSpan) commentCountSpan.textContent = data.comments.length;
+                        const commentList = card.querySelector('.comment-list');
+                        if (commentList) {
+                            commentList.innerHTML = data.comments.map(c => `
+                                <div class="comment" data-comment-id="${c.id}">
+                                    <span class="comment-text"><strong>${esc(c.user_email)}</strong> ${esc(c.text)}</span>
+                                    <div class="comment-actions">
+                                        <button class="edit-comment" data-id="${c.id}" data-text="${esc(c.text)}">✏️</button>
+                                        <button class="delete-comment" data-id="${c.id}">🗑</button>
+                                    </div>
+                                </div>
+                            `).join('');
+                            commentList.querySelectorAll('.edit-comment').forEach(btn => {
+                                btn.addEventListener('click', async (e) => {
+                                    const commentId = btn.dataset.id;
+                                    const oldText = btn.dataset.text;
+                                    const newText = prompt('Edit comment:', oldText);
+                                    if (newText && newText !== oldText) {
+                                        await withLock(async () => {
+                                            await fetch(`${WORKER_BASE}/comment/edit`, {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+                                                body: JSON.stringify({ commentId, text: newText })
+                                            });
+                                            await refreshCard(f.publicId);
+                                        });
+                                    }
+                                });
+                            });
+                            commentList.querySelectorAll('.delete-comment').forEach(btn => {
+                                btn.addEventListener('click', async () => {
+                                    if (!confirm('Delete this comment?')) return;
+                                    const commentId = btn.dataset.id;
+                                    await withLock(async () => {
+                                        await fetch(`${WORKER_BASE}/comment/delete`, {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+                                            body: JSON.stringify({ commentId })
+                                        });
+                                        await refreshCard(f.publicId);
+                                    });
+                                });
+                            });
                         }
-                    });
-                    // Attach edit/delete comment buttons
-                    card.querySelectorAll('.edit-comment').forEach(btn => {
-                        btn.addEventListener('click', async (e) => {
-                            const commentId = btn.dataset.id;
-                            const oldText = btn.dataset.text;
-                            const newText = prompt('Edit comment:', oldText);
-                            if(newText && newText !== oldText) await editComment(commentId, newText);
-                        });
-                    });
-                    card.querySelectorAll('.delete-comment').forEach(btn => {
-                        btn.addEventListener('click', async () => {
-                            if(confirm('Delete comment?')) await deleteComment(btn.dataset.id);
-                        });
-                    });
+                        const commentInput = card.querySelector('.comment-form input');
+                        const postBtn = card.querySelector('.post-comment');
+                        if (postBtn) {
+                            postBtn.addEventListener('click', async () => {
+                                const text = commentInput.value;
+                                if (text.trim()) {
+                                    await addComment(f.publicId, text);
+                                    commentInput.value = '';
+                                }
+                            });
+                        }
+                    })();
                 });
                 D.grid.appendChild(section);
             }
@@ -671,33 +750,31 @@
         }
 
         function getFileActions(pid) {
-            if(ST.isAdmin) return ['play','preview','download','rename','share','delete','replace'];
-            if(!ST.role) return [];
-            const f = ST.files.find(f=>f.publicId===pid);
-            if(!f) return [];
+            if (ST.isAdmin) return ['play','preview','download','rename','share','delete','replace'];
+            if (!ST.role) return [];
+            const f = ST.files.find(f => f.publicId === pid);
+            if (!f) return [];
             const pt = prevType(f.mimeType);
             const a = [];
-            if((pt==='video'||pt==='audio') && ['full','delete','upload','download','read'].includes(ST.role)) a.push('play');
-            if(['image','pdf','text'].includes(pt) && ['full','delete','upload','download','read'].includes(ST.role)) a.push('preview');
-            if(['full','delete','upload','download'].includes(ST.role)) a.push('download');
-            if(['full'].includes(ST.role)) a.push('rename','share');
-            if(['full','delete'].includes(ST.role)) a.push('delete');
-            if(ST.role==='full') a.push('replace');
+            if ((pt === 'video' || pt === 'audio') && ['full','delete','upload','download','read'].includes(ST.role)) a.push('play');
+            if (['image','pdf','text'].includes(pt) && ['full','delete','upload','download','read'].includes(ST.role)) a.push('preview');
+            if (['full','delete','upload','download'].includes(ST.role)) a.push('download');
+            if (['full'].includes(ST.role)) a.push('rename','share');
+            if (['full','delete'].includes(ST.role)) a.push('delete');
+            if (ST.role === 'full') a.push('replace');
             return a;
         }
 
         function attachEvents() {
-            if(!D.grid) return;
+            if (!D.grid) return;
             D.grid.querySelectorAll('.card-checkbox').forEach(cb => {
                 cb.removeEventListener('change', checkboxHandler);
                 cb.addEventListener('change', checkboxHandler);
             });
             D.grid.querySelectorAll('.actions button').forEach(btn => {
-                if(btn.dataset.action === 'tick') {
+                if (btn.classList.contains('tick-btn')) {
                     btn.removeEventListener('click', tickHandler);
                     btn.addEventListener('click', tickHandler);
-                } else if(btn.dataset.action === 'toggle-comments') {
-                    // already attached in render
                 } else {
                     btn.removeEventListener('click', actionHandler);
                     btn.addEventListener('click', actionHandler);
@@ -710,13 +787,13 @@
         }
         function checkboxHandler(e) { e.stopPropagation(); toggleSelect(e.target.dataset.id, e.target.checked); }
         async function tickHandler(e) { e.stopPropagation(); const pid = e.currentTarget.dataset.id; await toggleTick(pid); }
-        function actionHandler(e) { e.stopPropagation(); const action = e.currentTarget.dataset.action, id = e.currentTarget.dataset.id; if(action && action !== 'tick' && action !== 'toggle-comments') fileAction(action, id); }
-        function cardClickHandler(e) { if(e.target.classList.contains('card-checkbox') || e.target.closest('.actions')) return; const cb = this.querySelector('.card-checkbox'); if(cb) toggleSelect(cb.dataset.id, !cb.checked); }
-        function toggleSelect(id, checked) { if(checked) ST.selected.add(id); else ST.selected.delete(id); updateBulkBar(); const card = document.querySelector(`.card[data-public-id="${id}"]`); if(card) card.classList.toggle('selected',checked); }
-        function updateBulkBar() { if(D.bulkBar) { if(ST.selected.size) { D.bulkBar.classList.remove('hidden'); if(D.bulkCnt) D.bulkCnt.textContent = `${ST.selected.size} selected`; } else D.bulkBar.classList.add('hidden'); } }
+        function actionHandler(e) { e.stopPropagation(); const action = e.currentTarget.dataset.action, id = e.currentTarget.dataset.id; if (action && action !== 'tick') fileAction(action, id); }
+        function cardClickHandler(e) { if (e.target.classList.contains('card-checkbox') || e.target.closest('.actions')) return; const cb = this.querySelector('.card-checkbox'); if (cb) toggleSelect(cb.dataset.id, !cb.checked); }
+        function toggleSelect(id, checked) { if (checked) ST.selected.add(id); else ST.selected.delete(id); updateBulkBar(); const card = document.querySelector(`.card[data-public-id="${id}"]`); if (card) card.classList.toggle('selected', checked); }
+        function updateBulkBar() { if (D.bulkBar) { if (ST.selected.size) { D.bulkBar.classList.remove('hidden'); if (D.bulkCnt) D.bulkCnt.textContent = `${ST.selected.size} selected`; } else D.bulkBar.classList.add('hidden'); } }
         function fileAction(action, id) {
             switch(action) {
-                case 'play': openPreview(id,'video'); break;
+                case 'play': openPreview(id, 'video'); break;
                 case 'preview': openPreview(id, prevType(ST.files.find(f=>f.publicId===id)?.mimeType)); break;
                 case 'download': window.open(getDownloadUrl(id), '_blank'); break;
                 case 'delete': deleteFile(id); break;
@@ -726,21 +803,21 @@
             }
         }
         async function deleteFile(pid) {
-            if(!confirm('Delete?')) return;
+            if (!confirm('Delete?')) return;
             await withLock(async () => {
                 const r = await fetch(`${WORKER_BASE}/delete`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({publicId:pid}) });
-                if(r.ok) { await fetchFiles(); toast('Deleted'); }
+                if (r.ok) { await fetchFiles(); toast('Deleted'); }
                 else throw new Error();
             }).catch(() => toast('Delete failed', 'error'));
         }
         function replaceFile(pid) {
-            const inp = document.createElement('input'); inp.type='file';
+            const inp = document.createElement('input'); inp.type = 'file';
             inp.onchange = async () => {
                 const file = inp.files[0];
-                if(!file) return;
+                if (!file) return;
                 await withLock(async () => {
                     const init = await fetch(`${WORKER_BASE}/update`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({publicId:pid,fileName:file.name,fileSize:file.size,fileType:file.type||'application/octet-stream'}) });
-                    if(!init.ok) { toast('Replace init failed','error'); return; }
+                    if (!init.ok) { toast('Replace init failed','error'); return; }
                     const data = await init.json();
                     const replacePublicId = data.publicId;
                     await uploadFile(file, replacePublicId);
@@ -750,13 +827,13 @@
             inp.click();
         }
         async function renameFile(pid) {
-            const f = ST.files.find(f=>f.publicId===pid);
-            if(!f) return;
+            const f = ST.files.find(f => f.publicId === pid);
+            if (!f) return;
             const newName = prompt('New name:', f.name);
-            if(!newName || newName===f.name) return;
+            if (!newName || newName === f.name) return;
             await withLock(async () => {
                 const r = await fetch(`${WORKER_BASE}/rename`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({publicId:pid,newName}) });
-                if(r.ok) { await fetchFiles(); toast('Renamed'); }
+                if (r.ok) { await fetchFiles(); toast('Renamed'); }
                 else throw new Error();
             }).catch(() => toast('Rename failed', 'error'));
         }
@@ -767,22 +844,19 @@
             await withLock(async () => {
                 const r = await fetch(`${WORKER_BASE}/share/create`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({publicId:pid,expiresIn:hours*3600,maxDownloads,label}) });
                 const data = await r.json();
-                if(r.ok) { toast('Share link copied!'); navigator.clipboard.writeText(data.shareUrl); }
+                if (r.ok) { toast('Share link copied!'); navigator.clipboard.writeText(data.shareUrl); }
                 else throw new Error();
             }).catch(() => toast('Share failed', 'error'));
         }
 
-        // -------------------- Upload --------------------
+        // Upload
         async function uploadFile(file, existingPid = null) {
             const fileKey = existingPid || file.name + file.size + file.lastModified;
-            if (uploadingFiles.has(fileKey)) {
-                toast(`${file.name} is already being uploaded.`, 'info');
-                return;
-            }
+            if (uploadingFiles.has(fileKey)) { toast(`${file.name} already uploading.`, 'info'); return; }
             uploadingFiles.add(fileKey);
             if (ST.uploadCtrl) ST.uploadCtrl.abort();
             ST.uploadCtrl = new AbortController();
-            if(D.progBox) D.progBox.classList.remove('hidden');
+            if (D.progBox) D.progBox.classList.remove('hidden');
             try {
                 let pid = existingPid;
                 if (!pid) {
@@ -797,13 +871,11 @@
                     pid = initData.publicId;
                 }
                 const CHUNK = 10 * 1024 * 1024;
-                let uploaded = 0;
-                let lastBytes = 0;
-                let lastTime = Date.now();
+                let uploaded = 0, lastBytes = 0, lastTime = Date.now();
                 while (uploaded < file.size) {
                     if (ST.uploadCtrl.signal.aborted) throw new Error('Cancelled');
                     const end = Math.min(uploaded + CHUNK - 1, file.size - 1);
-                    const chunk = file.slice(uploaded, end+1);
+                    const chunk = file.slice(uploaded, end + 1);
                     let retries = 3, done = false;
                     while (retries-- && !done) {
                         const chunkRes = await fetch(`${WORKER_BASE}/upload-chunk/${pid}`, {
@@ -819,11 +891,9 @@
                                 uploaded = data.uploadedBytes;
                                 const now = Date.now();
                                 const timeDiff = Math.max(1, now - lastTime);
-                                const bytesDiff = uploaded - lastBytes;
-                                const speed = (bytesDiff / timeDiff) * 1000;
+                                const speed = ((uploaded - lastBytes) / timeDiff) * 1000;
                                 updateProgress(uploaded, file.size, speed);
-                                lastBytes = uploaded;
-                                lastTime = now;
+                                lastBytes = uploaded; lastTime = now;
                             }
                             done = true;
                         } else {
@@ -842,23 +912,24 @@
             } catch (err) {
                 if (err.message !== 'Cancelled') toast(`Upload failed: ${err.message}`, 'error');
             } finally {
-                if(D.progBox) D.progBox.classList.add('hidden');
+                if (D.progBox) D.progBox.classList.add('hidden');
                 ST.uploadCtrl = null;
                 uploadingFiles.delete(fileKey);
             }
         }
         function updateProgress(uploaded, total, speedBps) {
-            if(D.progFill) D.progFill.style.width = Math.round(uploaded/total*100)+'%';
-            if(D.pctDisp) D.pctDisp.textContent = Math.round(uploaded/total*100)+'%';
-            if(D.speedDisp) D.speedDisp.textContent = speedBps ? fmtSpeed(speedBps) : '--';
-            if(D.sizeDisp) D.sizeDisp.textContent = `${fmtSz(uploaded)} / ${fmtSz(total)}`;
+            const p = Math.round(uploaded / total * 100);
+            if (D.progFill) D.progFill.style.width = p + '%';
+            if (D.pctDisp) D.pctDisp.textContent = p + '%';
+            if (D.speedDisp) D.speedDisp.textContent = speedBps ? fmtSpeed(speedBps) : '--';
+            if (D.sizeDisp) D.sizeDisp.textContent = `${fmtSz(uploaded)} / ${fmtSz(total)}`;
         }
         const sleep = ms => new Promise(r => setTimeout(r, ms));
-        safeAddEvent(D.cancelBtn, 'click', () => { if (ST.uploadCtrl) { ST.uploadCtrl.abort(); ST.uploadCtrl = null; if(D.progBox) D.progBox.classList.add('hidden'); } });
+        safeAddEvent(D.cancelBtn, 'click', () => { if (ST.uploadCtrl) { ST.uploadCtrl.abort(); ST.uploadCtrl = null; if (D.progBox) D.progBox.classList.add('hidden'); } });
 
-        // -------------------- Preview (using native video/audio) --------------------
+        // Preview
         function openPreview(pid, type) {
-            if(!D.prevCont) return;
+            if (!D.prevCont) return;
             D.prevCont.innerHTML = '';
             const url = getPreviewUrl(pid);
             if (type === 'video') {
@@ -876,70 +947,69 @@
                 const ifr = document.createElement('iframe'); ifr.src = url; ifr.style.width = '90%'; ifr.style.height = '90%';
                 D.prevCont.appendChild(ifr);
             } else if (type === 'text') {
-                fetch(url, { headers: getAuthHeaders() }).then(r=>r.text()).then(t => { const pre = document.createElement('pre'); pre.textContent = t; D.prevCont.appendChild(pre); });
+                fetch(url, { headers: getAuthHeaders() }).then(r => r.text()).then(t => { const pre = document.createElement('pre'); pre.textContent = t; D.prevCont.appendChild(pre); });
             } else { return; }
-            if(D.prevOv) D.prevOv.classList.remove('hidden');
+            if (D.prevOv) D.prevOv.classList.remove('hidden');
         }
-        function closePreview() { if(D.prevCont) D.prevCont.innerHTML = ''; if(D.prevOv) D.prevOv.classList.add('hidden'); if (document.fullscreenElement) document.exitFullscreen(); }
+        function closePreview() { if (D.prevCont) D.prevCont.innerHTML = ''; if (D.prevOv) D.prevOv.classList.add('hidden'); if (document.fullscreenElement) document.exitFullscreen(); }
         safeAddEvent(D.btnCloseP, 'click', closePreview);
-        safeAddEvent(D.btnFull, 'click', () => { if (document.fullscreenElement) document.exitFullscreen(); else if(D.prevOv) D.prevOv.requestFullscreen(); });
+        safeAddEvent(D.btnFull, 'click', () => { if (document.fullscreenElement) document.exitFullscreen(); else if (D.prevOv) D.prevOv.requestFullscreen(); });
 
         function applyRoleUI() {
             const canUpload = ['full','delete','upload'].includes(ST.role);
-            if(D.dropzone) D.dropzone.style.display = canUpload ? '' : 'none';
+            if (D.dropzone) D.dropzone.style.display = canUpload ? '' : 'none';
             const hint = document.querySelector('.hint-text');
-            if(hint) hint.style.display = canUpload ? '' : 'none';
+            if (hint) hint.style.display = canUpload ? '' : 'none';
         }
 
-        // -------------------- Share preview --------------------
+        // Share preview
         async function showSharePreview() {
             const res = await fetch(`${WORKER_BASE}/share/verify?token=${ST.shareToken}`);
             if (!res.ok) { toast('Invalid or expired share link', 'error'); showLogin(); return; }
             const data = await res.json();
-            if(D.grid) D.grid.innerHTML = `
+            if (D.grid) D.grid.innerHTML = `
                 <div style="grid-column:1/-1;text-align:center;padding:60px;">
-                    <div class="file-icon" style="font-size:4rem">${icn(data.mimeType)}</div>
+                    <div class="thumbnail" style="font-size:4rem;">${getThumbnail(data.mimeType, data.fileName)}</div>
                     <h2>${esc(data.fileName)}</h2>
                     <p>${fmtSz(data.fileSize)}</p>
                     <button class="btn btn-primary" id="shareDownloadBtn">⬇ Download</button>
                     <button class="btn btn-outline" onclick="location.href='/'">🔐 Login to Vault</button>
                 </div>`;
             const shareBtn = $('shareDownloadBtn');
-            if(shareBtn) shareBtn.addEventListener('click', () => {
+            if (shareBtn) shareBtn.addEventListener('click', () => {
                 window.location.href = `${WORKER_BASE}/share/download?token=${ST.shareToken}`;
             });
-            if(D.dropzone) D.dropzone.style.display = 'none';
+            if (D.dropzone) D.dropzone.style.display = 'none';
             const hint = document.querySelector('.hint-text');
-            if(hint) hint.style.display = 'none';
-            if(D.adminBar) D.adminBar.classList.add('hidden');
-            if(D.userUI) D.userUI.innerHTML = '';
+            if (hint) hint.style.display = 'none';
+            if (D.adminBar) D.adminBar.classList.add('hidden');
+            if (D.userUI) D.userUI.innerHTML = '';
         }
 
-        // -------------------- Drag & drop, paste, keyboard --------------------
-        if(D.dropzone) {
+        // Drag & drop, paste, keyboard
+        if (D.dropzone) {
             ['dragenter','dragover','dragleave','drop'].forEach(ev => D.dropzone.addEventListener(ev, e => e.preventDefault()));
             ['dragenter','dragover'].forEach(ev => D.dropzone.addEventListener(ev, () => D.dropzone.classList.add('dragover')));
             ['dragleave','drop'].forEach(ev => D.dropzone.addEventListener(ev, () => D.dropzone.classList.remove('dragover')));
             D.dropzone.addEventListener('drop', e => { const files = e.dataTransfer.files; if (files.length) handleFiles(files); });
             D.dropzone.addEventListener('click', () => D.fileInp.click());
         }
-        if(D.fileInp) D.fileInp.addEventListener('change', e => handleFiles(e.target.files));
+        if (D.fileInp) D.fileInp.addEventListener('change', e => handleFiles(e.target.files));
         function handleFiles(files) { for (const f of files) uploadFile(f); }
         document.addEventListener('paste', e => {
             const items = e.clipboardData.items;
-            for (let i=0; i<items.length; i++) {
+            for (let i = 0; i < items.length; i++) {
                 if (items[i].kind === 'file') { uploadFile(items[i].getAsFile()); break; }
             }
         });
         document.addEventListener('keydown', e => {
-            if (e.ctrlKey && e.key === 'u') { e.preventDefault(); if(D.fileInp) D.fileInp.click(); }
-            if (e.ctrlKey && e.key === 'f') { e.preventDefault(); if(D.search) D.search.focus(); }
+            if (e.ctrlKey && e.key === 'u') { e.preventDefault(); if (D.fileInp) D.fileInp.click(); }
+            if (e.ctrlKey && e.key === 'f') { e.preventDefault(); if (D.search) D.search.focus(); }
             if (e.key === 'Escape') closePreview();
         });
-        if(D.search) D.search.addEventListener('input', () => { ST.query = D.search.value.toLowerCase(); renderFiles(); });
-        if(D.sortSel) D.sortSel.addEventListener('change', () => { ST.sort = D.sortSel.value; localStorage.setItem('sort', ST.sort); renderFiles(); D.sortSel.value = ST.sort; });
+        if (D.search) D.search.addEventListener('input', () => { ST.query = D.search.value.toLowerCase(); renderFiles(); });
+        if (D.sortSel) D.sortSel.addEventListener('change', () => { ST.sort = D.sortSel.value; localStorage.setItem('sort', ST.sort); renderFiles(); D.sortSel.value = ST.sort; });
 
-        // -------------------- Init --------------------
         async function init() {
             const p = new URLSearchParams(location.search);
             const utoken = p.get('utoken');
@@ -951,7 +1021,7 @@
                 await showSharePreview();
                 return;
             }
-            if (err) { toast('Auth error: '+err.replace(/_/g,' '), 'error'); history.replaceState({},'',location.pathname); }
+            if (err) { toast('Auth error: ' + err.replace(/_/g, ' '), 'error'); history.replaceState({}, '', location.pathname); }
             if (utoken) {
                 ST.token = utoken;
                 localStorage.setItem('vtoken', utoken);
