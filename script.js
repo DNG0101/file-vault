@@ -2,7 +2,7 @@
 const WORKER_BASE = 'https://gdrive-files-api.donthulanithish53.workers.dev';
 
 // ==================== STATE ====================
-const ST = {
+let ST = {
     token: localStorage.getItem('vtoken'),
     email: null,
     isAdmin: false,
@@ -18,26 +18,26 @@ const ST = {
     shareToken: null,
 };
 
-// ==================== DOM REFS ====================
+// ==================== DOM ELEMENTS ====================
 const $ = id => document.getElementById(id);
 const D = {
     stats: $('storageStats'), userUI: $('userUI'), adminBar: $('adminBar'),
     dropzone: $('dropzone'), fileInp: $('fileInput'), progBox: $('progressBox'),
-    progFill: $('progressFill'), pctDisp: $('percentDisplay'), sizeDisp: $('sizeDisplay'),
-    cancelBtn: $('cancelUpload'), grid: $('fileGrid'), prevOv: $('previewOverlay'),
-    prevCont: $('previewContainer'), btnFull: $('btnFullscreen'), btnCloseP: $('btnClosePreview'),
-    search: $('searchInput'), sortSel: $('sortSelect'), bulkBar: $('bulkBar'),
-    bulkCnt: $('bulkCount'), toastBox: $('toastContainer'), btnDark: $('btnDarkMode'),
-    btnSync: $('btnSync'), btnAppr: $('btnApprovals'), btnAllUsers: $('btnAllUsers'),
-    btnLogs: $('btnLogs'), btnAnalytics: $('btnAnalytics'), btnShare: $('btnShareManager'),
-    btnUnAuth: $('btnAdminLogout'), pnlAppr: $('approvalPanel'), listAppr: $('approvalList'),
-    pnlUsers: $('usersPanel'), listUsers: $('usersList'), pnlLogs: $('logsPanel'),
-    logsCt: $('logsContent'), pnlAnalytics: $('analyticsPanel'), analyticsCt: $('analyticsContent'),
-    pnlShare: $('sharePanel'), shareCt: $('shareContent'), pendingBadge: $('pendingBadge'),
-    btnClearLogs: $('btnClearLogs'),
+    progFill: $('progressFill'), pctDisp: $('percentDisplay'), speedDisp: $('speedDisplay'),
+    sizeDisp: $('sizeDisplay'), cancelBtn: $('cancelUpload'), grid: $('fileGrid'),
+    prevOv: $('previewOverlay'), prevCont: $('previewContainer'), btnFull: $('btnFullscreen'),
+    btnCloseP: $('btnClosePreview'), search: $('searchInput'), sortSel: $('sortSelect'),
+    bulkBar: $('bulkBar'), bulkCnt: $('bulkCount'), toastBox: $('toastContainer'),
+    btnDark: $('btnDarkMode'), btnSync: $('btnSync'), btnAppr: $('btnApprovals'),
+    btnAllUsers: $('btnAllUsers'), btnLogs: $('btnLogs'), btnAnalytics: $('btnAnalytics'),
+    btnShare: $('btnShareManager'), btnUnAuth: $('btnAdminLogout'), pnlAppr: $('approvalPanel'),
+    listAppr: $('approvalList'), pnlUsers: $('usersPanel'), listUsers: $('usersList'),
+    pnlLogs: $('logsPanel'), logsCt: $('logsContent'), pnlAnalytics: $('analyticsPanel'),
+    analyticsCt: $('analyticsContent'), pnlShare: $('sharePanel'), shareCt: $('shareContent'),
+    pendingBadge: $('pendingBadge'), btnClearLogs: $('btnClearLogs'),
 };
 
-// ==================== UTILS ====================
+// ==================== UTILITIES ====================
 function getAuthHeaders() {
     const h = {};
     if (ST.token) {
@@ -55,6 +55,7 @@ function toast(msg, type='info') {
 }
 const esc = s => { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
 const fmtSz = b => { if(!b) return '0 B'; const u=['B','KB','MB','GB']; let i=0,s=b; while(s>=1024 && i<3) { s/=1024; i++; } return s.toFixed(1)+' '+u[i]; };
+const fmtSpeed = bytesPerSec => { if(bytesPerSec<1024) return bytesPerSec.toFixed(0)+' B/s'; if(bytesPerSec<1048576) return (bytesPerSec/1024).toFixed(1)+' KB/s'; return (bytesPerSec/1048576).toFixed(1)+' MB/s'; };
 const icn = m => { if(!m) return '📄'; if(m.startsWith('video')) return '🎬'; if(m.startsWith('audio')) return '🎵'; if(m.startsWith('image')) return '🖼️'; if(m==='application/pdf') return '📕'; if(m.startsWith('text')) return '📝'; return '📄'; };
 const prevType = m => { if(!m) return ''; if(m.startsWith('video')) return 'video'; if(m.startsWith('audio')) return 'audio'; if(m.startsWith('image')) return 'image'; if(m==='application/pdf') return 'pdf'; if(m.startsWith('text')) return 'text'; return ''; };
 
@@ -68,7 +69,7 @@ const prevType = m => { if(!m) return ''; if(m.startsWith('video')) return 'vide
         if(ST.isAdmin && ST.token) {
             fetch(`${WORKER_BASE}/admin/set-engine`, {
                 method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()},
-                body:JSON.stringify({ engine:'d1' })
+                body:JSON.stringify({ engine: ST.dark ? 'kv' : 'd1' })
             }).catch(()=>{});
         }
     });
@@ -225,7 +226,7 @@ function loadAnalytics() {
     });
 }
 
-// ==================== FILE LIST & RENDER (sectioned) ====================
+// ==================== FILE LIST & RENDER (SECTIONED) ====================
 async function fetchFiles() {
     try {
         const r = await fetch(`${WORKER_BASE}/list`,{headers:getAuthHeaders()});
@@ -248,14 +249,15 @@ function renderFiles() {
         case 'size-asc': return a.size - b.size;
         default: return 0;
     }});
+    // Group by uploader email (sectional view)
     const groups = {};
     list.forEach(f=>{ const key = f.uploadedBy || 'unknown'; if(!groups[key]) groups[key]=[]; groups[key].push(f); });
     D.grid.innerHTML = '';
     if(Object.keys(groups).length===0) { D.grid.innerHTML = '<p style="padding:30px;text-align:center;">No files yet.</p>'; return; }
     for(const [uploader, files] of Object.entries(groups)) {
-        const sec = document.createElement('div'); sec.className='file-section';
-        sec.innerHTML = `<div class="section-title">📤 ${esc(uploader)} <span>${files.length}</span></div><div class="file-grid"></div>`;
-        const gridDiv = sec.querySelector('.file-grid');
+        const section = document.createElement('div'); section.className='file-section';
+        section.innerHTML = `<div class="section-title">📤 ${esc(uploader)} <span>${files.length}</span></div><div class="file-grid"></div>`;
+        const gridDiv = section.querySelector('.file-grid');
         files.forEach(f => {
             const actions = getFileActions(f.publicId);
             const card = document.createElement('div'); card.className = `card${ST.selected.has(f.publicId)?' selected':''}`;
@@ -276,7 +278,7 @@ function renderFiles() {
                 </div>`;
             gridDiv.appendChild(card);
         });
-        D.grid.appendChild(sec);
+        D.grid.appendChild(section);
     }
     attachEvents();
     updateBulkBar();
@@ -347,4 +349,237 @@ function replaceFile(pid) {
         if(!file) return;
         const init = await fetch(`${WORKER_BASE}/update`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({publicId:pid,fileName:file.name,fileSize:file.size,fileType:file.type||'application/octet-stream'})});
         if(!init.ok) { toast('Replace init failed','error'); return; }
-        const {publicId}
+        const {publicId} = await init.json();
+        await uploadFile(file, publicId);
+        await fetchFiles();
+    };
+    inp.click();
+}
+async function renameFile(pid) {
+    const f = ST.files.find(f=>f.publicId===pid);
+    if(!f) return;
+    const newName = prompt('New name:', f.name);
+    if(!newName || newName===f.name) return;
+    const r = await fetch(`${WORKER_BASE}/rename`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({publicId:pid,newName})});
+    if(r.ok) { await fetchFiles(); toast('Renamed'); } else toast('Rename failed','error');
+}
+async function shareFile(pid) {
+    const label = prompt('Share label (optional):', '');
+    const hours = parseInt(prompt('Expires in hours (default 1):', '1'),10);
+    const maxDownloads = parseInt(prompt('Max downloads (0=unlimited):', '0'),10);
+    const r = await fetch(`${WORKER_BASE}/share/create`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({publicId:pid,expiresIn:hours*3600,maxDownloads,label})});
+    const data = await r.json();
+    if(r.ok) { toast('Share link copied!'); navigator.clipboard.writeText(data.shareUrl); }
+    else toast('Share failed','error');
+}
+
+// ==================== UPLOAD (with speed indicator) ====================
+async function uploadFile(file, existingPid = null) {
+    if (ST.uploadCtrl) ST.uploadCtrl.abort();
+    ST.uploadCtrl = new AbortController();
+    D.progBox.classList.remove('hidden');
+    try {
+        let pid = existingPid;
+        if (!pid) {
+            const initRes = await fetch(`${WORKER_BASE}/upload-init`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+                body: JSON.stringify({ fileName: file.name, fileSize: file.size, fileType: file.type || 'application/octet-stream' }),
+                signal: ST.uploadCtrl.signal
+            });
+            if (!initRes.ok) throw new Error('Init failed');
+            pid = (await initRes.json()).publicId;
+        }
+        const CHUNK = 10 * 1024 * 1024;
+        let uploaded = 0;
+        let lastBytes = 0;
+        let lastTime = Date.now();
+        while (uploaded < file.size) {
+            if (ST.uploadCtrl.signal.aborted) throw new Error('Cancelled');
+            const end = Math.min(uploaded + CHUNK - 1, file.size - 1);
+            const chunk = file.slice(uploaded, end+1);
+            let retries = 3, done = false;
+            while (retries-- && !done) {
+                const startTime = Date.now();
+                const chunkRes = await fetch(`${WORKER_BASE}/upload-chunk/${pid}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Range': `bytes ${uploaded}-${end}/${file.size}`, ...getAuthHeaders() },
+                    body: chunk,
+                    signal: ST.uploadCtrl.signal
+                });
+                const data = await chunkRes.json();
+                if (chunkRes.ok) {
+                    if (data.complete === true || data.status === 'complete') { done = true; break; }
+                    if (typeof data.uploadedBytes === 'number') {
+                        uploaded = data.uploadedBytes;
+                        const now = Date.now();
+                        const timeDiff = Math.max(1, now - lastTime);
+                        const bytesDiff = uploaded - lastBytes;
+                        const speed = (bytesDiff / timeDiff) * 1000; // bytes per second
+                        updateProgress(uploaded, file.size, speed);
+                        lastBytes = uploaded;
+                        lastTime = now;
+                    }
+                    done = true;
+                } else {
+                    if (retries <= 0) throw new Error(data.error || 'Chunk error');
+                    await sleep(1000);
+                }
+            }
+            if (done && uploaded >= file.size) break;
+            if (!done) {
+                const statusRes = await fetch(`${WORKER_BASE}/upload-status/${pid}`, { headers: getAuthHeaders(), signal: ST.uploadCtrl.signal });
+                if (statusRes.ok) { const s = await statusRes.json(); uploaded = s.uploadedBytes || uploaded; updateProgress(uploaded, file.size, 0); }
+            }
+        }
+        toast(`${file.name} uploaded`, 'success');
+        await fetchFiles();
+    } catch (err) {
+        if (err.message !== 'Cancelled') toast(`Upload failed: ${err.message}`, 'error');
+    } finally {
+        D.progBox.classList.add('hidden');
+        ST.uploadCtrl = null;
+    }
+}
+function updateProgress(uploaded, total, speedBps) {
+    const p = Math.round(uploaded/total*100);
+    D.progFill.style.width = p+'%';
+    D.pctDisp.textContent = p+'%';
+    D.speedDisp.textContent = speedBps ? fmtSpeed(speedBps) : '--';
+    D.sizeDisp.textContent = `${fmtSz(uploaded)} / ${fmtSz(total)}`;
+}
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+D.cancelBtn.addEventListener('click', () => { if (ST.uploadCtrl) { ST.uploadCtrl.abort(); ST.uploadCtrl = null; D.progBox.classList.add('hidden'); } });
+
+// ==================== PREVIEW ====================
+function openPreview(pid, type) {
+    D.prevCont.innerHTML = '';
+    const url = `${WORKER_BASE}/video/${pid}`;
+    if (type === 'video' || type === 'audio') {
+        const el = document.createElement(type === 'audio' ? 'audio' : 'video');
+        el.src = url; el.controls = true; el.playsInline = true;
+        el.style.width = '100%'; el.style.height = '100%'; el.style.objectFit = 'contain';
+        D.prevCont.appendChild(el); el.play().catch(()=>{});
+    } else if (type === 'image') {
+        const img = document.createElement('img'); img.src = url; img.style.maxWidth = '95%'; img.style.maxHeight = '95%';
+        D.prevCont.appendChild(img);
+    } else if (type === 'pdf') {
+        const ifr = document.createElement('iframe'); ifr.src = url; ifr.style.width = '90%'; ifr.style.height = '90%';
+        D.prevCont.appendChild(ifr);
+    } else if (type === 'text') {
+        fetch(url, { headers: getAuthHeaders() }).then(r=>r.text()).then(t => { const pre = document.createElement('pre'); pre.textContent = t; D.prevCont.appendChild(pre); });
+    } else { return; }
+    D.prevOv.classList.remove('hidden');
+}
+function closePreview() { D.prevCont.innerHTML = ''; D.prevOv.classList.add('hidden'); if (document.fullscreenElement) document.exitFullscreen(); }
+D.btnCloseP.addEventListener('click', closePreview);
+D.btnFull.addEventListener('click', () => { if (document.fullscreenElement) document.exitFullscreen(); else D.prevOv.requestFullscreen(); });
+
+// ==================== POLLING (LIVE UPDATES) ====================
+function startUserPoll() {
+    let lastTs = 0;
+    const poll = async () => {
+        if (!ST.token || !ST.approved || ST.isAdmin) return;
+        try {
+            const res = await fetch(`${WORKER_BASE}/poll?utoken=${ST.token}&since=${lastTs}&timeout=25`, { headers: getAuthHeaders() });
+            const data = await res.json();
+            if (data.changed) { lastTs = data.ts; await fetchFiles(); }
+        } catch(e) {}
+        ST.timers.files = setTimeout(poll, 2000);
+    };
+    poll();
+}
+function startAdminPoll() {
+    let lastTs = 0;
+    const poll = async () => {
+        if (!ST.token || !ST.isAdmin) return;
+        try {
+            const res = await fetch(`${WORKER_BASE}/admin/poll?since=${lastTs}&timeout=25`, { headers: getAuthHeaders() });
+            const data = await res.json();
+            if (data.changed) {
+                lastTs = data.ts;
+                await loadPendingCount();
+                if (!D.pnlAppr.classList.contains('hidden')) loadPending();
+                if (!D.pnlUsers.classList.contains('hidden')) loadAllUsers();
+                if (!D.pnlLogs.classList.contains('hidden')) loadLogs();
+                if (!D.pnlAnalytics.classList.contains('hidden')) loadAnalytics();
+                await fetchFiles();
+            }
+        } catch(e) {}
+        ST.timers.admin = setTimeout(poll, 2000);
+    };
+    poll();
+}
+function startRolePoll() {
+    let lastRole = ST.role;
+    const poll = async () => {
+        if (!ST.token) return;
+        try {
+            await fetchUserInfo();
+            if (ST.role !== lastRole || ST.approved !== (lastRole !== null)) {
+                lastRole = ST.role;
+                if (ST.approved) {
+                    toast(`Permissions changed to ${ST.role || 'none'}`, 'info');
+                    render();
+                } else {
+                    render();
+                }
+            }
+        } catch(e) {}
+        ST.timers.role = setTimeout(poll, 2000);
+    };
+    poll();
+}
+function applyRoleUI() {
+    const canUpload = ['full','delete','upload'].includes(ST.role);
+    D.dropzone.style.display = canUpload ? '' : 'none';
+    document.querySelector('.hint-text').style.display = canUpload ? '' : 'none';
+}
+
+// ==================== SHARE PREVIEW ====================
+async function showSharePreview() {
+    const res = await fetch(`${WORKER_BASE}/share/verify?token=${ST.shareToken}`);
+    if (!res.ok) { toast('Invalid or expired share link', 'error'); showLogin(); return; }
+    const data = await res.json();
+    D.grid.innerHTML = `
+        <div style="grid-column:1/-1;text-align:center;padding:60px;">
+            <div class="file-icon" style="font-size:4rem">${icn(data.mimeType)}</div>
+            <h2>${esc(data.fileName)}</h2>
+            <p>${fmtSz(data.fileSize)}</p>
+            <button class="btn btn-primary" id="shareDownloadBtn">⬇ Download</button>
+            <button class="btn btn-outline" onclick="location.href='/'">🔐 Login to Vault</button>
+        </div>`;
+    document.getElementById('shareDownloadBtn')?.addEventListener('click', () => {
+        window.location.href = `${WORKER_BASE}/share/download?token=${ST.shareToken}`;
+    });
+    D.dropzone.style.display = 'none';
+    document.querySelector('.hint-text').style.display = 'none';
+    D.adminBar.classList.add('hidden');
+    D.userUI.innerHTML = '';
+}
+
+// ==================== DRAG & DROP, PASTE, KEYBOARD ====================
+['dragenter','dragover','dragleave','drop'].forEach(ev => D.dropzone.addEventListener(ev, e => e.preventDefault()));
+['dragenter','dragover'].forEach(ev => D.dropzone.addEventListener(ev, () => D.dropzone.classList.add('dragover')));
+['dragleave','drop'].forEach(ev => D.dropzone.addEventListener(ev, () => D.dropzone.classList.remove('dragover')));
+D.dropzone.addEventListener('drop', e => { const files = e.dataTransfer.files; if (files.length) handleFiles(files); });
+D.dropzone.addEventListener('click', () => D.fileInp.click());
+D.fileInp.addEventListener('change', e => handleFiles(e.target.files));
+function handleFiles(files) { for (const f of files) uploadFile(f); }
+document.addEventListener('paste', e => {
+    const items = e.clipboardData.items;
+    for (let i=0; i<items.length; i++) {
+        if (items[i].kind === 'file') { uploadFile(items[i].getAsFile()); break; }
+    }
+});
+document.addEventListener('keydown', e => {
+    if (e.ctrlKey && e.key === 'u') { e.preventDefault(); D.fileInp.click(); }
+    if (e.ctrlKey && e.key === 'f') { e.preventDefault(); D.search.focus(); }
+    if (e.key === 'Escape') closePreview();
+});
+D.search.addEventListener('input', () => { ST.query = D.search.value.toLowerCase(); renderFiles(); });
+D.sortSel.addEventListener('change', () => { ST.sort = D.sortSel.value; localStorage.setItem('sort', ST.sort); renderFiles(); });
+D.sortSel.value = ST.sort;
+
+// ==================== START ====================
+init();
