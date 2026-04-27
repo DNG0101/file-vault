@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Public File Vault – Click Only</title>
+    <title>Public File Vault – Final</title>
     <style>
-        /* ========== CSS (compact, responsive, dark mode) ========== */
+        /* ========== CSS (same as before, compact) ========== */
         :root {
             --bg: #f8fafc;
             --card-bg: #ffffff;
@@ -123,12 +123,13 @@
             <button class="btn btn-outline btn-sm" id="btnAnalytics">📊 Analytics</button>
             <button class="btn btn-outline btn-sm" id="btnShareManager">🔗 Shares</button>
             <button class="btn btn-danger btn-sm" id="btnAdminLogout">🔒 Logout</button>
+            <button class="btn btn-outline btn-sm" id="btnRefreshAdmin">🔄 Refresh All</button>
         </div>
 
-        <div class="panel hidden" id="approvalPanel"><h3>Pending Approvals</h3><div id="approvalList"></div></div>
-        <div class="panel hidden" id="usersPanel"><h3>Active Users</h3><div id="usersList"></div></div>
-        <div class="panel hidden" id="logsPanel"><h3>Audit Logs (Delete Only)</h3><div id="logsContent"></div><button class="btn btn-danger btn-sm" id="btnClearLogs">🗑 Clear All Logs</button></div>
-        <div class="panel hidden" id="analyticsPanel"><h3>Analytics</h3><div id="analyticsContent"></div></div>
+        <div class="panel hidden" id="approvalPanel"><h3>Pending Approvals <button class="btn-sm btn-outline" id="refreshPendingBtn">🔄 Refresh</button></h3><div id="approvalList"></div></div>
+        <div class="panel hidden" id="usersPanel"><h3>Active Users <button class="btn-sm btn-outline" id="refreshUsersBtn">🔄 Refresh</button></h3><div id="usersList"></div></div>
+        <div class="panel hidden" id="logsPanel"><h3>Audit Logs (Delete Only) <button class="btn-sm btn-outline" id="refreshLogsBtn">🔄 Refresh</button></h3><div id="logsContent"></div><button class="btn btn-danger btn-sm" id="btnClearLogs">🗑 Clear All Logs</button></div>
+        <div class="panel hidden" id="analyticsPanel"><h3>Analytics <button class="btn-sm btn-outline" id="refreshAnalyticsBtn">🔄 Refresh</button></h3><div id="analyticsContent"></div></div>
         <div class="panel hidden" id="sharePanel"><h3>Share Manager</h3><div id="shareContent"></div></div>
 
         <div class="toolbar">
@@ -138,6 +139,7 @@
                 <option value="name-asc">Name A‑Z</option><option value="name-desc">Name Z‑A</option>
                 <option value="size-desc">Largest</option><option value="size-asc">Smallest</option>
             </select>
+            <button class="btn-sm btn-outline" id="refreshFilesBtn">🔄 Refresh Files</button>
         </div>
 
         <div class="bulk-bar hidden" id="bulkBar">
@@ -185,17 +187,15 @@
         // ==================== CONFIG ====================
         const WORKER_BASE = 'https://gdrive-files-api.donthulanithish53.workers.dev';
 
-        // ==================== REQUEST MANAGER (no polling, only click) ====================
+        // ==================== REQUEST MANAGER (cooldown, concurrency) ====================
         class RequestManager {
             constructor(defaultCooldown = 10000) {
                 this.lock = false;
                 this.cooldowns = new Map();
                 this.defaultCooldown = defaultCooldown;
-                this.queue = [];
-                this.processing = false;
             }
             async execute(key, fn, priority = 'normal', customCooldown = null) {
-                while (this.lock) { await new Promise(r => setTimeout(r, 50)); }
+                while (this.lock) await new Promise(r => setTimeout(r, 50));
                 this.lock = true;
                 try {
                     const cooldown = customCooldown !== null ? customCooldown : this.defaultCooldown;
@@ -251,6 +251,9 @@
             analyticsCt: $('analyticsContent'), pnlShare: $('sharePanel'), shareCt: $('shareContent'),
             pendingBadge: $('pendingBadge'), btnClearLogs: $('btnClearLogs'),
             btnBulkDelete: $('btnBulkDelete'), btnBulkCancel: $('btnBulkCancel'),
+            refreshFilesBtn: $('refreshFilesBtn'), refreshAdminBtn: $('refreshAdminBtn'),
+            refreshPendingBtn: $('refreshPendingBtn'), refreshUsersBtn: $('refreshUsersBtn'),
+            refreshLogsBtn: $('refreshLogsBtn'), refreshAnalyticsBtn: $('refreshAnalyticsBtn'),
         };
 
         // ==================== Utilities ====================
@@ -263,7 +266,6 @@
             return h;
         }
         function getDownloadUrl(pid) {
-            // Append token as query parameter for download (since anchor tags cannot set headers)
             return `${WORKER_BASE}/download/${pid}?utoken=${ST.token}`;
         }
         function getPreviewUrl(pid) {
@@ -309,9 +311,10 @@
                 const i = await r.json();
                 const wasApproved = ST.approved;
                 ST.email = i.email; ST.isAdmin = i.isAdmin === true; ST.approved = i.approved; ST.role = i.role;
+                console.log('User info:', i); // Debug
                 if (!wasApproved && ST.approved) {
-                    toast('You have been approved! Access granted.', 'success');
-                    render();
+                    toast('You have been approved! Page will reload.', 'success');
+                    setTimeout(() => window.location.reload(), 500);
                 }
                 return true;
             }, priority).catch(e => { console.warn(e); return false; });
@@ -337,12 +340,22 @@
             if(D.dropzone) D.dropzone.style.display = 'none';
             const hint = document.querySelector('.hint-text');
             if(hint) hint.style.display = 'none';
-            if(D.grid) D.grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;"><h2>🔐 Waiting for Approval</h2><p>Your email: <strong>${ST.email}</strong></p><p>You will be notified automatically.</p><div style="margin-top:16px;"><button class="btn btn-outline btn-sm" id="manualRefreshBtn">🔄 Refresh Status</button> <button class="btn btn-danger btn-sm" id="btnSelfRevoke">❌ Cancel Request</button></div></div>`;
+            if(D.grid) D.grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;"><h2>🔐 Waiting for Approval</h2><p>Your email: <strong>${ST.email}</strong></p><p>If you have been approved, click <strong>Refresh Status</strong>.</p><div style="margin-top:16px;"><button class="btn btn-outline btn-sm" id="manualRefreshBtn">🔄 Refresh Status</button> <button class="btn btn-danger btn-sm" id="btnSelfRevoke">❌ Cancel Request</button></div></div>`;
             const refreshBtn = $('manualRefreshBtn');
             if(refreshBtn) refreshBtn.onclick = async () => {
                 toast('Checking approval status...', 'info');
-                await fetchUserInfo('critical');
-                render();
+                const r = await fetch(`${WORKER_BASE}/user-info?utoken=${ST.token}`);
+                if (r.ok) {
+                    const data = await r.json();
+                    if (data.approved) {
+                        toast('Approved! Reloading page...', 'success');
+                        setTimeout(() => window.location.reload(), 500);
+                    } else {
+                        toast('Still pending approval.', 'info');
+                    }
+                } else {
+                    toast('Failed to check status.', 'error');
+                }
             };
             const selfRevokeBtn = $('btnSelfRevoke');
             if(selfRevokeBtn) selfRevokeBtn.onclick = async () => {
@@ -377,7 +390,7 @@
             showMain(); applyRoleUI(); fetchFiles();
         }
 
-        // ==================== Admin actions (only on click) ====================
+        // ==================== Admin actions ====================
         function safeAddEvent(element, event, handler) { if(element) element.addEventListener(event, handler); }
 
         safeAddEvent(D.btnSync, 'click', async () => {
@@ -414,6 +427,13 @@
                 toast(`${d.deleted} deleted, ${d.failed} failed`);
             }, 'critical');
         });
+        // Refresh buttons
+        safeAddEvent(D.refreshFilesBtn, 'click', () => fetchFiles());
+        safeAddEvent(D.refreshAdminBtn, 'click', () => { loadPendingCount(); loadPending(); loadAllUsers(); loadLogs(); loadAnalytics(); toast('Admin panels refreshed'); });
+        safeAddEvent(D.refreshPendingBtn, 'click', () => loadPending());
+        safeAddEvent(D.refreshUsersBtn, 'click', () => loadAllUsers());
+        safeAddEvent(D.refreshLogsBtn, 'click', () => loadLogs());
+        safeAddEvent(D.refreshAnalyticsBtn, 'click', () => loadAnalytics());
 
         function togglePanel(panel, loadFn) { if(panel) { panel.classList.toggle('hidden'); if(!panel.classList.contains('hidden')) loadFn(); } }
         async function adminLogout() { if(confirm('Logout as admin?')) { ST.token = null; localStorage.removeItem('vtoken'); showLogin(); toast('Admin logged out'); } }
@@ -730,7 +750,7 @@
         const sleep = ms => new Promise(r => setTimeout(r, ms));
         safeAddEvent(D.cancelBtn, 'click', () => { if (ST.uploadCtrl) { ST.uploadCtrl.abort(); ST.uploadCtrl = null; if(D.progBox) D.progBox.classList.add('hidden'); } });
 
-        // ==================== Preview (now uses token in URL) ====================
+        // ==================== Preview ====================
         function openPreview(pid, type) {
             if(!D.prevCont) return;
             D.prevCont.innerHTML = '';
@@ -755,7 +775,7 @@
         safeAddEvent(D.btnCloseP, 'click', closePreview);
         safeAddEvent(D.btnFull, 'click', () => { if (document.fullscreenElement) document.exitFullscreen(); else if(D.prevOv) D.prevOv.requestFullscreen(); });
 
-        // No automatic polling – only user actions
+        // No automatic polling – only manual refresh
         function applyRoleUI() {
             const canUpload = ['full','delete','upload'].includes(ST.role);
             if(D.dropzone) D.dropzone.style.display = canUpload ? '' : 'none';
