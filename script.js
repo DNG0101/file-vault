@@ -18,24 +18,24 @@ let ST = {
     shareToken: null,
 };
 
-// ==================== DOM ELEMENTS (safe getters) ====================
-function $(id) { return document.getElementById(id); }
-
+// ==================== DOM ELEMENTS ====================
+function getEl(id) { return document.getElementById(id); }
 const D = {
-    stats: $('storageStats'), userUI: $('userUI'), adminBar: $('adminBar'),
-    dropzone: $('dropzone'), fileInp: $('fileInput'), progBox: $('progressBox'),
-    progFill: $('progressFill'), pctDisp: $('percentDisplay'), speedDisp: $('speedDisplay'),
-    sizeDisp: $('sizeDisplay'), cancelBtn: $('cancelUpload'), grid: $('fileGrid'),
-    prevOv: $('previewOverlay'), prevCont: $('previewContainer'), btnFull: $('btnFullscreen'),
-    btnCloseP: $('btnClosePreview'), search: $('searchInput'), sortSel: $('sortSelect'),
-    bulkBar: $('bulkBar'), bulkCnt: $('bulkCount'), toastBox: $('toastContainer'),
-    btnDark: $('btnDarkMode'), btnSync: $('btnSync'), btnAppr: $('btnApprovals'),
-    btnAllUsers: $('btnAllUsers'), btnLogs: $('btnLogs'), btnAnalytics: $('btnAnalytics'),
-    btnShare: $('btnShareManager'), btnUnAuth: $('btnAdminLogout'), pnlAppr: $('approvalPanel'),
-    listAppr: $('approvalList'), pnlUsers: $('usersPanel'), listUsers: $('usersList'),
-    pnlLogs: $('logsPanel'), logsCt: $('logsContent'), pnlAnalytics: $('analyticsPanel'),
-    analyticsCt: $('analyticsContent'), pnlShare: $('sharePanel'), shareCt: $('shareContent'),
-    pendingBadge: $('pendingBadge'), btnClearLogs: $('btnClearLogs'),
+    stats: getEl('storageStats'), userUI: getEl('userUI'), adminBar: getEl('adminBar'),
+    dropzone: getEl('dropzone'), fileInp: getEl('fileInput'), progBox: getEl('progressBox'),
+    progFill: getEl('progressFill'), pctDisp: getEl('percentDisplay'), speedDisp: getEl('speedDisplay'),
+    sizeDisp: getEl('sizeDisplay'), cancelBtn: getEl('cancelUpload'), grid: getEl('fileGrid'),
+    prevOv: getEl('previewOverlay'), prevCont: getEl('previewContainer'), btnFull: getEl('btnFullscreen'),
+    btnCloseP: getEl('btnClosePreview'), search: getEl('searchInput'), sortSel: getEl('sortSelect'),
+    bulkBar: getEl('bulkBar'), bulkCnt: getEl('bulkCount'), toastBox: getEl('toastContainer'),
+    btnDark: getEl('btnDarkMode'), btnSync: getEl('btnSync'), btnAppr: getEl('btnApprovals'),
+    btnAllUsers: getEl('btnAllUsers'), btnLogs: getEl('btnLogs'), btnAnalytics: getEl('btnAnalytics'),
+    btnShare: getEl('btnShareManager'), btnUnAuth: getEl('btnAdminLogout'), pnlAppr: getEl('approvalPanel'),
+    listAppr: getEl('approvalList'), pnlUsers: getEl('usersPanel'), listUsers: getEl('usersList'),
+    pnlLogs: getEl('logsPanel'), logsCt: getEl('logsContent'), pnlAnalytics: getEl('analyticsPanel'),
+    analyticsCt: getEl('analyticsContent'), pnlShare: getEl('sharePanel'), shareCt: getEl('shareContent'),
+    pendingBadge: getEl('pendingBadge'), btnClearLogs: getEl('btnClearLogs'),
+    btnBulkDelete: getEl('btnBulkDelete'), btnBulkCancel: getEl('btnBulkCancel'),
 };
 
 // ==================== UTILITIES ====================
@@ -78,37 +78,19 @@ const prevType = m => { if(!m) return ''; if(m.startsWith('video')) return 'vide
     });
 })();
 
-// ==================== AUTH ====================
-async function init() {
-    const p = new URLSearchParams(location.search);
-    const utoken = p.get('utoken');
-    const share = p.get('share');
-    const err = p.get('auth_error');
-    if (share) {
-        ST.shareToken = share;
-        history.replaceState({}, '', location.pathname);
-        await showSharePreview();
-        return;
-    }
-    if (err) { toast('Auth error: '+err.replace(/_/g,' '), 'error'); history.replaceState({},'',location.pathname); }
-    if (utoken) {
-        ST.token = utoken;
-        localStorage.setItem('vtoken', utoken);
-        history.replaceState({}, '', location.pathname);
-    }
-    if (ST.token && await fetchUserInfo()) {
-        render();
-        return;
-    }
-    showLogin();
-}
+// ==================== AUTH & POLLING ====================
 async function fetchUserInfo() {
     if (!ST.token) return false;
     try {
         const r = await fetch(`${WORKER_BASE}/user-info?utoken=${ST.token}`);
         if (!r.ok) throw new Error();
         const i = await r.json();
+        const wasApproved = ST.approved;
         ST.email = i.email; ST.isAdmin = i.isAdmin === true; ST.approved = i.approved; ST.role = i.role;
+        if (!wasApproved && ST.approved) {
+            toast('You have been approved! Refreshing...', 'success');
+            render();
+        }
         return true;
     } catch(e) {
         ST.token = null;
@@ -137,13 +119,11 @@ function showPending() {
     if(hint) hint.style.display = 'none';
     if(D.grid) D.grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;"><h2>🔐 Waiting for Approval</h2><p>Your email: <strong>${ST.email}</strong></p><p>You will be notified automatically.</p><button class="btn btn-outline btn-sm" onclick="location.reload()">🔄 Refresh</button><button class="btn btn-danger btn-sm" id="btnSelfRevoke">❌ Cancel Request</button></div>`;
     const selfRevokeBtn = document.getElementById('btnSelfRevoke');
-    if(selfRevokeBtn) selfRevokeBtn.onclick = selfRevoke;
-    startRolePoll();
-}
-async function selfRevoke() {
-    if(!confirm('Cancel your access request?')) return;
-    await fetch(`${WORKER_BASE}/user-revoke-self`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({utoken:ST.token}) });
-    ST.token = null; localStorage.removeItem('vtoken'); clearTimers(); showLogin(); toast('Request cancelled.');
+    if(selfRevokeBtn) selfRevokeBtn.onclick = async () => {
+        if(!confirm('Cancel your access request?')) return;
+        await fetch(`${WORKER_BASE}/user-revoke-self`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({utoken:ST.token}) });
+        ST.token = null; localStorage.removeItem('vtoken'); clearTimers(); showLogin(); toast('Request cancelled.');
+    };
 }
 function showMain() {
     const hint = document.querySelector('.hint-text');
@@ -157,10 +137,9 @@ function showMain() {
         if(D.adminBar) D.adminBar.classList.add('hidden');
         if(D.userUI) D.userUI.innerHTML = `<span style="font-size:0.85rem;">👤 ${ST.email} (${ST.role}) <button class="btn btn-sm btn-outline" id="btnUserLogout">🔒 Logout</button></span>`;
         const logoutBtn = document.getElementById('btnUserLogout');
-        if(logoutBtn) logoutBtn.onclick = userLogout;
+        if(logoutBtn) logoutBtn.onclick = () => { ST.token = null; localStorage.removeItem('vtoken'); clearTimers(); showLogin(); toast('Logged out.'); };
     }
 }
-function userLogout() { ST.token = null; localStorage.removeItem('vtoken'); clearTimers(); showLogin(); toast('Logged out.'); }
 function render() {
     clearTimers();
     if(!ST.email) { showLogin(); return; }
@@ -170,7 +149,7 @@ function render() {
 }
 function clearTimers() { ['files','admin','role'].forEach(k => { if(ST.timers[k]) clearTimeout(ST.timers[k]); }); }
 
-// ==================== ADMIN & PANELS (safe event listeners) ====================
+// ==================== ADMIN PANEL ====================
 function safeAddEvent(element, event, handler) {
     if(element) element.addEventListener(event, handler);
 }
@@ -182,6 +161,15 @@ safeAddEvent(D.btnAnalytics, 'click', () => togglePanel(D.pnlAnalytics, loadAnal
 safeAddEvent(D.btnShare, 'click', () => togglePanel(D.pnlShare, () => { if(D.shareCt) D.shareCt.innerHTML = '<p>Create a share link from a file card (🔗 Share).</p>'; }));
 safeAddEvent(D.btnUnAuth, 'click', adminLogout);
 safeAddEvent(D.btnClearLogs, 'click', async () => { if(!confirm('Delete all logs?')) return; await fetch(`${WORKER_BASE}/admin/logs/clear`,{method:'POST',headers:getAuthHeaders()}); loadLogs(); toast('Logs cleared'); });
+safeAddEvent(D.btnBulkCancel, 'click', () => { ST.selected.clear(); renderFiles(); updateBulkBar(); });
+safeAddEvent(D.btnBulkDelete, 'click', async () => {
+    if(!confirm(`Delete ${ST.selected.size} files?`)) return;
+    const ids = Array.from(ST.selected);
+    const r = await fetch(`${WORKER_BASE}/bulk-delete`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({publicIds:ids})});
+    const d = await r.json();
+    ST.selected.clear(); updateBulkBar(); await fetchFiles();
+    toast(`${d.deleted} deleted, ${d.failed} failed`);
+});
 
 function togglePanel(panel, loadFn) {
     if(!panel) return;
@@ -218,28 +206,52 @@ function loadAllUsers() {
     fetch(`${WORKER_BASE}/admin/users/all`,{headers:getAuthHeaders()}).then(r=>r.json()).then(users => {
         const active = users.filter(u=>u.status!=='revoked');
         const revoked = users.filter(u=>u.status==='revoked');
-        let html = active.map(u => `<div class="approval-item"><span>${u.email} <span class="status-badge status-${u.status}">${u.status}</span> ${u.role?`(${u.role})` : ''}</span><div>${u.status==='pending'?`<select class="role-sel-${u.email}"><option value="full">Full</option><option value="delete">Delete</option><option value="upload">Upload Only</option><option value="download">Download</option><option value="read">Read</option><option value="none">None</option></select><button class="btn-sm btn-success" data-action="approve" data-email="${u.email}">Approve</button>`:''}${u.status==='approved'?`<select class="role-sel-${u.email}"><option value="full" ${u.role==='full'?'selected':''}>Full</option><option value="delete" ${u.role==='delete'?'selected':''}>Delete</option><option value="upload" ${u.role==='upload'?'selected':''}>Upload Only</option><option value="download" ${u.role==='download'?'selected':''}>Download</option><option value="read" ${u.role==='read'?'selected':''}>Read</option><option value="none" ${u.role==='none'?'selected':''}>None</option></select><button class="btn-sm btn-primary" data-action="update" data-email="${u.email}">Update</button><button class="btn-sm btn-danger" data-action="revoke" data-email="${u.email}">Revoke</button>`:''}</div></div>`).join('');
+        let html = '';
+        html += active.map(u => `<div class="approval-item">
+            <span>${u.email} <span class="status-badge status-${u.status}">${u.status}</span> ${u.role?`(${u.role})` : ''}</span>
+            <div>
+                ${u.status==='pending' ? 
+                    `<select class="role-sel-${u.email}"><option value="full">Full</option><option value="delete">Delete</option><option value="upload">Upload Only</option><option value="download">Download</option><option value="read">Read</option><option value="none">None</option></select>
+                    <button class="btn-sm btn-success" data-action="approve" data-email="${u.email}">Approve</button>` : ''}
+                ${u.status==='approved' ? 
+                    `<select class="role-sel-${u.email}"><option value="full" ${u.role==='full'?'selected':''}>Full</option><option value="delete" ${u.role==='delete'?'selected':''}>Delete</option><option value="upload" ${u.role==='upload'?'selected':''}>Upload Only</option><option value="download" ${u.role==='download'?'selected':''}>Download</option><option value="read" ${u.role==='read'?'selected':''}>Read</option><option value="none" ${u.role==='none'?'selected':''}>None</option></select>
+                    <button class="btn-sm btn-primary" data-action="update" data-email="${u.email}">Update</button>
+                    <button class="btn-sm btn-danger" data-action="revoke" data-email="${u.email}">Revoke</button>` : ''}
+            </div>
+        </div>`).join('');
         if(revoked.length) {
-            html += '<hr><h4>Revoked Users</h4>';
-            html += revoked.map(u => `<div class="approval-item"><span>${u.email} <span class="status-badge status-revoked">revoked</span></span><div><select class="role-sel-${u.email}"><option value="full">Full</option><option value="delete">Delete</option><option value="upload">Upload Only</option><option value="download">Download</option><option value="read">Read</option><option value="none">None</option></select><button class="btn-sm btn-warning" data-action="reapprove" data-email="${u.email}">Re‑approve</button></div></div>`).join('');
+            html += '<hr><h4>Revoked Users (can be re‑approved)</h4>';
+            html += revoked.map(u => `<div class="approval-item">
+                <span>${u.email} <span class="status-badge status-revoked">revoked</span> ${u.role?`(${u.role})` : ''}</span>
+                <div>
+                    <select class="role-sel-${u.email}"><option value="full">Full</option><option value="delete">Delete</option><option value="upload">Upload Only</option><option value="download">Download</option><option value="read">Read</option><option value="none">None</option></select>
+                    <button class="btn-sm btn-warning" data-action="reapprove" data-email="${u.email}">Re‑approve</button>
+                </div>
+            </div>`).join('');
         }
         D.listUsers.innerHTML = html || '<p>No users.</p>';
         D.listUsers.querySelectorAll('button').forEach(btn => {
             btn.addEventListener('click', async () => {
                 const action = btn.dataset.action;
                 const email = btn.dataset.email;
-                if(['approve','reapprove','update'].includes(action)) {
-                    let role = 'full';
-                    const sel = btn.parentElement.querySelector(`.role-sel-${email}`);
-                    if(sel) role = sel.value;
-                    const endpoint = action==='reapprove'?'reapprove':'approve';
-                    await fetch(`${WORKER_BASE}/admin/${endpoint}`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({email,role})});
-                    toast(`${email} updated`);
-                } else if(action==='revoke') {
-                    await fetch(`${WORKER_BASE}/admin/revoke`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({email})});
-                    toast(`${email} revoked`);
+                let role = 'full';
+                const sel = btn.parentElement.querySelector(`.role-sel-${email}`);
+                if(sel) role = sel.value;
+                let endpoint = '';
+                if (action === 'approve') endpoint = 'approve';
+                else if (action === 'reapprove') endpoint = 'reapprove';
+                else if (action === 'update') endpoint = 'approve'; // update uses same as approve
+                else if (action === 'revoke') endpoint = 'revoke';
+                if (endpoint) {
+                    await fetch(`${WORKER_BASE}/admin/${endpoint}`, {
+                        method:'POST',
+                        headers:{'Content-Type':'application/json', ...getAuthHeaders()},
+                        body:JSON.stringify({email, role})
+                    });
+                    toast(`${email} ${action === 'revoke' ? 'revoked' : 'updated'}`);
+                    // Refresh all admin panels
+                    loadPending(); loadPendingCount(); loadAllUsers();
                 }
-                loadAllUsers(); if(['approve','reapprove'].includes(action)) loadPendingCount();
             });
         });
     });
@@ -258,7 +270,7 @@ function loadAnalytics() {
     });
 }
 
-// ==================== FILE LIST & RENDER (SECTIONED) ====================
+// ==================== FILE LIST & RENDER ====================
 async function fetchFiles() {
     try {
         const r = await fetch(`${WORKER_BASE}/list`,{headers:getAuthHeaders()});
@@ -350,15 +362,6 @@ function actionHandler(e) { e.stopPropagation(); const action = e.currentTarget.
 function cardClickHandler(e) { if(e.target.classList.contains('card-checkbox') || e.target.closest('.actions')) return; const cb = this.querySelector('.card-checkbox'); if(cb) toggleSelect(cb.dataset.id, !cb.checked); }
 function toggleSelect(id, checked) { if(checked) ST.selected.add(id); else ST.selected.delete(id); updateBulkBar(); const card = document.querySelector(`.card[data-public-id="${id}"]`); if(card) card.classList.toggle('selected',checked); }
 function updateBulkBar() { if(D.bulkBar) { if(ST.selected.size) { D.bulkBar.classList.remove('hidden'); if(D.bulkCnt) D.bulkCnt.textContent = `${ST.selected.size} selected`; } else D.bulkBar.classList.add('hidden'); } }
-safeAddEvent(D.btnBulkCancel, 'click', () => { ST.selected.clear(); renderFiles(); updateBulkBar(); });
-safeAddEvent(D.btnBulkDelete, 'click', async () => {
-    if(!confirm(`Delete ${ST.selected.size} files?`)) return;
-    const ids = Array.from(ST.selected);
-    const r = await fetch(`${WORKER_BASE}/bulk-delete`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({publicIds:ids})});
-    const d = await r.json();
-    ST.selected.clear(); await fetchFiles();
-    toast(`${d.deleted} deleted, ${d.failed} failed`);
-});
 function fileAction(action, id) {
     switch(action) {
         case 'play': openPreview(id,'video'); break;
@@ -407,7 +410,7 @@ async function shareFile(pid) {
     else toast('Share failed','error');
 }
 
-// ==================== UPLOAD (with speed indicator) ====================
+// ==================== UPLOAD ====================
 async function uploadFile(file, existingPid = null) {
     if (ST.uploadCtrl) ST.uploadCtrl.abort();
     ST.uploadCtrl = new AbortController();
@@ -509,7 +512,7 @@ function closePreview() { if(D.prevCont) D.prevCont.innerHTML = ''; if(D.prevOv)
 safeAddEvent(D.btnCloseP, 'click', closePreview);
 safeAddEvent(D.btnFull, 'click', () => { if (document.fullscreenElement) document.exitFullscreen(); else if(D.prevOv) D.prevOv.requestFullscreen(); });
 
-// ==================== POLLING (LIVE UPDATES) ====================
+// ==================== POLLING ====================
 function startUserPoll() {
     let lastTs = 0;
     const poll = async () => {
@@ -545,21 +548,9 @@ function startAdminPoll() {
     poll();
 }
 function startRolePoll() {
-    let lastRole = ST.role;
     const poll = async () => {
         if (!ST.token) return;
-        try {
-            await fetchUserInfo();
-            if (ST.role !== lastRole || ST.approved !== (lastRole !== null)) {
-                lastRole = ST.role;
-                if (ST.approved) {
-                    toast(`Permissions changed to ${ST.role || 'none'}`, 'info');
-                    render();
-                } else {
-                    render();
-                }
-            }
-        } catch(e) {}
+        await fetchUserInfo(); // updates approval/role and re-renders if needed
         ST.timers.role = setTimeout(poll, 2000);
     };
     poll();
@@ -619,5 +610,28 @@ document.addEventListener('keydown', e => {
 if(D.search) D.search.addEventListener('input', () => { ST.query = D.search.value.toLowerCase(); renderFiles(); });
 if(D.sortSel) D.sortSel.addEventListener('change', () => { ST.sort = D.sortSel.value; localStorage.setItem('sort', ST.sort); renderFiles(); D.sortSel.value = ST.sort; });
 
-// ==================== START ====================
+// ==================== INIT ====================
+async function init() {
+    const p = new URLSearchParams(location.search);
+    const utoken = p.get('utoken');
+    const share = p.get('share');
+    const err = p.get('auth_error');
+    if (share) {
+        ST.shareToken = share;
+        history.replaceState({}, '', location.pathname);
+        await showSharePreview();
+        return;
+    }
+    if (err) { toast('Auth error: '+err.replace(/_/g,' '), 'error'); history.replaceState({},'',location.pathname); }
+    if (utoken) {
+        ST.token = utoken;
+        localStorage.setItem('vtoken', utoken);
+        history.replaceState({}, '', location.pathname);
+    }
+    if (ST.token && await fetchUserInfo()) {
+        render();
+        return;
+    }
+    showLogin();
+}
 init();
