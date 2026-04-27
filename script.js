@@ -80,17 +80,14 @@ async function fetchUserInfo() {
         const r = await fetch(`${WORKER_BASE}/user-info?utoken=${ST.token}`);
         if (!r.ok) throw new Error();
         const i = await r.json();
-        console.log('User info:', i);
         const wasApproved = ST.approved;
         ST.email = i.email; ST.isAdmin = i.isAdmin === true; ST.approved = i.approved; ST.role = i.role;
         if (!wasApproved && ST.approved) {
-            toast('You have been approved! Reloading...', 'success');
-            setTimeout(() => { window.location.reload(); }, 500);
-            return true;
+            toast('You have been approved! Access granted.', 'success');
+            render(); // re-render to show main UI
         }
         return true;
     } catch(e) {
-        console.error(e);
         ST.token = null;
         localStorage.removeItem('vtoken');
         return false;
@@ -99,7 +96,7 @@ async function fetchUserInfo() {
 function showLogin() {
     if(D.adminBar) D.adminBar.classList.add('hidden');
     if(D.userUI) D.userUI.innerHTML = '';
-    if(D.grid) D.grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;"><h2>Welcome to File Vault</h2><p>Sign in to access your files.</p><button class="btn btn-primary" id="btnLogin">🔑 Login with Google</button></div>`;
+    if(D.grid) D.grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;"><h2>Welcome to File Vault</h2><p style="margin:16px 0;">Sign in to access your files.</p><button class="btn btn-primary" id="btnLogin">🔑 Login with Google</button></div>`;
     const loginBtn = document.getElementById('btnLogin');
     if(loginBtn) {
         loginBtn.onclick = async () => {
@@ -118,20 +115,9 @@ function showPending() {
     if(D.grid) D.grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;"><h2>🔐 Waiting for Approval</h2><p>Your email: <strong>${ST.email}</strong></p><p>You will be notified automatically.</p><div style="margin-top:16px;"><button class="btn btn-outline btn-sm" id="manualRefreshBtn">🔄 Refresh Status</button> <button class="btn btn-danger btn-sm" id="btnSelfRevoke">❌ Cancel Request</button></div></div>`;
     const refreshBtn = document.getElementById('manualRefreshBtn');
     if(refreshBtn) refreshBtn.onclick = async () => {
-        toast('Checking...', 'info');
-        const r = await fetch(`${WORKER_BASE}/user-info?utoken=${ST.token}`);
-        if (r.ok) {
-            const data = await r.json();
-            console.log('Manual refresh:', data);
-            if (data.approved) {
-                toast('Approved! Reloading...', 'success');
-                window.location.reload();
-            } else {
-                toast('Still pending.', 'info');
-            }
-        } else {
-            toast('Failed to check.', 'error');
-        }
+        toast('Checking approval status...', 'info');
+        await fetchUserInfo();
+        render();
     };
     const selfRevokeBtn = document.getElementById('btnSelfRevoke');
     if(selfRevokeBtn) selfRevokeBtn.onclick = async () => {
@@ -150,7 +136,7 @@ function showMain() {
         loadPendingCount();
     } else {
         if(D.adminBar) D.adminBar.classList.add('hidden');
-        if(D.userUI) D.userUI.innerHTML = `<span>👤 ${ST.email} (${ST.role}) <button class="btn btn-sm btn-outline" id="btnUserLogout">🔒 Logout</button></span>`;
+        if(D.userUI) D.userUI.innerHTML = `<span style="font-size:0.85rem;">👤 ${ST.email} (${ST.role}) <button class="btn btn-sm btn-outline" id="btnUserLogout">🔒 Logout</button></span>`;
         const logoutBtn = document.getElementById('btnUserLogout');
         if(logoutBtn) logoutBtn.onclick = () => { ST.token = null; localStorage.removeItem('vtoken'); clearTimers(); showLogin(); toast('Logged out.'); };
     }
@@ -539,7 +525,7 @@ function startAdminPoll() {
 function startRolePoll() {
     const poll = async () => {
         if (!ST.token) return;
-        await fetchUserInfo(); // this will reload page if approved
+        await fetchUserInfo(); // updates ST.approved and re-renders if needed
         ST.timers.role = setTimeout(poll, 2000);
     };
     poll();
@@ -560,8 +546,8 @@ async function showSharePreview() {
             <div class="file-icon" style="font-size:4rem">${icn(data.mimeType)}</div>
             <h2>${esc(data.fileName)}</h2>
             <p>${fmtSz(data.fileSize)}</p>
-            <button id="shareDownloadBtn">⬇ Download</button>
-            <button onclick="location.href='/'">🔐 Login to Vault</button>
+            <button class="btn btn-primary" id="shareDownloadBtn">⬇ Download</button>
+            <button class="btn btn-outline" onclick="location.href='/'">🔐 Login to Vault</button>
         </div>`;
     const shareBtn = document.getElementById('shareDownloadBtn');
     if(shareBtn) shareBtn.addEventListener('click', () => {
