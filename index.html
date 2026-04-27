@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Public File Vault – Fixed</title>
+    <title>Public File Vault – Click Only</title>
     <style>
-        /* ========== CSS (same as before, compact) ========== */
+        /* ========== CSS (compact, responsive, dark mode) ========== */
         :root {
             --bg: #f8fafc;
             --card-bg: #ffffff;
@@ -185,15 +185,17 @@
         // ==================== CONFIG ====================
         const WORKER_BASE = 'https://gdrive-files-api.donthulanithish53.workers.dev';
 
-        // ==================== REQUEST MANAGER (no automatic polling) ====================
+        // ==================== REQUEST MANAGER (no polling, only click) ====================
         class RequestManager {
             constructor(defaultCooldown = 10000) {
                 this.lock = false;
                 this.cooldowns = new Map();
                 this.defaultCooldown = defaultCooldown;
+                this.queue = [];
+                this.processing = false;
             }
             async execute(key, fn, priority = 'normal', customCooldown = null) {
-                while (this.lock) await new Promise(r => setTimeout(r, 50));
+                while (this.lock) { await new Promise(r => setTimeout(r, 50)); }
                 this.lock = true;
                 try {
                     const cooldown = customCooldown !== null ? customCooldown : this.defaultCooldown;
@@ -259,6 +261,13 @@
                 else h['X-User-Token'] = ST.token;
             }
             return h;
+        }
+        function getDownloadUrl(pid) {
+            // Append token as query parameter for download (since anchor tags cannot set headers)
+            return `${WORKER_BASE}/download/${pid}?utoken=${ST.token}`;
+        }
+        function getPreviewUrl(pid) {
+            return `${WORKER_BASE}/video/${pid}?utoken=${ST.token}`;
         }
         function toast(msg, type='info') {
             if (!D.toastBox) return;
@@ -353,7 +362,6 @@
                 if(D.userUI) D.userUI.innerHTML = '';
                 if(D.dropzone) D.dropzone.style.display = '';
                 loadPendingCount();
-                startAdminPoll(); // only admin gets polling (one connection)
             } else {
                 if(D.adminBar) D.adminBar.classList.add('hidden');
                 if(D.userUI) D.userUI.innerHTML = `<span style="font-size:0.85rem;">👤 ${ST.email} (${ST.role}) <button class="btn btn-sm btn-outline" id="btnUserLogout">🔒 Logout</button></span>`;
@@ -369,32 +377,7 @@
             showMain(); applyRoleUI(); fetchFiles();
         }
 
-        // ==================== Admin polling (only for admin, lightweight) ====================
-        let adminPollTimer = null;
-        function startAdminPoll() {
-            if(adminPollTimer) clearTimeout(adminPollTimer);
-            let lastTs = 0;
-            const poll = async () => {
-                if (!ST.token || !ST.isAdmin) return;
-                try {
-                    const res = await fetch(`${WORKER_BASE}/admin/poll?since=${lastTs}&timeout=15`, { headers: getAuthHeaders() });
-                    const data = await res.json();
-                    if (data.changed) {
-                        lastTs = data.ts;
-                        await loadPendingCount();
-                        if (!D.pnlAppr?.classList.contains('hidden')) loadPending();
-                        if (!D.pnlUsers?.classList.contains('hidden')) loadAllUsers();
-                        if (!D.pnlLogs?.classList.contains('hidden')) loadLogs();
-                        if (!D.pnlAnalytics?.classList.contains('hidden')) loadAnalytics();
-                        await fetchFiles();
-                    }
-                } catch(e) {}
-                adminPollTimer = setTimeout(poll, 3000);
-            };
-            poll();
-        }
-
-        // ==================== Admin actions ====================
+        // ==================== Admin actions (only on click) ====================
         function safeAddEvent(element, event, handler) { if(element) element.addEventListener(event, handler); }
 
         safeAddEvent(D.btnSync, 'click', async () => {
@@ -618,17 +601,12 @@
             switch(action) {
                 case 'play': openPreview(id,'video'); break;
                 case 'preview': openPreview(id, prevType(ST.files.find(f=>f.publicId===id)?.mimeType)); break;
-                case 'download': downloadFile(id); break;  // now uses secure token URL
+                case 'download': window.open(getDownloadUrl(id), '_blank'); break;
                 case 'delete': deleteFile(id); break;
                 case 'replace': replaceFile(id); break;
                 case 'rename': renameFile(id); break;
                 case 'share': shareFile(id); break;
             }
-        }
-        // Fixed download: append token as query parameter
-        function downloadFile(pid) {
-            const url = `${WORKER_BASE}/download/${pid}?utoken=${ST.token}`;
-            window.open(url, '_blank');
         }
         async function deleteFile(pid) {
             if(!confirm('Delete?')) return;
@@ -675,7 +653,7 @@
             }, 'critical').catch(() => toast('Share failed', 'error'));
         }
 
-        // ==================== Upload (fixed cooldown: each file separate key) ====================
+        // ==================== Upload ====================
         async function uploadFile(file, existingPid = null) {
             if (ST.uploadCtrl) ST.uploadCtrl.abort();
             ST.uploadCtrl = new AbortController();
@@ -752,11 +730,11 @@
         const sleep = ms => new Promise(r => setTimeout(r, ms));
         safeAddEvent(D.cancelBtn, 'click', () => { if (ST.uploadCtrl) { ST.uploadCtrl.abort(); ST.uploadCtrl = null; if(D.progBox) D.progBox.classList.add('hidden'); } });
 
-        // ==================== Preview ====================
+        // ==================== Preview (now uses token in URL) ====================
         function openPreview(pid, type) {
             if(!D.prevCont) return;
             D.prevCont.innerHTML = '';
-            const url = `${WORKER_BASE}/video/${pid}?utoken=${ST.token}`;
+            const url = getPreviewUrl(pid);
             if (type === 'video' || type === 'audio') {
                 const el = document.createElement(type === 'audio' ? 'audio' : 'video');
                 el.src = url; el.controls = true; el.playsInline = true;
@@ -777,6 +755,7 @@
         safeAddEvent(D.btnCloseP, 'click', closePreview);
         safeAddEvent(D.btnFull, 'click', () => { if (document.fullscreenElement) document.exitFullscreen(); else if(D.prevOv) D.prevOv.requestFullscreen(); });
 
+        // No automatic polling – only user actions
         function applyRoleUI() {
             const canUpload = ['full','delete','upload'].includes(ST.role);
             if(D.dropzone) D.dropzone.style.display = canUpload ? '' : 'none';
@@ -784,7 +763,7 @@
             if(hint) hint.style.display = canUpload ? '' : 'none';
         }
 
-        // ==================== Share preview ====================
+        // ==================== Share Preview ====================
         async function showSharePreview() {
             const res = await fetch(`${WORKER_BASE}/share/verify?token=${ST.shareToken}`);
             if (!res.ok) { toast('Invalid or expired share link', 'error'); showLogin(); return; }
@@ -808,7 +787,7 @@
             if(D.userUI) D.userUI.innerHTML = '';
         }
 
-        // ==================== Drag & drop, paste, keyboard ====================
+        // ==================== Drag & Drop, Paste, Keyboard ====================
         if(D.dropzone) {
             ['dragenter','dragover','dragleave','drop'].forEach(ev => D.dropzone.addEventListener(ev, e => e.preventDefault()));
             ['dragenter','dragover'].forEach(ev => D.dropzone.addEventListener(ev, () => D.dropzone.classList.add('dragover')));
