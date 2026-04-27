@@ -15,6 +15,7 @@ const ST = {
   uploadCtrl: null,
   dark:    localStorage.getItem('darkMode') === 'true',
   timers:  { role: null, approval: null, adminPoll: null, userPoll: null },
+  shareToken: null,
 };
 
 // ==================== DOM ====================
@@ -63,6 +64,15 @@ const D = {
 };
 
 // ==================== UTILITIES ====================
+function getAuthHeaders() {
+  const headers = {};
+  if (ST.token) {
+    if (ST.isAdmin) headers['X-Admin-Token'] = ST.token;
+    else headers['X-User-Token'] = ST.token;
+  }
+  return headers;
+}
+
 function toast(msg, type = 'info') {
   const el = document.createElement('div');
   el.className = `toast ${type}`; el.textContent = msg;
@@ -81,17 +91,56 @@ const prevType = m => { if(!m) return ''; if(m.startsWith('video')) return 'vide
     ST.dark = !ST.dark;
     document.documentElement.setAttribute('data-theme', ST.dark ? 'dark' : 'light');
     localStorage.setItem('darkMode', ST.dark);
+    if (ST.token && ST.isAdmin) {
+      fetch(`${WORKER_BASE}/admin/set-engine`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ engine: 'd1' })
+      }).catch(e=>console.warn);
+    }
   });
 })();
 
 // ==================== AUTH ====================
 async function init() {
   const p = new URLSearchParams(location.search);
-  const u = p.get('utoken'), e = p.get('auth_error');
+  const u = p.get('utoken'), e = p.get('auth_error'), share = p.get('share');
+  if (share) {
+    ST.shareToken = share;
+    history.replaceState({}, '', location.pathname);
+    await handleSharePreview();
+    return;
+  }
   if(e) { toast('Auth error: '+e.replace(/_/g,' '), 'error'); history.replaceState({},'',location.pathname); }
   if(u) { ST.token = u; localStorage.setItem('vtoken', u); history.replaceState({},'',location.pathname); await fetchUserInfo(); render(); return; }
   if(ST.token) { await fetchUserInfo(); render(); return; }
   showLogin();
+}
+
+async function handleSharePreview() {
+  if (!ST.shareToken) return;
+  const r = await fetch(`${WORKER_BASE}/share/verify?token=${ST.shareToken}`);
+  if (!r.ok) {
+    toast('Invalid or expired share link', 'error');
+    showLogin();
+    return;
+  }
+  const data = await r.json();
+  D.grid.innerHTML = `
+    <div style="grid-column:1/-1;text-align:center;padding:60px;">
+      <div class="file-icon" style="font-size:4rem">${icn(data.mimeType)}</div>
+      <h2>${esc(data.fileName)}</h2>
+      <p>${fmtSz(data.fileSize)}</p>
+      <button class="btn btn-primary" id="shareDownloadBtn">⬇ Download</button>
+      <button class="btn btn-outline" onclick="location.href='/'">🔐 Login to Vault</button>
+    </div>`;
+  document.getElementById('shareDownloadBtn')?.addEventListener('click', () => {
+    window.location.href = `${WORKER_BASE}/share/download?token=${ST.shareToken}`;
+  });
+  D.dropzone.style.display = 'none';
+  document.querySelector('.hint-text').style.display = 'none';
+  D.adminBar.classList.add('hidden');
+  D.userUI.innerHTML = '';
 }
 
 async function fetchUserInfo() {
@@ -169,7 +218,7 @@ function togglePanel(panel, loadFn) { panel.classList.toggle('hidden'); if(!pane
 
 async function syncFiles() {
   toast('Syncing…','info');
-  const r = await fetch(`${WORKER_BASE}/sync`,{method:'POST',headers:{'X-Admin-Token':ST.token}});
+  const r = await fetch(`${WORKER_BASE}/sync`,{method:'POST',headers:getAuthHeaders()});
   if(r.ok) { await fetchFiles(); toast('Sync done','success'); } else toast('Sync failed','error');
 }
 
@@ -180,13 +229,14 @@ async function adminLogout() {
 
 // ==================== PENDING / USERS ====================
 async function loadPendingCount() {
-  const r = await fetch(`${WORKER_BASE}/admin/pending`,{headers:{'X-Admin-Token':ST.token}});
+  if (!ST.isAdmin) return;
+  const r = await fetch(`${WORKER_BASE}/admin/pending`,{headers:getAuthHeaders()});
   const p = await r.json();
   D.pendingBadge.textContent = p.length; D.pendingBadge.classList.toggle('hidden', p.length===0);
 }
 
 function loadPending() {
-  fetch(`${WORKER_BASE}/admin/pending`,{headers:{'X-Admin-Token':ST.token}}).then(r=>r.json()).then(users => {
+  fetch(`${WORKER_BASE}/admin/pending`,{headers:getAuthHeaders()}).then(r=>r.json()).then(users => {
     D.listAppr.innerHTML = users.length ? users.map(u => `
       <div class="approval-item">
         <span>${u.email}</span>
@@ -205,17 +255,17 @@ async function pendingHandler(ev) {
   const action = btn.dataset.action, email = btn.dataset.email;
   if(action === 'approve') {
     const role = btn.parentElement.querySelector('.role-sel').value;
-    await fetch(`${WORKER_BASE}/admin/approve`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':ST.token},body:JSON.stringify({email,role})});
+    await fetch(`${WORKER_BASE}/admin/approve`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({email,role})});
     toast(`${email} approved`);
   } else {
-    await fetch(`${WORKER_BASE}/admin/deny`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':ST.token},body:JSON.stringify({email})});
+    await fetch(`${WORKER_BASE}/admin/deny`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({email})});
     toast(`${email} denied`);
   }
   loadPending(); loadPendingCount(); loadAllUsers();
 }
 
 function loadAllUsers() {
-  fetch(`${WORKER_BASE}/admin/users/all`,{headers:{'X-Admin-Token':ST.token}}).then(r=>r.json()).then(users => {
+  fetch(`${WORKER_BASE}/admin/users/all`,{headers:getAuthHeaders()}).then(r=>r.json()).then(users => {
     const active = users.filter(u=>u.status!=='revoked'), revoked = users.filter(u=>u.status==='revoked');
     let html = active.map(u => `
       <div class="approval-item">
@@ -249,23 +299,23 @@ async function usersHandler(ev) {
     const sel = btn.closest('.approval-item').querySelector('select');
     const role = sel ? sel.value : 'full';
     const endpoint = action==='reapprove'?'reapprove':'approve';
-    await fetch(`${WORKER_BASE}/admin/${endpoint}`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':ST.token},body:JSON.stringify({email,role})});
+    await fetch(`${WORKER_BASE}/admin/${endpoint}`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({email,role})});
     toast(`${email} updated`);
   } else if(action==='revoke') {
-    await fetch(`${WORKER_BASE}/admin/revoke`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':ST.token},body:JSON.stringify({email})});
+    await fetch(`${WORKER_BASE}/admin/revoke`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({email})});
     toast(`${email} revoked`);
   }
   loadAllUsers(); if(['approve','reapprove'].includes(action)) loadPendingCount();
 }
 
 // ==================== LOGS / ANALYTICS / SHARES ====================
-function loadLogs() { fetch(`${WORKER_BASE}/admin/logs?limit=100`,{headers:{'X-Admin-Token':ST.token}}).then(r=>r.json()).then(d=>{ D.logsCt.innerHTML = d.logs.length ? d.logs.map(l=>`<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:0.8rem;"><strong>${new Date(l.ts).toLocaleString()}</strong> ${l.actor} <span style="color:var(--accent)">${l.action}</span> ${l.target||''}</div>`).join('') : '<p>No logs yet.</p>'; }); }
-D.btnClearLogs.addEventListener('click', async () => { if(!confirm('Delete all audit logs?')) return; await fetch(`${WORKER_BASE}/admin/logs/clear`,{method:'POST',headers:{'X-Admin-Token':ST.token}}); loadLogs(); toast('Logs cleared'); });
-function loadAnalytics() { fetch(`${WORKER_BASE}/admin/analytics`,{headers:{'X-Admin-Token':ST.token}}).then(r=>r.json()).then(d=>{ D.analyticsCt.innerHTML = `<p><strong>Files:</strong> ${d.files.total} (${fmtSz(d.files.totalSize)})</p><p><strong>Users:</strong> ${d.users.total}</p>`; }); }
+function loadLogs() { fetch(`${WORKER_BASE}/admin/logs?limit=100`,{headers:getAuthHeaders()}).then(r=>r.json()).then(d=>{ D.logsCt.innerHTML = d.logs.length ? d.logs.map(l=>`<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:0.8rem;"><strong>${new Date(l.ts).toLocaleString()}</strong> ${l.actor} <span style="color:var(--accent)">${l.action}</span> ${l.target||''}</div>`).join('') : '<p>No logs yet.</p>'; }); }
+D.btnClearLogs.addEventListener('click', async () => { if(!confirm('Delete all audit logs?')) return; await fetch(`${WORKER_BASE}/admin/logs/clear`,{method:'POST',headers:getAuthHeaders()}); loadLogs(); toast('Logs cleared'); });
+function loadAnalytics() { fetch(`${WORKER_BASE}/admin/analytics`,{headers:getAuthHeaders()}).then(r=>r.json()).then(d=>{ D.analyticsCt.innerHTML = `<p><strong>Files:</strong> ${d.files.total} (${fmtSz(d.files.totalSize)})</p><p><strong>Users:</strong> ${d.users.total}</p>`; }); }
 function loadShares() { D.shareCt.innerHTML = '<p>Create a share link from a file card (🔗 Share).</p>'; }
 
 // ==================== FILE LIST & ACTIONS ====================
-async function fetchFiles() { try { const r = await fetch(`${WORKER_BASE}/list`); if(!r.ok) throw new Error('Failed'); const { files } = await r.json(); ST.files = files; renderFiles(); } catch(e) { console.error(e); } }
+async function fetchFiles() { try { const r = await fetch(`${WORKER_BASE}/list`, { headers: getAuthHeaders() }); if(!r.ok) throw new Error('Failed'); const { files } = await r.json(); ST.files = files; renderFiles(); } catch(e) { console.error(e); toast('Failed to load files', 'error'); } }
 
 function renderFiles() {
   let list = [...ST.files];
@@ -331,7 +381,7 @@ $('btnBulkCancel').addEventListener('click', () => { ST.sel.clear(); renderFiles
 $('btnBulkDelete').addEventListener('click', async () => {
   if(!confirm(`Delete ${ST.sel.size} files?`)) return;
   const ids = Array.from(ST.sel);
-  const r = await fetch(`${WORKER_BASE}/bulk-delete`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':ST.token,'X-User-Token':ST.token},body:JSON.stringify({publicIds:ids})});
+  const r = await fetch(`${WORKER_BASE}/bulk-delete`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({publicIds:ids})});
   const d = await r.json(); ST.sel.clear(); updateBulkBar(); await fetchFiles();
   toast(`${d.deleted} deleted, ${d.failed} failed`);
 });
@@ -348,7 +398,7 @@ function fileAction(action, id) {
   }
 }
 
-// ==================== UPLOAD (FIXED) ====================
+// ==================== UPLOAD ====================
 async function uploadFile(file, existPid = null) {
   if(ST.uploadCtrl) ST.uploadCtrl.abort();
   ST.uploadCtrl = new AbortController(); const sig = ST.uploadCtrl.signal;
@@ -356,7 +406,7 @@ async function uploadFile(file, existPid = null) {
   try {
     let pid = existPid;
     if(!pid) {
-      const ir = await fetch(`${WORKER_BASE}/upload-init`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fileName:file.name,fileSize:file.size,fileType:file.type||'application/octet-stream'}),signal:sig});
+      const ir = await fetch(`${WORKER_BASE}/upload-init`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({fileName:file.name,fileSize:file.size,fileType:file.type||'application/octet-stream'}),signal:sig});
       if(!ir.ok) throw new Error(((await ir.json()).error) || 'Init failed');
       pid = (await ir.json()).publicId;
     }
@@ -367,7 +417,7 @@ async function uploadFile(file, existPid = null) {
       const chunk = file.slice(up, end+1);
       let retries = 3, done = false;
       while(retries-- && !done) {
-        const cr = await fetch(`${WORKER_BASE}/upload-chunk/${pid}`,{method:'PUT',headers:{'Content-Range':`bytes ${up}-${end}/${file.size}`},body:chunk,signal:sig});
+        const cr = await fetch(`${WORKER_BASE}/upload-chunk/${pid}`,{method:'PUT',headers:{'Content-Range':`bytes ${up}-${end}/${file.size}`,...getAuthHeaders()},body:chunk,signal:sig});
         const d = await cr.json();
         if(cr.ok) {
           if(d.complete === true || d.status === 'complete') { done = true; break; }
@@ -376,9 +426,10 @@ async function uploadFile(file, existPid = null) {
         } else { if(retries <= 0) throw new Error(d.error || 'Chunk error'); await sleep(1000); }
       }
       if(done && up >= file.size) break;
-      if(!done) { const sr = await fetch(`${WORKER_BASE}/upload-status/${pid}`,{signal:sig}); if(sr.ok) { const s = await sr.json(); up = s.uploadedBytes || up; updateProg(up, file.size); } }
+      if(!done) { const sr = await fetch(`${WORKER_BASE}/upload-status/${pid}`,{headers:getAuthHeaders(),signal:sig}); if(sr.ok) { const s = await sr.json(); up = s.uploadedBytes || up; updateProg(up, file.size); } }
     }
     toast(`${file.name} uploaded`, 'success');
+    await fetchFiles();
   } catch(err) { if(err.message!=='Cancelled') toast(`Upload failed: ${err.message}`, 'error'); }
   finally { D.progBox.classList.add('hidden'); ST.uploadCtrl = null; }
 }
@@ -387,7 +438,7 @@ function updateProg(u,t) { const p = Math.round(u/t*100); D.progFill.style.width
 const sleep = ms => new Promise(r=>setTimeout(r,ms));
 D.cancelBtn.addEventListener('click', () => { if(ST.uploadCtrl) { ST.uploadCtrl.abort(); ST.uploadCtrl = null; D.progBox.classList.add('hidden'); } });
 
-// ==================== PREVIEW (FULLSCREEN) ====================
+// ==================== PREVIEW ====================
 function openPreview(pid, type) {
   D.prevCont.innerHTML = ''; const url = `${WORKER_BASE}/video/${pid}`;
   if(type==='video'||type==='audio') {
@@ -397,7 +448,7 @@ function openPreview(pid, type) {
     D.prevCont.appendChild(m); m.play().catch(()=>{});
   } else if(type==='image') { const img = document.createElement('img'); img.src = url; img.style.maxWidth='95%'; img.style.maxHeight='95%'; D.prevCont.appendChild(img); }
   else if(type==='pdf') { const ifr = document.createElement('iframe'); ifr.src = url; ifr.style.width='90%'; ifr.style.height='90%'; D.prevCont.appendChild(ifr); }
-  else if(type==='text') { fetch(url).then(r=>r.text()).then(t=>{ const pre = document.createElement('pre'); pre.textContent = t; D.prevCont.appendChild(pre); }); }
+  else if(type==='text') { fetch(url, { headers: getAuthHeaders() }).then(r=>r.text()).then(t=>{ const pre = document.createElement('pre'); pre.textContent = t; D.prevCont.appendChild(pre); }); }
   else { downloadFile(pid); return; }
   D.prevOv.classList.remove('hidden');
 }
@@ -406,17 +457,17 @@ D.btnCloseP.addEventListener('click', closePreview);
 D.btnFull.addEventListener('click', () => { if(document.fullscreenElement) document.exitFullscreen(); else D.prevOv.requestFullscreen(); });
 
 // ==================== CRUD ====================
-function downloadFile(pid) { const a = document.createElement('a'); a.href = `${WORKER_BASE}/download/${pid}`; a.download = ''; document.body.appendChild(a); a.click(); document.body.removeChild(a); }
+function downloadFile(pid) { window.location.href = `${WORKER_BASE}/download/${pid}`; }
 async function deleteFile(pid) {
   if(!confirm('Delete?')) return;
-  const r = await fetch(`${WORKER_BASE}/delete`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':ST.token,'X-User-Token':ST.token},body:JSON.stringify({publicId:pid})});
+  const r = await fetch(`${WORKER_BASE}/delete`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({publicId:pid})});
   if(r.ok) { ST.files = ST.files.filter(f=>f.publicId!==pid); ST.sel.delete(pid); renderFiles(); updateBulkBar(); toast('Deleted','success'); } else toast('Delete failed','error');
 }
 function replaceFile(pid) {
   const inp = document.createElement('input'); inp.type = 'file';
   inp.onchange = async () => {
     const file = inp.files[0]; if(!file) return;
-    const ir = await fetch(`${WORKER_BASE}/update`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':ST.token,'X-User-Token':ST.token},body:JSON.stringify({publicId:pid,fileName:file.name,fileSize:file.size,fileType:file.type||'application/octet-stream'})});
+    const ir = await fetch(`${WORKER_BASE}/update`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({publicId:pid,fileName:file.name,fileSize:file.size,fileType:file.type||'application/octet-stream'})});
     if(!ir.ok) { toast('Update init failed','error'); return; }
     const {publicId} = await ir.json();
     await uploadFile(file, publicId); await fetchFiles();
@@ -426,27 +477,63 @@ function replaceFile(pid) {
 async function renameFile(pid) {
   const file = ST.files.find(f=>f.publicId===pid); if(!file) return;
   const newName = prompt('New name:', file.name); if(!newName||newName===file.name) return;
-  const r = await fetch(`${WORKER_BASE}/rename`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':ST.token,'X-User-Token':ST.token},body:JSON.stringify({publicId:pid,newName})});
+  const r = await fetch(`${WORKER_BASE}/rename`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({publicId:pid,newName})});
   if(r.ok) { toast('Renamed'); await fetchFiles(); } else toast('Rename failed','error');
 }
 async function shareFile(pid) {
   const label = prompt('Share label (optional):',''), expires = prompt('Expires in hours (default 1):','1'), maxDownloads = parseInt(prompt('Max downloads (0=unlimited):','0'),10);
-  const r = await fetch(`${WORKER_BASE}/share/create`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':ST.token,'X-User-Token':ST.token},body:JSON.stringify({publicId:pid,expiresIn:(parseInt(expires||'1',10)*3600),maxDownloads,label})});
+  const r = await fetch(`${WORKER_BASE}/share/create`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({publicId:pid,expiresIn:(parseInt(expires||'1',10)*3600),maxDownloads,label})});
   const d = await r.json();
   if(r.ok) { toast('Share link created!'); navigator.clipboard.writeText(d.shareUrl).then(()=>toast('Link copied!')); } else toast('Share failed','error');
 }
 
-// ==================== POLLING (EFFICIENT) ====================
+// ==================== POLLING ====================
 function startRolePoll() { if(ST.timers.role) clearInterval(ST.timers.role); ST.timers.role = setInterval(async () => { if(!ST.token||!ST.approved) return; const r = await fetch(`${WORKER_BASE}/user-info?utoken=${ST.token}`); if(!r.ok) return; const i = await r.json(); if(i.role !== ST.role) { ST.role = i.role; applyRoleUI(); toast(`Permissions changed to ${ST.role}`); } }, 8000); }
 function startApprovalPoll() { if(ST.timers.approval) clearInterval(ST.timers.approval); ST.timers.approval = setInterval(async () => { if(!ST.token) return; const r = await fetch(`${WORKER_BASE}/user-info?utoken=${ST.token}`); if(!r.ok) return; const i = await r.json(); if(i.approved) { ST.approved = true; ST.role = i.role; clearInterval(ST.timers.approval); toast('Approved!','success'); render(); } }, 10000); }
-function startAdminPoll() { if(ST.timers.adminPoll) clearInterval(ST.timers.adminPoll); let lastTs = 0; const poll = async () => { if(!ST.token||!ST.isAdmin) return; const r = await fetch(`${WORKER_BASE}/admin/poll?since=${lastTs}&timeout=15`,{headers:{'X-Admin-Token':ST.token}}); const d = await r.json(); if(d.changed) { lastTs = d.ts; loadPendingCount(); if(!D.pnlAppr.classList.contains('hidden')) loadPending(); if(!D.pnlUsers.classList.contains('hidden')) loadAllUsers(); if(!D.pnlLogs.classList.contains('hidden')) loadLogs(); } ST.timers.adminPoll = setTimeout(poll, 2000); }; poll(); }
-function startUserPoll() { if(ST.timers.userPoll) clearInterval(ST.timers.userPoll); let lastTs = 0; const poll = async () => { if(!ST.token||!ST.approved) return; const r = await fetch(`${WORKER_BASE}/poll?utoken=${ST.token}&since=${lastTs}&timeout=15`); const d = await r.json(); if(d.changed) { lastTs = d.ts; fetchFiles(); } ST.timers.userPoll = setTimeout(poll, 2000); }; poll(); }
+function startAdminPoll() { if(ST.timers.adminPoll) clearInterval(ST.timers.adminPoll); let lastTs = 0; const poll = async () => { if(!ST.token||!ST.isAdmin) return; const r = await fetch(`${WORKER_BASE}/admin/poll?since=${lastTs}&timeout=15`,{headers:getAuthHeaders()}); const d = await r.json(); if(d.changed) { lastTs = d.ts; loadPendingCount(); if(!D.pnlAppr.classList.contains('hidden')) loadPending(); if(!D.pnlUsers.classList.contains('hidden')) loadAllUsers(); if(!D.pnlLogs.classList.contains('hidden')) loadLogs(); } ST.timers.adminPoll = setTimeout(poll, 2000); }; poll(); }
+function startUserPoll() { if(ST.timers.userPoll) clearInterval(ST.timers.userPoll); let lastTs = 0; const poll = async () => { if(!ST.token||!ST.approved) return; const r = await fetch(`${WORKER_BASE}/poll?utoken=${ST.token}&since=${lastTs}&timeout=15`, { headers: getAuthHeaders() }); const d = await r.json(); if(d.changed) { lastTs = d.ts; fetchFiles(); } ST.timers.userPoll = setTimeout(poll, 2000); }; poll(); }
 function applyRoleUI() { const can = ST.role==='full'||ST.role==='delete'||ST.role==='upload'||ST.role==='download'; D.dropzone.style.display = can ? '' : 'none'; document.querySelector('.hint-text').style.display = can ? '' : 'none'; renderFiles(); }
 
-// ==================== SEARCH / SORT ====================
+// ==================== SEARCH / SORT / DRAG & DROP ====================
 D.search.addEventListener('input', () => { ST.query = D.search.value.toLowerCase(); renderFiles(); });
 D.sortSel.addEventListener('change', () => { ST.sort = D.sortSel.value; localStorage.setItem('sort', ST.sort); renderFiles(); });
 D.sortSel.value = ST.sort;
+
+// Drag & Drop
+['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+  D.dropzone.addEventListener(eventName, preventDefaults, false);
+});
+function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
+['dragenter', 'dragover'].forEach(eventName => { D.dropzone.addEventListener(eventName, () => D.dropzone.classList.add('dragover'), false); });
+['dragleave', 'drop'].forEach(eventName => { D.dropzone.addEventListener(eventName, () => D.dropzone.classList.remove('dragover'), false); });
+D.dropzone.addEventListener('drop', handleDrop, false);
+function handleDrop(e) {
+  const dt = e.dataTransfer;
+  const files = dt.files;
+  if (files.length) handleFiles(files);
+}
+D.fileInp.addEventListener('change', (e) => handleFiles(e.target.files));
+D.dropzone.addEventListener('click', () => D.fileInp.click());
+function handleFiles(files) { for (const file of files) uploadFile(file); }
+
+// Paste upload
+document.addEventListener('paste', (e) => {
+  const items = e.clipboardData.items;
+  for (let i = 0; i < items.length; i++) {
+    if (items[i].kind === 'file') {
+      const file = items[i].getAsFile();
+      if (file) uploadFile(file);
+      break;
+    }
+  }
+});
+
+// Keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+  if (e.ctrlKey && e.key === 'u') { e.preventDefault(); D.fileInp.click(); }
+  if (e.ctrlKey && e.key === 'f') { e.preventDefault(); D.search.focus(); }
+  if (e.key === 'Escape') closePreview();
+});
 
 // ==================== INIT ====================
 init();
