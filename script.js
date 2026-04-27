@@ -84,14 +84,18 @@ async function fetchUserInfo() {
         const r = await fetch(`${WORKER_BASE}/user-info?utoken=${ST.token}`);
         if (!r.ok) throw new Error();
         const i = await r.json();
+        console.log('User info fetched:', i); // DEBUG
         const wasApproved = ST.approved;
         ST.email = i.email; ST.isAdmin = i.isAdmin === true; ST.approved = i.approved; ST.role = i.role;
+        // If approval status changed to true, reload the page to ensure clean state
         if (!wasApproved && ST.approved) {
-            toast('You have been approved! Refreshing...', 'success');
-            render();
+            toast('You have been approved! Reloading...', 'success');
+            setTimeout(() => { window.location.reload(); }, 1000);
+            return true;
         }
         return true;
     } catch(e) {
+        console.error('fetchUserInfo error', e);
         ST.token = null;
         localStorage.removeItem('vtoken');
         return false;
@@ -120,9 +124,18 @@ function showPending() {
     const refreshBtn = document.getElementById('manualRefreshBtn');
     if(refreshBtn) refreshBtn.onclick = async () => {
         toast('Checking approval status...', 'info');
-        await fetchUserInfo();
-        if (ST.approved) render();
-        else toast('Still pending approval.', 'info');
+        const r = await fetch(`${WORKER_BASE}/user-info?utoken=${ST.token}`);
+        if (r.ok) {
+            const data = await r.json();
+            if (data.approved) {
+                toast('Approved! Reloading...', 'success');
+                window.location.reload();
+            } else {
+                toast('Still pending approval.', 'info');
+            }
+        } else {
+            toast('Failed to check status.', 'error');
+        }
     };
     const selfRevokeBtn = document.getElementById('btnSelfRevoke');
     if(selfRevokeBtn) selfRevokeBtn.onclick = async () => {
@@ -542,7 +555,7 @@ function startAdminPoll() {
 function startRolePoll() {
     const poll = async () => {
         if (!ST.token) return;
-        await fetchUserInfo(); // updates approval/role and re-renders if needed
+        await fetchUserInfo(); // updates ST.approved and will reload page if approved
         ST.timers.role = setTimeout(poll, 2000);
     };
     poll();
