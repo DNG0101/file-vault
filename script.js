@@ -157,7 +157,7 @@ async function fetchUserInfo() {
 function showLogin() {
   D.adminBar.classList.add('hidden'); D.userUI.innerHTML = '';
   D.grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;"><h2>Welcome to File Vault</h2><p style="margin:16px 0;">Sign in to access your files.</p><button class="btn btn-primary" id="btnLogin">🔑 Login with Google</button></div>`;
-  document.getElementById('btnLogin').onclick = async () => { const r = await fetch(`${WORKER_BASE}/auth-url`); window.location = (await r.json()).authUrl; };
+  document.getElementById('btnLogin').onclick = async () => { const r = await fetch(`${WORKER_BASE}/auth-url`); if(r.ok) window.location = (await r.json()).authUrl; else toast('Login failed','error'); };
 }
 
 function showPending() {
@@ -398,7 +398,7 @@ function fileAction(action, id) {
   }
 }
 
-// ==================== UPLOAD (with auth) ====================
+// ==================== UPLOAD ====================
 async function uploadFile(file, existPid = null) {
   if(ST.uploadCtrl) ST.uploadCtrl.abort();
   ST.uploadCtrl = new AbortController(); const sig = ST.uploadCtrl.signal;
@@ -438,7 +438,7 @@ function updateProg(u,t) { const p = Math.round(u/t*100); D.progFill.style.width
 const sleep = ms => new Promise(r=>setTimeout(r,ms));
 D.cancelBtn.addEventListener('click', () => { if(ST.uploadCtrl) { ST.uploadCtrl.abort(); ST.uploadCtrl = null; D.progBox.classList.add('hidden'); } });
 
-// ==================== PREVIEW (with auth) ====================
+// ==================== PREVIEW ====================
 function openPreview(pid, type) {
   D.prevCont.innerHTML = ''; const url = `${WORKER_BASE}/video/${pid}`;
   if(type==='video'||type==='audio') {
