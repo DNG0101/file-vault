@@ -18,8 +18,9 @@ let ST = {
     shareToken: null,
 };
 
-// ==================== DOM ELEMENTS ====================
-const $ = id => document.getElementById(id);
+// ==================== DOM ELEMENTS (safe getters) ====================
+function $(id) { return document.getElementById(id); }
+
 const D = {
     stats: $('storageStats'), userUI: $('userUI'), adminBar: $('adminBar'),
     dropzone: $('dropzone'), fileInp: $('fileInput'), progBox: $('progressBox'),
@@ -47,6 +48,7 @@ function getAuthHeaders() {
     return h;
 }
 function toast(msg, type='info') {
+    if (!D.toastBox) return;
     const el = document.createElement('div');
     el.className = `toast ${type}`;
     el.textContent = msg;
@@ -61,6 +63,7 @@ const prevType = m => { if(!m) return ''; if(m.startsWith('video')) return 'vide
 
 // ==================== DARK MODE ====================
 (function(){
+    if(!D.btnDark) return;
     if(ST.dark) document.documentElement.setAttribute('data-theme','dark');
     D.btnDark.addEventListener('click', () => {
         ST.dark = !ST.dark;
@@ -101,27 +104,40 @@ async function init() {
 }
 async function fetchUserInfo() {
     if (!ST.token) return false;
-    const r = await fetch(`${WORKER_BASE}/user-info?utoken=${ST.token}`);
-    if (!r.ok) { ST.token = null; localStorage.removeItem('vtoken'); return false; }
-    const i = await r.json();
-    ST.email = i.email; ST.isAdmin = i.isAdmin === true; ST.approved = i.approved; ST.role = i.role;
-    return true;
+    try {
+        const r = await fetch(`${WORKER_BASE}/user-info?utoken=${ST.token}`);
+        if (!r.ok) throw new Error();
+        const i = await r.json();
+        ST.email = i.email; ST.isAdmin = i.isAdmin === true; ST.approved = i.approved; ST.role = i.role;
+        return true;
+    } catch(e) {
+        ST.token = null;
+        localStorage.removeItem('vtoken');
+        return false;
+    }
 }
 function showLogin() {
-    D.adminBar.classList.add('hidden'); D.userUI.innerHTML = '';
-    D.grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;"><h2>Welcome to File Vault</h2><p style="margin:16px 0;">Sign in to access your files.</p><button class="btn btn-primary" id="btnLogin">🔑 Login with Google</button></div>`;
-    document.getElementById('btnLogin').onclick = async () => {
-        const r = await fetch(`${WORKER_BASE}/auth-url`);
-        if(r.ok) window.location = (await r.json()).authUrl;
-        else toast('Login failed','error');
-    };
+    if(D.adminBar) D.adminBar.classList.add('hidden');
+    if(D.userUI) D.userUI.innerHTML = '';
+    if(D.grid) D.grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;"><h2>Welcome to File Vault</h2><p style="margin:16px 0;">Sign in to access your files.</p><button class="btn btn-primary" id="btnLogin">🔑 Login with Google</button></div>`;
+    const loginBtn = document.getElementById('btnLogin');
+    if(loginBtn) {
+        loginBtn.onclick = async () => {
+            const r = await fetch(`${WORKER_BASE}/auth-url`);
+            if(r.ok) window.location = (await r.json()).authUrl;
+            else toast('Login failed','error');
+        };
+    }
 }
 function showPending() {
-    D.adminBar.classList.add('hidden'); D.userUI.innerHTML = '';
-    D.dropzone.style.display = 'none';
-    document.querySelector('.hint-text').style.display = 'none';
-    D.grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;"><h2>🔐 Waiting for Approval</h2><p>Your email: <strong>${ST.email}</strong></p><p>You will be notified automatically.</p><button class="btn btn-outline btn-sm" onclick="location.reload()">🔄 Refresh</button><button class="btn btn-danger btn-sm" id="btnSelfRevoke">❌ Cancel Request</button></div>`;
-    document.getElementById('btnSelfRevoke').onclick = selfRevoke;
+    if(D.adminBar) D.adminBar.classList.add('hidden');
+    if(D.userUI) D.userUI.innerHTML = '';
+    if(D.dropzone) D.dropzone.style.display = 'none';
+    const hint = document.querySelector('.hint-text');
+    if(hint) hint.style.display = 'none';
+    if(D.grid) D.grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;"><h2>🔐 Waiting for Approval</h2><p>Your email: <strong>${ST.email}</strong></p><p>You will be notified automatically.</p><button class="btn btn-outline btn-sm" onclick="location.reload()">🔄 Refresh</button><button class="btn btn-danger btn-sm" id="btnSelfRevoke">❌ Cancel Request</button></div>`;
+    const selfRevokeBtn = document.getElementById('btnSelfRevoke');
+    if(selfRevokeBtn) selfRevokeBtn.onclick = selfRevoke;
     startRolePoll();
 }
 async function selfRevoke() {
@@ -130,14 +146,18 @@ async function selfRevoke() {
     ST.token = null; localStorage.removeItem('vtoken'); clearTimers(); showLogin(); toast('Request cancelled.');
 }
 function showMain() {
-    document.querySelector('.hint-text').style.display = '';
+    const hint = document.querySelector('.hint-text');
+    if(hint) hint.style.display = '';
     if(ST.isAdmin) {
-        D.adminBar.classList.remove('hidden'); D.userUI.innerHTML = ''; D.dropzone.style.display = '';
+        if(D.adminBar) D.adminBar.classList.remove('hidden');
+        if(D.userUI) D.userUI.innerHTML = '';
+        if(D.dropzone) D.dropzone.style.display = '';
         loadPendingCount();
     } else {
-        D.adminBar.classList.add('hidden');
-        D.userUI.innerHTML = `<span style="font-size:0.85rem;">👤 ${ST.email} (${ST.role}) <button class="btn btn-sm btn-outline" id="btnUserLogout">🔒 Logout</button></span>`;
-        document.getElementById('btnUserLogout').onclick = userLogout;
+        if(D.adminBar) D.adminBar.classList.add('hidden');
+        if(D.userUI) D.userUI.innerHTML = `<span style="font-size:0.85rem;">👤 ${ST.email} (${ST.role}) <button class="btn btn-sm btn-outline" id="btnUserLogout">🔒 Logout</button></span>`;
+        const logoutBtn = document.getElementById('btnUserLogout');
+        if(logoutBtn) logoutBtn.onclick = userLogout;
     }
 }
 function userLogout() { ST.token = null; localStorage.removeItem('vtoken'); clearTimers(); showLogin(); toast('Logged out.'); }
@@ -150,25 +170,34 @@ function render() {
 }
 function clearTimers() { ['files','admin','role'].forEach(k => { if(ST.timers[k]) clearTimeout(ST.timers[k]); }); }
 
-// ==================== ADMIN & PANELS ====================
-D.btnSync.addEventListener('click', async () => { toast('Syncing...','info'); const r = await fetch(`${WORKER_BASE}/sync`,{method:'POST',headers:getAuthHeaders()}); if(r.ok) { await fetchFiles(); toast('Sync done','success'); } else toast('Sync failed','error'); });
-D.btnAppr.addEventListener('click', () => togglePanel(D.pnlAppr, loadPending));
-D.btnAllUsers.addEventListener('click', () => togglePanel(D.pnlUsers, loadAllUsers));
-D.btnLogs.addEventListener('click', () => togglePanel(D.pnlLogs, loadLogs));
-D.btnAnalytics.addEventListener('click', () => togglePanel(D.pnlAnalytics, loadAnalytics));
-D.btnShare.addEventListener('click', () => togglePanel(D.pnlShare, () => D.shareCt.innerHTML = '<p>Create a share link from a file card (🔗 Share).</p>'));
-D.btnUnAuth.addEventListener('click', adminLogout);
-D.btnClearLogs.addEventListener('click', async () => { if(!confirm('Delete all logs?')) return; await fetch(`${WORKER_BASE}/admin/logs/clear`,{method:'POST',headers:getAuthHeaders()}); loadLogs(); toast('Logs cleared'); });
-function togglePanel(panel, loadFn) { panel.classList.toggle('hidden'); if(!panel.classList.contains('hidden')) loadFn(); }
+// ==================== ADMIN & PANELS (safe event listeners) ====================
+function safeAddEvent(element, event, handler) {
+    if(element) element.addEventListener(event, handler);
+}
+safeAddEvent(D.btnSync, 'click', async () => { toast('Syncing...','info'); const r = await fetch(`${WORKER_BASE}/sync`,{method:'POST',headers:getAuthHeaders()}); if(r.ok) { await fetchFiles(); toast('Sync done','success'); } else toast('Sync failed','error'); });
+safeAddEvent(D.btnAppr, 'click', () => togglePanel(D.pnlAppr, loadPending));
+safeAddEvent(D.btnAllUsers, 'click', () => togglePanel(D.pnlUsers, loadAllUsers));
+safeAddEvent(D.btnLogs, 'click', () => togglePanel(D.pnlLogs, loadLogs));
+safeAddEvent(D.btnAnalytics, 'click', () => togglePanel(D.pnlAnalytics, loadAnalytics));
+safeAddEvent(D.btnShare, 'click', () => togglePanel(D.pnlShare, () => { if(D.shareCt) D.shareCt.innerHTML = '<p>Create a share link from a file card (🔗 Share).</p>'; }));
+safeAddEvent(D.btnUnAuth, 'click', adminLogout);
+safeAddEvent(D.btnClearLogs, 'click', async () => { if(!confirm('Delete all logs?')) return; await fetch(`${WORKER_BASE}/admin/logs/clear`,{method:'POST',headers:getAuthHeaders()}); loadLogs(); toast('Logs cleared'); });
+
+function togglePanel(panel, loadFn) {
+    if(!panel) return;
+    panel.classList.toggle('hidden');
+    if(!panel.classList.contains('hidden')) loadFn();
+}
 async function adminLogout() { if(confirm('Logout as admin?')) { localStorage.removeItem('vtoken'); ST.token=null; clearTimers(); showLogin(); toast('Admin logged out'); } }
 async function loadPendingCount() {
-    if(!ST.isAdmin) return;
+    if(!ST.isAdmin || !D.pendingBadge) return;
     const r = await fetch(`${WORKER_BASE}/admin/pending`,{headers:getAuthHeaders()});
     const p = await r.json();
     D.pendingBadge.textContent = p.length;
     D.pendingBadge.classList.toggle('hidden', p.length===0);
 }
 function loadPending() {
+    if(!D.listAppr) return;
     fetch(`${WORKER_BASE}/admin/pending`,{headers:getAuthHeaders()}).then(r=>r.json()).then(users => {
         D.listAppr.innerHTML = users.length ? users.map(u => `<div class="approval-item"><span>${u.email}</span><div><select class="role-sel"><option value="full">Full</option><option value="delete">Delete</option><option value="upload">Upload Only</option><option value="download">Download Only</option><option value="read">Read Only</option><option value="none">None</option></select><button class="btn btn-sm btn-success" data-email="${u.email}">Approve</button><button class="btn btn-sm btn-danger" data-email="${u.email}">Deny</button></div></div>`).join('') : '<p>No pending users.</p>';
         D.listAppr.querySelectorAll('button').forEach(btn => {
@@ -185,6 +214,7 @@ function loadPending() {
     });
 }
 function loadAllUsers() {
+    if(!D.listUsers) return;
     fetch(`${WORKER_BASE}/admin/users/all`,{headers:getAuthHeaders()}).then(r=>r.json()).then(users => {
         const active = users.filter(u=>u.status!=='revoked');
         const revoked = users.filter(u=>u.status==='revoked');
@@ -215,12 +245,14 @@ function loadAllUsers() {
     });
 }
 function loadLogs() {
+    if(!D.logsCt) return;
     fetch(`${WORKER_BASE}/admin/logs?limit=200`,{headers:getAuthHeaders()}).then(r=>r.json()).then(d => {
         const del = d.logs.filter(l=>l.action==='FILE_DELETED');
         D.logsCt.innerHTML = del.length ? del.map(l=>`<div><strong>${new Date(l.ts).toLocaleString()}</strong> ${l.actor} deleted <strong>${l.meta?.fileName||l.target}</strong></div>`).join('') : '<p>No deletion logs.</p>';
     });
 }
 function loadAnalytics() {
+    if(!D.analyticsCt) return;
     fetch(`${WORKER_BASE}/admin/analytics`,{headers:getAuthHeaders()}).then(r=>r.json()).then(d => {
         D.analyticsCt.innerHTML = `<p>Files: ${d.files.total} (${fmtSz(d.files.totalSize)}) | Users: ${d.users.total}</p>`;
     });
@@ -237,6 +269,7 @@ async function fetchFiles() {
     } catch(e) { toast('Failed to load files','error'); }
 }
 function renderFiles() {
+    if(!D.grid) return;
     let list = [...ST.files];
     if(ST.query) list = list.filter(f=>f.name.toLowerCase().includes(ST.query));
     const s = ST.sort;
@@ -249,7 +282,6 @@ function renderFiles() {
         case 'size-asc': return a.size - b.size;
         default: return 0;
     }});
-    // Group by uploader email (sectional view)
     const groups = {};
     list.forEach(f=>{ const key = f.uploadedBy || 'unknown'; if(!groups[key]) groups[key]=[]; groups[key].push(f); });
     D.grid.innerHTML = '';
@@ -299,6 +331,7 @@ function getFileActions(pid) {
     return a;
 }
 function attachEvents() {
+    if(!D.grid) return;
     D.grid.querySelectorAll('.card-checkbox').forEach(cb => {
         cb.removeEventListener('change', checkboxHandler);
         cb.addEventListener('change', checkboxHandler);
@@ -316,9 +349,9 @@ function checkboxHandler(e) { e.stopPropagation(); toggleSelect(e.target.dataset
 function actionHandler(e) { e.stopPropagation(); const action = e.currentTarget.dataset.action, id = e.currentTarget.dataset.id; if(action) fileAction(action, id); }
 function cardClickHandler(e) { if(e.target.classList.contains('card-checkbox') || e.target.closest('.actions')) return; const cb = this.querySelector('.card-checkbox'); if(cb) toggleSelect(cb.dataset.id, !cb.checked); }
 function toggleSelect(id, checked) { if(checked) ST.selected.add(id); else ST.selected.delete(id); updateBulkBar(); const card = document.querySelector(`.card[data-public-id="${id}"]`); if(card) card.classList.toggle('selected',checked); }
-function updateBulkBar() { if(ST.selected.size) { D.bulkBar.classList.remove('hidden'); D.bulkCnt.textContent = `${ST.selected.size} selected`; } else D.bulkBar.classList.add('hidden'); }
-D.btnBulkCancel.addEventListener('click', () => { ST.selected.clear(); renderFiles(); updateBulkBar(); });
-D.btnBulkDelete.addEventListener('click', async () => {
+function updateBulkBar() { if(D.bulkBar) { if(ST.selected.size) { D.bulkBar.classList.remove('hidden'); if(D.bulkCnt) D.bulkCnt.textContent = `${ST.selected.size} selected`; } else D.bulkBar.classList.add('hidden'); } }
+safeAddEvent(D.btnBulkCancel, 'click', () => { ST.selected.clear(); renderFiles(); updateBulkBar(); });
+safeAddEvent(D.btnBulkDelete, 'click', async () => {
     if(!confirm(`Delete ${ST.selected.size} files?`)) return;
     const ids = Array.from(ST.selected);
     const r = await fetch(`${WORKER_BASE}/bulk-delete`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({publicIds:ids})});
@@ -378,7 +411,7 @@ async function shareFile(pid) {
 async function uploadFile(file, existingPid = null) {
     if (ST.uploadCtrl) ST.uploadCtrl.abort();
     ST.uploadCtrl = new AbortController();
-    D.progBox.classList.remove('hidden');
+    if(D.progBox) D.progBox.classList.remove('hidden');
     try {
         let pid = existingPid;
         if (!pid) {
@@ -402,7 +435,6 @@ async function uploadFile(file, existingPid = null) {
             const chunk = file.slice(uploaded, end+1);
             let retries = 3, done = false;
             while (retries-- && !done) {
-                const startTime = Date.now();
                 const chunkRes = await fetch(`${WORKER_BASE}/upload-chunk/${pid}`, {
                     method: 'PUT',
                     headers: { 'Content-Range': `bytes ${uploaded}-${end}/${file.size}`, ...getAuthHeaders() },
@@ -439,22 +471,22 @@ async function uploadFile(file, existingPid = null) {
     } catch (err) {
         if (err.message !== 'Cancelled') toast(`Upload failed: ${err.message}`, 'error');
     } finally {
-        D.progBox.classList.add('hidden');
+        if(D.progBox) D.progBox.classList.add('hidden');
         ST.uploadCtrl = null;
     }
 }
 function updateProgress(uploaded, total, speedBps) {
-    const p = Math.round(uploaded/total*100);
-    D.progFill.style.width = p+'%';
-    D.pctDisp.textContent = p+'%';
-    D.speedDisp.textContent = speedBps ? fmtSpeed(speedBps) : '--';
-    D.sizeDisp.textContent = `${fmtSz(uploaded)} / ${fmtSz(total)}`;
+    if(D.progFill) D.progFill.style.width = Math.round(uploaded/total*100)+'%';
+    if(D.pctDisp) D.pctDisp.textContent = Math.round(uploaded/total*100)+'%';
+    if(D.speedDisp) D.speedDisp.textContent = speedBps ? fmtSpeed(speedBps) : '--';
+    if(D.sizeDisp) D.sizeDisp.textContent = `${fmtSz(uploaded)} / ${fmtSz(total)}`;
 }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-D.cancelBtn.addEventListener('click', () => { if (ST.uploadCtrl) { ST.uploadCtrl.abort(); ST.uploadCtrl = null; D.progBox.classList.add('hidden'); } });
+safeAddEvent(D.cancelBtn, 'click', () => { if (ST.uploadCtrl) { ST.uploadCtrl.abort(); ST.uploadCtrl = null; if(D.progBox) D.progBox.classList.add('hidden'); } });
 
 // ==================== PREVIEW ====================
 function openPreview(pid, type) {
+    if(!D.prevCont) return;
     D.prevCont.innerHTML = '';
     const url = `${WORKER_BASE}/video/${pid}`;
     if (type === 'video' || type === 'audio') {
@@ -471,11 +503,11 @@ function openPreview(pid, type) {
     } else if (type === 'text') {
         fetch(url, { headers: getAuthHeaders() }).then(r=>r.text()).then(t => { const pre = document.createElement('pre'); pre.textContent = t; D.prevCont.appendChild(pre); });
     } else { return; }
-    D.prevOv.classList.remove('hidden');
+    if(D.prevOv) D.prevOv.classList.remove('hidden');
 }
-function closePreview() { D.prevCont.innerHTML = ''; D.prevOv.classList.add('hidden'); if (document.fullscreenElement) document.exitFullscreen(); }
-D.btnCloseP.addEventListener('click', closePreview);
-D.btnFull.addEventListener('click', () => { if (document.fullscreenElement) document.exitFullscreen(); else D.prevOv.requestFullscreen(); });
+function closePreview() { if(D.prevCont) D.prevCont.innerHTML = ''; if(D.prevOv) D.prevOv.classList.add('hidden'); if (document.fullscreenElement) document.exitFullscreen(); }
+safeAddEvent(D.btnCloseP, 'click', closePreview);
+safeAddEvent(D.btnFull, 'click', () => { if (document.fullscreenElement) document.exitFullscreen(); else if(D.prevOv) D.prevOv.requestFullscreen(); });
 
 // ==================== POLLING (LIVE UPDATES) ====================
 function startUserPoll() {
@@ -501,10 +533,10 @@ function startAdminPoll() {
             if (data.changed) {
                 lastTs = data.ts;
                 await loadPendingCount();
-                if (!D.pnlAppr.classList.contains('hidden')) loadPending();
-                if (!D.pnlUsers.classList.contains('hidden')) loadAllUsers();
-                if (!D.pnlLogs.classList.contains('hidden')) loadLogs();
-                if (!D.pnlAnalytics.classList.contains('hidden')) loadAnalytics();
+                if (!D.pnlAppr?.classList.contains('hidden')) loadPending();
+                if (!D.pnlUsers?.classList.contains('hidden')) loadAllUsers();
+                if (!D.pnlLogs?.classList.contains('hidden')) loadLogs();
+                if (!D.pnlAnalytics?.classList.contains('hidden')) loadAnalytics();
                 await fetchFiles();
             }
         } catch(e) {}
@@ -534,8 +566,9 @@ function startRolePoll() {
 }
 function applyRoleUI() {
     const canUpload = ['full','delete','upload'].includes(ST.role);
-    D.dropzone.style.display = canUpload ? '' : 'none';
-    document.querySelector('.hint-text').style.display = canUpload ? '' : 'none';
+    if(D.dropzone) D.dropzone.style.display = canUpload ? '' : 'none';
+    const hint = document.querySelector('.hint-text');
+    if(hint) hint.style.display = canUpload ? '' : 'none';
 }
 
 // ==================== SHARE PREVIEW ====================
@@ -543,7 +576,7 @@ async function showSharePreview() {
     const res = await fetch(`${WORKER_BASE}/share/verify?token=${ST.shareToken}`);
     if (!res.ok) { toast('Invalid or expired share link', 'error'); showLogin(); return; }
     const data = await res.json();
-    D.grid.innerHTML = `
+    if(D.grid) D.grid.innerHTML = `
         <div style="grid-column:1/-1;text-align:center;padding:60px;">
             <div class="file-icon" style="font-size:4rem">${icn(data.mimeType)}</div>
             <h2>${esc(data.fileName)}</h2>
@@ -551,22 +584,26 @@ async function showSharePreview() {
             <button class="btn btn-primary" id="shareDownloadBtn">⬇ Download</button>
             <button class="btn btn-outline" onclick="location.href='/'">🔐 Login to Vault</button>
         </div>`;
-    document.getElementById('shareDownloadBtn')?.addEventListener('click', () => {
+    const shareBtn = document.getElementById('shareDownloadBtn');
+    if(shareBtn) shareBtn.addEventListener('click', () => {
         window.location.href = `${WORKER_BASE}/share/download?token=${ST.shareToken}`;
     });
-    D.dropzone.style.display = 'none';
-    document.querySelector('.hint-text').style.display = 'none';
-    D.adminBar.classList.add('hidden');
-    D.userUI.innerHTML = '';
+    if(D.dropzone) D.dropzone.style.display = 'none';
+    const hint = document.querySelector('.hint-text');
+    if(hint) hint.style.display = 'none';
+    if(D.adminBar) D.adminBar.classList.add('hidden');
+    if(D.userUI) D.userUI.innerHTML = '';
 }
 
 // ==================== DRAG & DROP, PASTE, KEYBOARD ====================
-['dragenter','dragover','dragleave','drop'].forEach(ev => D.dropzone.addEventListener(ev, e => e.preventDefault()));
-['dragenter','dragover'].forEach(ev => D.dropzone.addEventListener(ev, () => D.dropzone.classList.add('dragover')));
-['dragleave','drop'].forEach(ev => D.dropzone.addEventListener(ev, () => D.dropzone.classList.remove('dragover')));
-D.dropzone.addEventListener('drop', e => { const files = e.dataTransfer.files; if (files.length) handleFiles(files); });
-D.dropzone.addEventListener('click', () => D.fileInp.click());
-D.fileInp.addEventListener('change', e => handleFiles(e.target.files));
+if(D.dropzone) {
+    ['dragenter','dragover','dragleave','drop'].forEach(ev => D.dropzone.addEventListener(ev, e => e.preventDefault()));
+    ['dragenter','dragover'].forEach(ev => D.dropzone.addEventListener(ev, () => D.dropzone.classList.add('dragover')));
+    ['dragleave','drop'].forEach(ev => D.dropzone.addEventListener(ev, () => D.dropzone.classList.remove('dragover')));
+    D.dropzone.addEventListener('drop', e => { const files = e.dataTransfer.files; if (files.length) handleFiles(files); });
+    D.dropzone.addEventListener('click', () => D.fileInp.click());
+}
+if(D.fileInp) D.fileInp.addEventListener('change', e => handleFiles(e.target.files));
 function handleFiles(files) { for (const f of files) uploadFile(f); }
 document.addEventListener('paste', e => {
     const items = e.clipboardData.items;
@@ -575,13 +612,12 @@ document.addEventListener('paste', e => {
     }
 });
 document.addEventListener('keydown', e => {
-    if (e.ctrlKey && e.key === 'u') { e.preventDefault(); D.fileInp.click(); }
-    if (e.ctrlKey && e.key === 'f') { e.preventDefault(); D.search.focus(); }
+    if (e.ctrlKey && e.key === 'u') { e.preventDefault(); if(D.fileInp) D.fileInp.click(); }
+    if (e.ctrlKey && e.key === 'f') { e.preventDefault(); if(D.search) D.search.focus(); }
     if (e.key === 'Escape') closePreview();
 });
-D.search.addEventListener('input', () => { ST.query = D.search.value.toLowerCase(); renderFiles(); });
-D.sortSel.addEventListener('change', () => { ST.sort = D.sortSel.value; localStorage.setItem('sort', ST.sort); renderFiles(); });
-D.sortSel.value = ST.sort;
+if(D.search) D.search.addEventListener('input', () => { ST.query = D.search.value.toLowerCase(); renderFiles(); });
+if(D.sortSel) D.sortSel.addEventListener('change', () => { ST.sort = D.sortSel.value; localStorage.setItem('sort', ST.sort); renderFiles(); D.sortSel.value = ST.sort; });
 
 // ==================== START ====================
 init();
