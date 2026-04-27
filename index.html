@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Public File Vault – Final Fixed</title>
+    <title>Public File Vault – Final (No Reload Loops)</title>
     <style>
-        /* ========== CSS (exactly the same as before – compact) ========== */
+        /* ========== CSS (unchanged) ========== */
         :root {
             --bg: #f8fafc;
             --card-bg: #ffffff;
@@ -186,7 +186,7 @@
         // ==================== CONFIG ====================
         const WORKER_BASE = 'https://gdrive-files-api.donthulanithish53.workers.dev';
 
-        // ==================== REQUEST MANAGER (no polling, only click) ====================
+        // ==================== REQUEST MANAGER (cooldown only for non-critical) ====================
         class RequestManager {
             constructor(defaultCooldown = 5000) {
                 this.lock = false;
@@ -263,12 +263,8 @@
             }
             return h;
         }
-        function getDownloadUrl(pid) {
-            return `${WORKER_BASE}/download/${pid}?utoken=${ST.token}`;
-        }
-        function getPreviewUrl(pid) {
-            return `${WORKER_BASE}/video/${pid}?utoken=${ST.token}`;
-        }
+        function getDownloadUrl(pid) { return `${WORKER_BASE}/download/${pid}?utoken=${ST.token}`; }
+        function getPreviewUrl(pid) { return `${WORKER_BASE}/video/${pid}?utoken=${ST.token}`; }
         function toast(msg, type='info') {
             if (!D.toastBox) return;
             const el = document.createElement('div');
@@ -300,19 +296,19 @@
             });
         })();
 
-        // ==================== Authentication ====================
+        // ==================== Authentication (NO AUTO-RELOAD, only UI update) ====================
         async function fetchUserInfo(priority = 'normal') {
             if (!ST.token) return false;
             return reqMgr.execute('userInfo', async () => {
                 const r = await fetch(`${WORKER_BASE}/user-info?utoken=${ST.token}`);
                 if (!r.ok) throw new Error();
                 const i = await r.json();
-                console.log('User info response:', i);
+                console.log('User info:', i);
                 const wasApproved = ST.approved;
                 ST.email = i.email; ST.isAdmin = i.isAdmin === true; ST.approved = i.approved; ST.role = i.role;
                 if (!wasApproved && ST.approved) {
-                    toast('You have been approved! Reloading...', 'success');
-                    setTimeout(() => window.location.reload(), 500);
+                    toast('You have been approved! Access granted.', 'success');
+                    render();  // Re-render UI without page reload
                 }
                 return true;
             }, priority).catch(e => { console.warn(e); return false; });
@@ -342,19 +338,8 @@
             const refreshBtn = $('manualRefreshBtn');
             if(refreshBtn) refreshBtn.onclick = async () => {
                 toast('Checking approval status...', 'info');
-                const r = await fetch(`${WORKER_BASE}/user-info?utoken=${ST.token}`);
-                if (r.ok) {
-                    const data = await r.json();
-                    console.log('Manual refresh result:', data);
-                    if (data.approved) {
-                        toast('Approved! Reloading...', 'success');
-                        window.location.reload();
-                    } else {
-                        toast('Still pending. Please ask admin to approve you.', 'info');
-                    }
-                } else {
-                    toast('Failed to check status.', 'error');
-                }
+                await fetchUserInfo('critical');
+                // fetchUserInfo will trigger render() if approved
             };
             const selfRevokeBtn = $('btnSelfRevoke');
             if(selfRevokeBtn) selfRevokeBtn.onclick = async () => {
