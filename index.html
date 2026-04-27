@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>Public File Vault – Ultimate</title>
     <style>
-        /* ========== STYLES (compact, responsive, dark mode) ========== */
+        /* ========== COMPLETE CSS (dark mode, sections, responsive) ========== */
         :root {
             --bg: #f8fafc;
             --card-bg: #ffffff;
@@ -204,23 +204,22 @@
         };
 
         // ==================== DOM ELEMENTS ====================
-        function getEl(id) { return document.getElementById(id); }
         const D = {
-            stats: getEl('storageStats'), userUI: getEl('userUI'), adminBar: getEl('adminBar'),
-            dropzone: getEl('dropzone'), fileInp: getEl('fileInput'), progBox: getEl('progressBox'),
-            progFill: getEl('progressFill'), pctDisp: getEl('percentDisplay'), speedDisp: getEl('speedDisplay'),
-            sizeDisp: getEl('sizeDisplay'), cancelBtn: getEl('cancelUpload'), grid: getEl('fileGrid'),
-            prevOv: getEl('previewOverlay'), prevCont: getEl('previewContainer'), btnFull: getEl('btnFullscreen'),
-            btnCloseP: getEl('btnClosePreview'), search: getEl('searchInput'), sortSel: getEl('sortSelect'),
-            bulkBar: getEl('bulkBar'), bulkCnt: getEl('bulkCount'), toastBox: getEl('toastContainer'),
-            btnDark: getEl('btnDarkMode'), btnSync: getEl('btnSync'), btnAppr: getEl('btnApprovals'),
-            btnAllUsers: getEl('btnAllUsers'), btnLogs: getEl('btnLogs'), btnAnalytics: getEl('btnAnalytics'),
-            btnShare: getEl('btnShareManager'), btnUnAuth: getEl('btnAdminLogout'), pnlAppr: getEl('approvalPanel'),
-            listAppr: getEl('approvalList'), pnlUsers: getEl('usersPanel'), listUsers: getEl('usersList'),
-            pnlLogs: getEl('logsPanel'), logsCt: getEl('logsContent'), pnlAnalytics: getEl('analyticsPanel'),
-            analyticsCt: getEl('analyticsContent'), pnlShare: getEl('sharePanel'), shareCt: getEl('shareContent'),
-            pendingBadge: getEl('pendingBadge'), btnClearLogs: getEl('btnClearLogs'),
-            btnBulkDelete: getEl('btnBulkDelete'), btnBulkCancel: getEl('btnBulkCancel'),
+            stats: document.getElementById('storageStats'), userUI: document.getElementById('userUI'), adminBar: document.getElementById('adminBar'),
+            dropzone: document.getElementById('dropzone'), fileInp: document.getElementById('fileInput'), progBox: document.getElementById('progressBox'),
+            progFill: document.getElementById('progressFill'), pctDisp: document.getElementById('percentDisplay'), speedDisp: document.getElementById('speedDisplay'),
+            sizeDisp: document.getElementById('sizeDisplay'), cancelBtn: document.getElementById('cancelUpload'), grid: document.getElementById('fileGrid'),
+            prevOv: document.getElementById('previewOverlay'), prevCont: document.getElementById('previewContainer'), btnFull: document.getElementById('btnFullscreen'),
+            btnCloseP: document.getElementById('btnClosePreview'), search: document.getElementById('searchInput'), sortSel: document.getElementById('sortSelect'),
+            bulkBar: document.getElementById('bulkBar'), bulkCnt: document.getElementById('bulkCount'), toastBox: document.getElementById('toastContainer'),
+            btnDark: document.getElementById('btnDarkMode'), btnSync: document.getElementById('btnSync'), btnAppr: document.getElementById('btnApprovals'),
+            btnAllUsers: document.getElementById('btnAllUsers'), btnLogs: document.getElementById('btnLogs'), btnAnalytics: document.getElementById('btnAnalytics'),
+            btnShare: document.getElementById('btnShareManager'), btnUnAuth: document.getElementById('btnAdminLogout'), pnlAppr: document.getElementById('approvalPanel'),
+            listAppr: document.getElementById('approvalList'), pnlUsers: document.getElementById('usersPanel'), listUsers: document.getElementById('usersList'),
+            pnlLogs: document.getElementById('logsPanel'), logsCt: document.getElementById('logsContent'), pnlAnalytics: document.getElementById('analyticsPanel'),
+            analyticsCt: document.getElementById('analyticsContent'), pnlShare: document.getElementById('sharePanel'), shareCt: document.getElementById('shareContent'),
+            pendingBadge: document.getElementById('pendingBadge'), btnClearLogs: document.getElementById('btnClearLogs'),
+            btnBulkDelete: document.getElementById('btnBulkDelete'), btnBulkCancel: document.getElementById('btnBulkCancel'),
         };
 
         // ==================== UTILITIES ====================
@@ -263,7 +262,7 @@
             });
         })();
 
-        // ==================== AUTH ====================
+        // ==================== AUTH & POLLING ====================
         async function fetchUserInfo() {
             if (!ST.token) return false;
             try {
@@ -389,115 +388,81 @@
         function loadAllUsers() {
             if(!D.listUsers) return;
             fetch(`${WORKER_BASE}/admin/users/all`,{headers:getAuthHeaders()}).then(r=>r.json()).then(users => {
-                // Separate active (pending/approved) and revoked
-                const active = users.filter(u => u.status !== 'revoked');
-                const revoked = users.filter(u => u.status === 'revoked');
+                const active = users.filter(u=>u.status!=='revoked');
+                const revoked = users.filter(u=>u.status==='revoked');
                 let html = '';
-                // Active users (pending and approved)
                 html += active.map(u => `<div class="approval-item">
-                    <span><strong>${u.email}</strong> <span class="status-badge status-${u.status}">${u.status}</span> ${u.role ? `(${u.role})` : ''}</span>
+                    <span>${u.email} <span class="status-badge status-${u.status}">${u.status}</span> ${u.role?`(${u.role})` : ''}</span>
                     <div>
-                        ${u.status === 'pending' ? `
-                            <select class="role-sel-${u.email}">
-                                <option value="full">Full</option><option value="delete">Delete</option>
-                                <option value="upload">Upload Only</option><option value="download">Download</option>
-                                <option value="read">Read</option><option value="none">None</option>
-                            </select>
-                            <button class="btn-sm btn-success" data-action="approve" data-email="${u.email}">Approve</button>
-                        ` : ''}
-                        ${u.status === 'approved' ? `
-                            <select class="role-sel-${u.email}">
-                                <option value="full" ${u.role === 'full' ? 'selected' : ''}>Full</option>
-                                <option value="delete" ${u.role === 'delete' ? 'selected' : ''}>Delete</option>
-                                <option value="upload" ${u.role === 'upload' ? 'selected' : ''}>Upload Only</option>
-                                <option value="download" ${u.role === 'download' ? 'selected' : ''}>Download</option>
-                                <option value="read" ${u.role === 'read' ? 'selected' : ''}>Read</option>
-                                <option value="none" ${u.role === 'none' ? 'selected' : ''}>None</option>
-                            </select>
+                        ${u.status==='pending' ? 
+                            `<select class="role-sel-${u.email}"><option value="full">Full</option><option value="delete">Delete</option><option value="upload">Upload Only</option><option value="download">Download</option><option value="read">Read</option><option value="none">None</option></select>
+                            <button class="btn-sm btn-success" data-action="approve" data-email="${u.email}">Approve</button>` : ''}
+                        ${u.status==='approved' ? 
+                            `<select class="role-sel-${u.email}"><option value="full" ${u.role==='full'?'selected':''}>Full</option><option value="delete" ${u.role==='delete'?'selected':''}>Delete</option><option value="upload" ${u.role==='upload'?'selected':''}>Upload Only</option><option value="download" ${u.role==='download'?'selected':''}>Download</option><option value="read" ${u.role==='read'?'selected':''}>Read</option><option value="none" ${u.role==='none'?'selected':''}>None</option></select>
                             <button class="btn-sm btn-primary" data-action="update" data-email="${u.email}">Update</button>
-                            <button class="btn-sm btn-danger" data-action="revoke" data-email="${u.email}">Revoke</button>
-                        ` : ''}
+                            <button class="btn-sm btn-danger" data-action="revoke" data-email="${u.email}">Revoke</button>` : ''}
                     </div>
                 </div>`).join('');
-                // Revoked users section (with Re‑approve)
-                if (revoked.length) {
+                if(revoked.length) {
                     html += '<hr><h4>Revoked Users (can be re‑approved)</h4>';
                     html += revoked.map(u => `<div class="approval-item">
-                        <span><strong>${u.email}</strong> <span class="status-badge status-revoked">revoked</span> ${u.role ? `(${u.role})` : ''}</span>
+                        <span>${u.email} <span class="status-badge status-revoked">revoked</span> ${u.role?`(${u.role})` : ''}</span>
                         <div>
-                            <select class="role-sel-${u.email}">
-                                <option value="full">Full</option><option value="delete">Delete</option>
-                                <option value="upload">Upload Only</option><option value="download">Download</option>
-                                <option value="read">Read</option><option value="none">None</option>
-                            </select>
+                            <select class="role-sel-${u.email}"><option value="full">Full</option><option value="delete">Delete</option><option value="upload">Upload Only</option><option value="download">Download</option><option value="read">Read</option><option value="none">None</option></select>
                             <button class="btn-sm btn-warning" data-action="reapprove" data-email="${u.email}">Re‑approve</button>
                         </div>
                     </div>`).join('');
                 }
-                D.listUsers.innerHTML = html || '<p>No users found.</p>';
-                // Attach event listeners to all dynamic buttons
+                D.listUsers.innerHTML = html || '<p>No users.</p>';
                 D.listUsers.querySelectorAll('button').forEach(btn => {
                     btn.addEventListener('click', async () => {
                         const action = btn.dataset.action;
                         const email = btn.dataset.email;
                         let role = 'full';
                         const sel = btn.parentElement.querySelector(`.role-sel-${email}`);
-                        if (sel) role = sel.value;
+                        if(sel) role = sel.value;
                         let endpoint = '';
                         if (action === 'approve') endpoint = 'approve';
                         else if (action === 'reapprove') endpoint = 'reapprove';
-                        else if (action === 'update') endpoint = 'approve';   // update uses approve endpoint
+                        else if (action === 'update') endpoint = 'approve'; // update uses same as approve
                         else if (action === 'revoke') endpoint = 'revoke';
                         if (endpoint) {
-                            try {
-                                const res = await fetch(`${WORKER_BASE}/admin/${endpoint}`, {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-                                    body: JSON.stringify({ email, role })
-                                });
-                                if (res.ok) {
-                                    toast(`${email} ${action === 'revoke' ? 'revoked' : 'updated'}`, 'success');
-                                    // Refresh all admin panels
-                                    loadPending();
-                                    loadPendingCount();
-                                    loadAllUsers();
-                                    // Also refresh files list for role changes
-                                    fetchFiles();
-                                } else {
-                                    const err = await res.json();
-                                    toast(`Failed: ${err.message || 'Server error'}`, 'error');
-                                }
-                            } catch (err) {
-                                toast(`Error: ${err.message}`, 'error');
-                            }
+                            await fetch(`${WORKER_BASE}/admin/${endpoint}`, {
+                                method:'POST',
+                                headers:{'Content-Type':'application/json', ...getAuthHeaders()},
+                                body:JSON.stringify({email, role})
+                            });
+                            toast(`${email} ${action === 'revoke' ? 'revoked' : 'updated'}`);
+                            // Refresh all admin panels
+                            loadPending(); loadPendingCount(); loadAllUsers();
                         }
                     });
                 });
-            }).catch(err => toast(`Failed to load users: ${err.message}`, 'error'));
+            });
         }
         function loadLogs() {
             if(!D.logsCt) return;
             fetch(`${WORKER_BASE}/admin/logs?limit=200`,{headers:getAuthHeaders()}).then(r=>r.json()).then(d => {
                 const del = d.logs.filter(l=>l.action==='FILE_DELETED');
                 D.logsCt.innerHTML = del.length ? del.map(l=>`<div><strong>${new Date(l.ts).toLocaleString()}</strong> ${l.actor} deleted <strong>${l.meta?.fileName||l.target}</strong></div>`).join('') : '<p>No deletion logs.</p>';
-            }).catch(err => toast('Failed to load logs', 'error'));
+            });
         }
         function loadAnalytics() {
             if(!D.analyticsCt) return;
             fetch(`${WORKER_BASE}/admin/analytics`,{headers:getAuthHeaders()}).then(r=>r.json()).then(d => {
                 D.analyticsCt.innerHTML = `<p>Files: ${d.files.total} (${fmtSz(d.files.totalSize)}) | Users: ${d.users.total}</p>`;
-            }).catch(err => toast('Failed to load analytics', 'error'));
+            });
         }
 
         // ==================== FILE LIST & RENDER ====================
         async function fetchFiles() {
             try {
                 const r = await fetch(`${WORKER_BASE}/list`,{headers:getAuthHeaders()});
-                if(!r.ok) throw new Error(`HTTP ${r.status}`);
+                if(!r.ok) throw new Error();
                 const data = await r.json();
                 ST.files = data.files;
                 renderFiles();
-            } catch(e) { toast('Failed to load files: '+e.message, 'error'); }
+            } catch(e) { toast('Failed to load files','error'); }
         }
         function renderFiles() {
             if(!D.grid) return;
@@ -755,10 +720,10 @@
                     if (data.changed) {
                         lastTs = data.ts;
                         await loadPendingCount();
-                        if (D.pnlAppr && !D.pnlAppr.classList.contains('hidden')) loadPending();
-                        if (D.pnlUsers && !D.pnlUsers.classList.contains('hidden')) loadAllUsers();
-                        if (D.pnlLogs && !D.pnlLogs.classList.contains('hidden')) loadLogs();
-                        if (D.pnlAnalytics && !D.pnlAnalytics.classList.contains('hidden')) loadAnalytics();
+                        if (!D.pnlAppr?.classList.contains('hidden')) loadPending();
+                        if (!D.pnlUsers?.classList.contains('hidden')) loadAllUsers();
+                        if (!D.pnlLogs?.classList.contains('hidden')) loadLogs();
+                        if (!D.pnlAnalytics?.classList.contains('hidden')) loadAnalytics();
                         await fetchFiles();
                     }
                 } catch(e) {}
