@@ -1,7 +1,6 @@
 // ==================== CONFIG ====================
 const WORKER_BASE = 'https://gdrive-files-api.donthulanithish53.workers.dev';
 
-// ==================== STATE ====================
 let ST = {
     token: localStorage.getItem('vtoken'),
     email: null,
@@ -18,7 +17,6 @@ let ST = {
     shareToken: null,
 };
 
-// ==================== DOM ELEMENTS ====================
 const D = {
     stats: document.getElementById('storageStats'), userUI: document.getElementById('userUI'), adminBar: document.getElementById('adminBar'),
     dropzone: document.getElementById('dropzone'), fileInp: document.getElementById('fileInput'), progBox: document.getElementById('progressBox'),
@@ -37,7 +35,6 @@ const D = {
     btnBulkDelete: document.getElementById('btnBulkDelete'), btnBulkCancel: document.getElementById('btnBulkCancel'),
 };
 
-// ==================== UTILITIES ====================
 function getAuthHeaders() {
     const h = {};
     if (ST.token) {
@@ -60,7 +57,7 @@ const fmtSpeed = bytesPerSec => { if(bytesPerSec<1024) return bytesPerSec.toFixe
 const icn = m => { if(!m) return '📄'; if(m.startsWith('video')) return '🎬'; if(m.startsWith('audio')) return '🎵'; if(m.startsWith('image')) return '🖼️'; if(m==='application/pdf') return '📕'; if(m.startsWith('text')) return '📝'; return '📄'; };
 const prevType = m => { if(!m) return ''; if(m.startsWith('video')) return 'video'; if(m.startsWith('audio')) return 'audio'; if(m.startsWith('image')) return 'image'; if(m==='application/pdf') return 'pdf'; if(m.startsWith('text')) return 'text'; return ''; };
 
-// ==================== DARK MODE ====================
+// Dark mode
 (function(){
     if(!D.btnDark) return;
     if(ST.dark) document.documentElement.setAttribute('data-theme','dark');
@@ -77,25 +74,26 @@ const prevType = m => { if(!m) return ''; if(m.startsWith('video')) return 'vide
     });
 })();
 
-// ==================== AUTH & POLLING ====================
 async function fetchUserInfo() {
     if (!ST.token) return false;
     try {
         const r = await fetch(`${WORKER_BASE}/user-info?utoken=${ST.token}`);
         if (!r.ok) throw new Error();
         const i = await r.json();
-        console.log('User info fetched:', i); // DEBUG
+        console.log('User info:', i); // This will appear in browser console
         const wasApproved = ST.approved;
-        ST.email = i.email; ST.isAdmin = i.isAdmin === true; ST.approved = i.approved; ST.role = i.role;
-        // If approval status changed to true, reload the page to ensure clean state
+        ST.email = i.email;
+        ST.isAdmin = i.isAdmin === true;
+        ST.approved = i.approved;
+        ST.role = i.role;
         if (!wasApproved && ST.approved) {
             toast('You have been approved! Reloading...', 'success');
-            setTimeout(() => { window.location.reload(); }, 1000);
+            setTimeout(() => { window.location.reload(); }, 500);
             return true;
         }
         return true;
     } catch(e) {
-        console.error('fetchUserInfo error', e);
+        console.error(e);
         ST.token = null;
         localStorage.removeItem('vtoken');
         return false;
@@ -104,7 +102,7 @@ async function fetchUserInfo() {
 function showLogin() {
     if(D.adminBar) D.adminBar.classList.add('hidden');
     if(D.userUI) D.userUI.innerHTML = '';
-    if(D.grid) D.grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;"><h2>Welcome to File Vault</h2><p style="margin:16px 0;">Sign in to access your files.</p><button class="btn btn-primary" id="btnLogin">🔑 Login with Google</button></div>`;
+    if(D.grid) D.grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;"><h2>Welcome to File Vault</h2><p>Sign in to access your files.</p><button class="btn btn-primary" id="btnLogin">🔑 Login with Google</button></div>`;
     const loginBtn = document.getElementById('btnLogin');
     if(loginBtn) {
         loginBtn.onclick = async () => {
@@ -123,18 +121,19 @@ function showPending() {
     if(D.grid) D.grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;"><h2>🔐 Waiting for Approval</h2><p>Your email: <strong>${ST.email}</strong></p><p>You will be notified automatically.</p><div style="margin-top:16px;"><button class="btn btn-outline btn-sm" id="manualRefreshBtn">🔄 Refresh Status</button> <button class="btn btn-danger btn-sm" id="btnSelfRevoke">❌ Cancel Request</button></div></div>`;
     const refreshBtn = document.getElementById('manualRefreshBtn');
     if(refreshBtn) refreshBtn.onclick = async () => {
-        toast('Checking approval status...', 'info');
+        toast('Checking...', 'info');
         const r = await fetch(`${WORKER_BASE}/user-info?utoken=${ST.token}`);
         if (r.ok) {
             const data = await r.json();
+            console.log('Manual refresh:', data);
             if (data.approved) {
                 toast('Approved! Reloading...', 'success');
                 window.location.reload();
             } else {
-                toast('Still pending approval.', 'info');
+                toast('Still pending.', 'info');
             }
         } else {
-            toast('Failed to check status.', 'error');
+            toast('Failed to check.', 'error');
         }
     };
     const selfRevokeBtn = document.getElementById('btnSelfRevoke');
@@ -154,7 +153,7 @@ function showMain() {
         loadPendingCount();
     } else {
         if(D.adminBar) D.adminBar.classList.add('hidden');
-        if(D.userUI) D.userUI.innerHTML = `<span style="font-size:0.85rem;">👤 ${ST.email} (${ST.role}) <button class="btn btn-sm btn-outline" id="btnUserLogout">🔒 Logout</button></span>`;
+        if(D.userUI) D.userUI.innerHTML = `<span>👤 ${ST.email} (${ST.role}) <button class="btn btn-sm btn-outline" id="btnUserLogout">🔒 Logout</button></span>`;
         const logoutBtn = document.getElementById('btnUserLogout');
         if(logoutBtn) logoutBtn.onclick = () => { ST.token = null; localStorage.removeItem('vtoken'); clearTimers(); showLogin(); toast('Logged out.'); };
     }
@@ -168,10 +167,7 @@ function render() {
 }
 function clearTimers() { ['files','admin','role'].forEach(k => { if(ST.timers[k]) clearTimeout(ST.timers[k]); }); }
 
-// ==================== ADMIN PANEL ====================
-function safeAddEvent(element, event, handler) {
-    if(element) element.addEventListener(event, handler);
-}
+function safeAddEvent(element, event, handler) { if(element) element.addEventListener(event, handler); }
 safeAddEvent(D.btnSync, 'click', async () => { toast('Syncing...','info'); const r = await fetch(`${WORKER_BASE}/sync`,{method:'POST',headers:getAuthHeaders()}); if(r.ok) { await fetchFiles(); toast('Sync done','success'); } else toast('Sync failed','error'); });
 safeAddEvent(D.btnAppr, 'click', () => togglePanel(D.pnlAppr, loadPending));
 safeAddEvent(D.btnAllUsers, 'click', () => togglePanel(D.pnlUsers, loadAllUsers));
@@ -190,11 +186,7 @@ safeAddEvent(D.btnBulkDelete, 'click', async () => {
     toast(`${d.deleted} deleted, ${d.failed} failed`);
 });
 
-function togglePanel(panel, loadFn) {
-    if(!panel) return;
-    panel.classList.toggle('hidden');
-    if(!panel.classList.contains('hidden')) loadFn();
-}
+function togglePanel(panel, loadFn) { if(panel) { panel.classList.toggle('hidden'); if(!panel.classList.contains('hidden')) loadFn(); } }
 async function adminLogout() { if(confirm('Logout as admin?')) { localStorage.removeItem('vtoken'); ST.token=null; clearTimers(); showLogin(); toast('Admin logged out'); } }
 async function loadPendingCount() {
     if(!ST.isAdmin || !D.pendingBadge) return;
@@ -274,8 +266,6 @@ function loadAnalytics() {
         D.analyticsCt.innerHTML = `<p>Files: ${d.files.total} (${fmtSz(d.files.totalSize)}) | Users: ${d.users.total}</p>`;
     });
 }
-
-// ==================== FILE LIST & RENDER ====================
 async function fetchFiles() {
     try {
         const r = await fetch(`${WORKER_BASE}/list`,{headers:getAuthHeaders()});
@@ -415,7 +405,6 @@ async function shareFile(pid) {
     else toast('Share failed','error');
 }
 
-// ==================== UPLOAD ====================
 async function uploadFile(file, existingPid = null) {
     if (ST.uploadCtrl) ST.uploadCtrl.abort();
     ST.uploadCtrl = new AbortController();
@@ -492,7 +481,6 @@ function updateProgress(uploaded, total, speedBps) {
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 safeAddEvent(D.cancelBtn, 'click', () => { if (ST.uploadCtrl) { ST.uploadCtrl.abort(); ST.uploadCtrl = null; if(D.progBox) D.progBox.classList.add('hidden'); } });
 
-// ==================== PREVIEW ====================
 function openPreview(pid, type) {
     if(!D.prevCont) return;
     D.prevCont.innerHTML = '';
@@ -517,7 +505,6 @@ function closePreview() { if(D.prevCont) D.prevCont.innerHTML = ''; if(D.prevOv)
 safeAddEvent(D.btnCloseP, 'click', closePreview);
 safeAddEvent(D.btnFull, 'click', () => { if (document.fullscreenElement) document.exitFullscreen(); else if(D.prevOv) D.prevOv.requestFullscreen(); });
 
-// ==================== POLLING ====================
 function startUserPoll() {
     let lastTs = 0;
     const poll = async () => {
@@ -555,7 +542,7 @@ function startAdminPoll() {
 function startRolePoll() {
     const poll = async () => {
         if (!ST.token) return;
-        await fetchUserInfo(); // updates ST.approved and will reload page if approved
+        await fetchUserInfo(); // this will reload page if approved
         ST.timers.role = setTimeout(poll, 2000);
     };
     poll();
@@ -567,7 +554,6 @@ function applyRoleUI() {
     if(hint) hint.style.display = canUpload ? '' : 'none';
 }
 
-// ==================== SHARE PREVIEW ====================
 async function showSharePreview() {
     const res = await fetch(`${WORKER_BASE}/share/verify?token=${ST.shareToken}`);
     if (!res.ok) { toast('Invalid or expired share link', 'error'); showLogin(); return; }
@@ -577,8 +563,8 @@ async function showSharePreview() {
             <div class="file-icon" style="font-size:4rem">${icn(data.mimeType)}</div>
             <h2>${esc(data.fileName)}</h2>
             <p>${fmtSz(data.fileSize)}</p>
-            <button class="btn btn-primary" id="shareDownloadBtn">⬇ Download</button>
-            <button class="btn btn-outline" onclick="location.href='/'">🔐 Login to Vault</button>
+            <button id="shareDownloadBtn">⬇ Download</button>
+            <button onclick="location.href='/'">🔐 Login to Vault</button>
         </div>`;
     const shareBtn = document.getElementById('shareDownloadBtn');
     if(shareBtn) shareBtn.addEventListener('click', () => {
@@ -591,7 +577,6 @@ async function showSharePreview() {
     if(D.userUI) D.userUI.innerHTML = '';
 }
 
-// ==================== DRAG & DROP, PASTE, KEYBOARD ====================
 if(D.dropzone) {
     ['dragenter','dragover','dragleave','drop'].forEach(ev => D.dropzone.addEventListener(ev, e => e.preventDefault()));
     ['dragenter','dragover'].forEach(ev => D.dropzone.addEventListener(ev, () => D.dropzone.classList.add('dragover')));
@@ -615,7 +600,6 @@ document.addEventListener('keydown', e => {
 if(D.search) D.search.addEventListener('input', () => { ST.query = D.search.value.toLowerCase(); renderFiles(); });
 if(D.sortSel) D.sortSel.addEventListener('change', () => { ST.sort = D.sortSel.value; localStorage.setItem('sort', ST.sort); renderFiles(); D.sortSel.value = ST.sort; });
 
-// ==================== INIT ====================
 async function init() {
     const p = new URLSearchParams(location.search);
     const utoken = p.get('utoken');
