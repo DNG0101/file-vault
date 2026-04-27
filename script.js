@@ -349,8 +349,9 @@ function replaceFile(pid) {
         if(!file) return;
         const init = await fetch(`${WORKER_BASE}/update`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({publicId:pid,fileName:file.name,fileSize:file.size,fileType:file.type||'application/octet-stream'})});
         if(!init.ok) { toast('Replace init failed','error'); return; }
-        const {publicId} = await init.json();
-        await uploadFile(file, publicId);
+        const data = await init.json();
+        const replacePublicId = data.publicId;
+        await uploadFile(file, replacePublicId);
         await fetchFiles();
     };
     inp.click();
@@ -388,7 +389,8 @@ async function uploadFile(file, existingPid = null) {
                 signal: ST.uploadCtrl.signal
             });
             if (!initRes.ok) throw new Error('Init failed');
-            pid = (await initRes.json()).publicId;
+            const initData = await initRes.json();
+            pid = initData.publicId;
         }
         const CHUNK = 10 * 1024 * 1024;
         let uploaded = 0;
@@ -415,7 +417,7 @@ async function uploadFile(file, existingPid = null) {
                         const now = Date.now();
                         const timeDiff = Math.max(1, now - lastTime);
                         const bytesDiff = uploaded - lastBytes;
-                        const speed = (bytesDiff / timeDiff) * 1000; // bytes per second
+                        const speed = (bytesDiff / timeDiff) * 1000;
                         updateProgress(uploaded, file.size, speed);
                         lastBytes = uploaded;
                         lastTime = now;
