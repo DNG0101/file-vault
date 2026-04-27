@@ -80,12 +80,9 @@ async function fetchUserInfo() {
         const r = await fetch(`${WORKER_BASE}/user-info?utoken=${ST.token}`);
         if (!r.ok) throw new Error();
         const i = await r.json();
-        console.log('User info:', i); // This will appear in browser console
+        console.log('User info:', i);
         const wasApproved = ST.approved;
-        ST.email = i.email;
-        ST.isAdmin = i.isAdmin === true;
-        ST.approved = i.approved;
-        ST.role = i.role;
+        ST.email = i.email; ST.isAdmin = i.isAdmin === true; ST.approved = i.approved; ST.role = i.role;
         if (!wasApproved && ST.approved) {
             toast('You have been approved! Reloading...', 'success');
             setTimeout(() => { window.location.reload(); }, 500);
