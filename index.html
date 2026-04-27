@@ -1,99 +1,178 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Public File Vault</title>
-  <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Public File Vault</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; }
+        button { cursor: pointer; padding: 8px 16px; margin: 5px; }
+        .hidden { display: none; }
+        .file-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px; margin-top: 20px; }
+        .card { border: 1px solid #ccc; padding: 12px; border-radius: 8px; }
+        .admin-bar { background: #f0f0f0; padding: 10px; margin-bottom: 20px; }
+        #userUI { margin-left: 20px; }
+        .toast { position: fixed; bottom: 20px; right: 20px; background: #333; color: white; padding: 10px 20px; border-radius: 8px; z-index: 1000; }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <!-- Header -->
-    <div class="header">
-      <h1>📁 File Vault</h1>
-      <div class="header-right">
-        <span class="stats" id="storageStats"></span>
-        <button class="btn-icon" id="btnDarkMode" title="Dark mode">🌓</button>
-        <span id="userUI"></span>
-      </div>
+    <h1>📁 Public File Vault</h1>
+    <div id="userUI"></div>
+    <div id="adminBar" class="admin-bar hidden">
+        <button id="btnSync">Sync</button>
+        <button id="btnApprovals">Pending Approvals</button>
+        <button id="btnAllUsers">All Users</button>
+        <button id="btnLogs">Logs</button>
+        <button id="btnAdminLogout">Logout</button>
     </div>
-
-    <!-- Admin bar -->
-    <div class="admin-bar hidden" id="adminBar">
-      <strong>🛡️ Admin</strong>
-      <button class="btn btn-outline btn-sm" id="btnSync">🔄 Sync</button>
-      <button class="btn btn-outline btn-sm" id="btnApprovals">👥 Pending <span id="pendingBadge" class="badge-count hidden">0</span></button>
-      <button class="btn btn-outline btn-sm" id="btnAllUsers">👤 Users</button>
-      <button class="btn btn-outline btn-sm" id="btnLogs">📋 Logs</button>
-      <button class="btn btn-outline btn-sm" id="btnAnalytics">📊 Analytics</button>
-      <button class="btn btn-outline btn-sm" id="btnShareManager">🔗 Shares</button>
-      <button class="btn btn-danger btn-sm" id="btnAdminLogout">🔒 Logout</button>
+    <div id="content">
+        <div id="loginArea"></div>
+        <div id="fileList"></div>
     </div>
+    <div id="toastContainer"></div>
 
-    <!-- Panels -->
-    <div class="panel hidden" id="approvalPanel"><h3>Pending Approvals</h3><div id="approvalList"></div></div>
-    <div class="panel hidden" id="usersPanel"><h3>All Users</h3><div id="usersList"></div></div>
-    <div class="panel hidden" id="logsPanel"><h3>Audit Logs (Delete Only)</h3><div id="logsContent"></div><button class="btn btn-danger btn-sm" id="btnClearLogs" style="margin-top:8px;">🗑 Clear All Logs</button></div>
-    <div class="panel hidden" id="analyticsPanel"><h3>Analytics</h3><div id="analyticsContent"></div></div>
-    <div class="panel hidden" id="sharePanel"><h3>Share Manager</h3><div id="shareContent"></div></div>
+    <script>
+        const WORKER = 'https://gdrive-files-api.donthulanithish53.workers.dev';
+        let state = {
+            token: localStorage.getItem('vtoken'),
+            email: null,
+            isAdmin: false,
+            approved: false,
+            role: null,
+            files: []
+        };
 
-    <!-- Toolbar -->
-    <div class="toolbar">
-      <input type="text" class="search-box" id="searchInput" placeholder="Search files... (Ctrl+F)">
-      <select class="sort-select" id="sortSelect">
-        <option value="newest">Newest</option><option value="oldest">Oldest</option>
-        <option value="name-asc">Name A‑Z</option><option value="name-desc">Name Z‑A</option>
-        <option value="size-desc">Largest</option><option value="size-asc">Smallest</option>
-      </select>
-    </div>
+        function toast(msg, type='info') {
+            const el = document.createElement('div');
+            el.className = 'toast';
+            el.textContent = msg;
+            document.getElementById('toastContainer').appendChild(el);
+            setTimeout(() => el.remove(), 3000);
+        }
 
-    <!-- Bulk bar -->
-    <div class="bulk-bar hidden" id="bulkBar">
-      <span id="bulkCount">0 selected</span>
-      <button id="btnBulkDelete">🗑 Delete Selected</button>
-      <button id="btnBulkCancel">✕</button>
-    </div>
+        async function fetchUserInfo() {
+            if (!state.token) return false;
+            const res = await fetch(`${WORKER}/user-info?utoken=${state.token}`);
+            if (!res.ok) {
+                localStorage.removeItem('vtoken');
+                state.token = null;
+                return false;
+            }
+            const data = await res.json();
+            state.email = data.email;
+            state.isAdmin = data.isAdmin === true;
+            state.approved = data.approved;
+            state.role = data.role;
+            return true;
+        }
 
-    <!-- Hint -->
-    <div class="hint-text">
-      <kbd>Ctrl</kbd>+<kbd>V</kbd> paste &nbsp;|&nbsp;
-      <kbd>Ctrl</kbd>+<kbd>U</kbd> upload &nbsp;|&nbsp;
-      <kbd>Ctrl</kbd>+<kbd>F</kbd> search &nbsp;|&nbsp;
-      <kbd>Esc</kbd> close
-    </div>
+        async function fetchFiles() {
+            if (!state.token) return;
+            const res = await fetch(`${WORKER}/list`, {
+                headers: state.isAdmin ? { 'X-Admin-Token': state.token } : { 'X-User-Token': state.token }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                state.files = data.files;
+                renderFiles();
+            }
+        }
 
-    <!-- Dropzone -->
-    <div class="dropzone" id="dropzone">
-      <p>📂 <strong>Drop files here</strong> or click to browse</p>
-      <input type="file" id="fileInput" multiple>
-    </div>
+        function renderFiles() {
+            const container = document.getElementById('fileList');
+            if (!state.files.length) {
+                container.innerHTML = '<p>No files yet.</p>';
+                return;
+            }
+            container.innerHTML = '<div class="file-grid">' + state.files.map(f => `
+                <div class="card">
+                    <strong>${escapeHtml(f.name)}</strong><br>
+                    Size: ${formatBytes(f.size)}<br>
+                    Uploaded by: ${escapeHtml(f.uploadedBy || 'unknown')}<br>
+                    <button onclick="downloadFile('${f.publicId}')">⬇ Download</button>
+                    ${state.isAdmin ? `<button onclick="deleteFile('${f.publicId}')">🗑 Delete</button>` : ''}
+                </div>
+            `).join('') + '</div>';
+        }
 
-    <!-- Progress -->
-    <div class="progress-box hidden" id="progressBox">
-      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-      <div class="progress-text">
-        <span id="percentDisplay">0%</span>
-        <span id="sizeDisplay">0 / 0 B</span>
-        <button class="cancel-btn" id="cancelUpload">Cancel</button>
-      </div>
-    </div>
+        function escapeHtml(str) { return str.replace(/[&<>]/g, function(m) { if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m; }); }
+        function formatBytes(b) { if(!b) return '0 B'; const u=['B','KB','MB','GB']; let i=0; while(b>=1024 && i<3) { b/=1024; i++; } return b.toFixed(1)+' '+u[i]; }
+        async function downloadFile(pid) { window.open(`${WORKER}/download/${pid}`, '_blank'); }
+        async function deleteFile(pid) { if(!confirm('Delete?')) return; await fetch(`${WORKER}/delete`, { method:'POST', headers:{'Content-Type':'application/json', 'X-Admin-Token':state.token}, body:JSON.stringify({publicId:pid}) }); await fetchFiles(); toast('Deleted'); }
 
-    <!-- File grid (sectioned by uploader) -->
-    <div id="fileGrid"></div>
-  </div>
+        function showLogin() {
+            document.getElementById('loginArea').innerHTML = '<button id="loginBtn">🔑 Login with Google</button>';
+            document.getElementById('loginBtn').onclick = async () => {
+                const res = await fetch(`${WORKER}/auth-url`);
+                const { authUrl } = await res.json();
+                window.location.href = authUrl;
+            };
+            document.getElementById('adminBar').classList.add('hidden');
+            document.getElementById('userUI').innerHTML = '';
+            document.getElementById('fileList').innerHTML = '';
+        }
 
-  <!-- Preview overlay -->
-  <div class="preview-overlay hidden" id="previewOverlay">
-    <div class="preview-container" id="previewContainer"></div>
-    <div class="preview-toolbar">
-      <button id="btnFullscreen">⛶ Fullscreen</button>
-      <button id="btnClosePreview">✕ Close</button>
-    </div>
-  </div>
+        function showPending() {
+            document.getElementById('loginArea').innerHTML = `<p>Waiting for approval... (${state.email})</p><button id="cancelReq">Cancel Request</button>`;
+            document.getElementById('cancelReq').onclick = async () => {
+                await fetch(`${WORKER}/user-revoke-self`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({utoken: state.token}) });
+                localStorage.removeItem('vtoken'); state.token = null; showLogin();
+            };
+            document.getElementById('adminBar').classList.add('hidden');
+            document.getElementById('userUI').innerHTML = '';
+            document.getElementById('fileList').innerHTML = '';
+        }
 
-  <!-- Toast container -->
-  <div class="toast-container" id="toastContainer"></div>
+        function showMain() {
+            document.getElementById('loginArea').innerHTML = '';
+            document.getElementById('userUI').innerHTML = `👤 ${state.email} (${state.role}) <button id="logoutBtn">Logout</button>`;
+            document.getElementById('logoutBtn').onclick = () => { localStorage.removeItem('vtoken'); state.token = null; showLogin(); };
+            if (state.isAdmin) document.getElementById('adminBar').classList.remove('hidden');
+            else document.getElementById('adminBar').classList.add('hidden');
+            fetchFiles();
+        }
 
-  <script src="script.js"></script>
+        async function init() {
+            const params = new URLSearchParams(location.search);
+            const token = params.get('utoken');
+            if (token) {
+                state.token = token;
+                localStorage.setItem('vtoken', token);
+                history.replaceState({}, '', location.pathname);
+            }
+            const ok = await fetchUserInfo();
+            if (!ok) { showLogin(); return; }
+            if (state.isAdmin) { showMain(); return; }
+            if (!state.approved) { showPending(); return; }
+            showMain();
+        }
+
+        // Admin buttons basic (simplified)
+        document.getElementById('btnSync')?.addEventListener('click', async () => {
+            await fetch(`${WORKER}/sync`, { method:'POST', headers:{'X-Admin-Token':state.token} });
+            toast('Synced');
+        });
+        document.getElementById('btnAdminLogout')?.addEventListener('click', () => {
+            localStorage.removeItem('vtoken'); state.token = null; showLogin();
+        });
+        document.getElementById('btnApprovals')?.addEventListener('click', async () => {
+            const res = await fetch(`${WORKER}/admin/pending`, { headers:{'X-Admin-Token':state.token} });
+            const pending = await res.json();
+            alert('Pending: ' + pending.map(u=>u.email).join(', '));
+        });
+        document.getElementById('btnAllUsers')?.addEventListener('click', async () => {
+            const res = await fetch(`${WORKER}/admin/users/all`, { headers:{'X-Admin-Token':state.token} });
+            const users = await res.json();
+            alert('Users: ' + users.map(u=>u.email+'('+u.status+')').join(', '));
+        });
+        document.getElementById('btnLogs')?.addEventListener('click', async () => {
+            const res = await fetch(`${WORKER}/admin/logs`, { headers:{'X-Admin-Token':state.token} });
+            const logs = await res.json();
+            alert('Logs: ' + logs.logs.map(l=>l.action+' by '+l.actor).join('\n'));
+        });
+
+        // Start
+        init();
+    </script>
 </body>
 </html>
