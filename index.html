@@ -87,7 +87,6 @@
         .approval-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); gap: 10px; flex-wrap: wrap; }
         .status-badge { padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; }
         .status-approved { background: #d1fae5; color: #065f46; }
-        .status-revoked { background: #fee2e2; color: #991b1b; }
         .status-pending { background: #fef3c7; color: #92400e; }
         .bulk-bar { background: var(--accent); color: white; padding: 8px 16px; border-radius: 8px; margin-bottom: 12px; display: flex; align-items: center; gap: 12px; }
         .preview-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 1000; display: flex; justify-content: center; align-items: center; flex-direction: column; }
@@ -127,7 +126,7 @@
         </div>
 
         <div class="panel hidden" id="approvalPanel"><h3>Pending Approvals</h3><div id="approvalList"></div></div>
-        <div class="panel hidden" id="usersPanel"><h3>All Users</h3><div id="usersList"></div></div>
+        <div class="panel hidden" id="usersPanel"><h3>Active Users</h3><div id="usersList"></div></div>
         <div class="panel hidden" id="logsPanel"><h3>Audit Logs (Delete Only)</h3><div id="logsContent"></div><button class="btn btn-danger btn-sm" id="btnClearLogs">🗑 Clear All Logs</button></div>
         <div class="panel hidden" id="analyticsPanel"><h3>Analytics</h3><div id="analyticsContent"></div></div>
         <div class="panel hidden" id="sharePanel"><h3>Share Manager</h3><div id="shareContent"></div></div>
@@ -388,10 +387,9 @@
         function loadAllUsers() {
             if(!D.listUsers) return;
             fetch(`${WORKER_BASE}/admin/users/all`,{headers:getAuthHeaders()}).then(r=>r.json()).then(users => {
-                const active = users.filter(u=>u.status!=='revoked');
-                const revoked = users.filter(u=>u.status==='revoked');
-                let html = '';
-                html += active.map(u => `<div class="approval-item">
+                // Show only non-revoked users
+                const active = users.filter(u => u.status !== 'revoked');
+                let html = active.map(u => `<div class="approval-item">
                     <span>${u.email} <span class="status-badge status-${u.status}">${u.status}</span> ${u.role?`(${u.role})` : ''}</span>
                     <div>
                         ${u.status==='pending' ? 
@@ -403,17 +401,7 @@
                             <button class="btn-sm btn-danger" data-action="revoke" data-email="${u.email}">Revoke</button>` : ''}
                     </div>
                 </div>`).join('');
-                if(revoked.length) {
-                    html += '<hr><h4>Revoked Users (can be re‑approved)</h4>';
-                    html += revoked.map(u => `<div class="approval-item">
-                        <span>${u.email} <span class="status-badge status-revoked">revoked</span> ${u.role?`(${u.role})` : ''}</span>
-                        <div>
-                            <select class="role-sel-${u.email}"><option value="full">Full</option><option value="delete">Delete</option><option value="upload">Upload Only</option><option value="download">Download</option><option value="read">Read</option><option value="none">None</option></select>
-                            <button class="btn-sm btn-warning" data-action="reapprove" data-email="${u.email}">Re‑approve</button>
-                        </div>
-                    </div>`).join('');
-                }
-                D.listUsers.innerHTML = html || '<p>No users.</p>';
+                D.listUsers.innerHTML = html || '<p>No active users.</p>';
                 D.listUsers.querySelectorAll('button').forEach(btn => {
                     btn.addEventListener('click', async () => {
                         const action = btn.dataset.action;
@@ -423,8 +411,7 @@
                         if(sel) role = sel.value;
                         let endpoint = '';
                         if (action === 'approve') endpoint = 'approve';
-                        else if (action === 'reapprove') endpoint = 'reapprove';
-                        else if (action === 'update') endpoint = 'approve'; // update uses same as approve
+                        else if (action === 'update') endpoint = 'approve';
                         else if (action === 'revoke') endpoint = 'revoke';
                         if (endpoint) {
                             await fetch(`${WORKER_BASE}/admin/${endpoint}`, {
@@ -433,7 +420,6 @@
                                 body:JSON.stringify({email, role})
                             });
                             toast(`${email} ${action === 'revoke' ? 'revoked' : 'updated'}`);
-                            // Refresh all admin panels
                             loadPending(); loadPendingCount(); loadAllUsers();
                         }
                     });
