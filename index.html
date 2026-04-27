@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Public File Vault – Ultimate</title>
+    <title>Public File Vault – Final</title>
     <style>
-        /* ========== COMPLETE CSS (dark mode, sections, responsive) ========== */
+        /* same CSS as before – ensure it's included */
         :root {
             --bg: #f8fafc;
             --card-bg: #ffffff;
@@ -182,10 +182,8 @@
     <div id="toastContainer"></div>
 
     <script>
-        // ==================== CONFIG ====================
         const WORKER_BASE = 'https://gdrive-files-api.donthulanithish53.workers.dev';
 
-        // ==================== STATE ====================
         let ST = {
             token: localStorage.getItem('vtoken'),
             email: null,
@@ -202,7 +200,6 @@
             shareToken: null,
         };
 
-        // ==================== DOM ELEMENTS ====================
         const D = {
             stats: document.getElementById('storageStats'), userUI: document.getElementById('userUI'), adminBar: document.getElementById('adminBar'),
             dropzone: document.getElementById('dropzone'), fileInp: document.getElementById('fileInput'), progBox: document.getElementById('progressBox'),
@@ -221,7 +218,6 @@
             btnBulkDelete: document.getElementById('btnBulkDelete'), btnBulkCancel: document.getElementById('btnBulkCancel'),
         };
 
-        // ==================== UTILITIES ====================
         function getAuthHeaders() {
             const h = {};
             if (ST.token) {
@@ -244,7 +240,6 @@
         const icn = m => { if(!m) return '📄'; if(m.startsWith('video')) return '🎬'; if(m.startsWith('audio')) return '🎵'; if(m.startsWith('image')) return '🖼️'; if(m==='application/pdf') return '📕'; if(m.startsWith('text')) return '📝'; return '📄'; };
         const prevType = m => { if(!m) return ''; if(m.startsWith('video')) return 'video'; if(m.startsWith('audio')) return 'audio'; if(m.startsWith('image')) return 'image'; if(m==='application/pdf') return 'pdf'; if(m.startsWith('text')) return 'text'; return ''; };
 
-        // ==================== DARK MODE ====================
         (function(){
             if(!D.btnDark) return;
             if(ST.dark) document.documentElement.setAttribute('data-theme','dark');
@@ -261,7 +256,6 @@
             });
         })();
 
-        // ==================== AUTH & POLLING ====================
         async function fetchUserInfo() {
             if (!ST.token) return false;
             try {
@@ -270,9 +264,10 @@
                 const i = await r.json();
                 const wasApproved = ST.approved;
                 ST.email = i.email; ST.isAdmin = i.isAdmin === true; ST.approved = i.approved; ST.role = i.role;
+                console.log('fetchUserInfo:', { approved: ST.approved, role: ST.role });
                 if (!wasApproved && ST.approved) {
                     toast('You have been approved! Refreshing...', 'success');
-                    render();
+                    render(); // force re-render
                 }
                 return true;
             } catch(e) {
@@ -332,7 +327,6 @@
         }
         function clearTimers() { ['files','admin','role'].forEach(k => { if(ST.timers[k]) clearTimeout(ST.timers[k]); }); }
 
-        // ==================== ADMIN PANEL ====================
         function safeAddEvent(element, event, handler) {
             if(element) element.addEventListener(event, handler);
         }
@@ -387,7 +381,6 @@
         function loadAllUsers() {
             if(!D.listUsers) return;
             fetch(`${WORKER_BASE}/admin/users/all`,{headers:getAuthHeaders()}).then(r=>r.json()).then(users => {
-                // Show only non-revoked users
                 const active = users.filter(u => u.status !== 'revoked');
                 let html = active.map(u => `<div class="approval-item">
                     <span>${u.email} <span class="status-badge status-${u.status}">${u.status}</span> ${u.role?`(${u.role})` : ''}</span>
@@ -440,7 +433,6 @@
             });
         }
 
-        // ==================== FILE LIST & RENDER ====================
         async function fetchFiles() {
             try {
                 const r = await fetch(`${WORKER_BASE}/list`,{headers:getAuthHeaders()});
@@ -580,7 +572,6 @@
             else toast('Share failed','error');
         }
 
-        // ==================== UPLOAD ====================
         async function uploadFile(file, existingPid = null) {
             if (ST.uploadCtrl) ST.uploadCtrl.abort();
             ST.uploadCtrl = new AbortController();
@@ -657,7 +648,6 @@
         const sleep = ms => new Promise(r => setTimeout(r, ms));
         safeAddEvent(D.cancelBtn, 'click', () => { if (ST.uploadCtrl) { ST.uploadCtrl.abort(); ST.uploadCtrl = null; if(D.progBox) D.progBox.classList.add('hidden'); } });
 
-        // ==================== PREVIEW ====================
         function openPreview(pid, type) {
             if(!D.prevCont) return;
             D.prevCont.innerHTML = '';
@@ -682,7 +672,6 @@
         safeAddEvent(D.btnCloseP, 'click', closePreview);
         safeAddEvent(D.btnFull, 'click', () => { if (document.fullscreenElement) document.exitFullscreen(); else if(D.prevOv) D.prevOv.requestFullscreen(); });
 
-        // ==================== POLLING ====================
         function startUserPoll() {
             let lastTs = 0;
             const poll = async () => {
@@ -720,7 +709,7 @@
         function startRolePoll() {
             const poll = async () => {
                 if (!ST.token) return;
-                await fetchUserInfo(); // updates approval/role and re-renders if needed
+                await fetchUserInfo();
                 ST.timers.role = setTimeout(poll, 2000);
             };
             poll();
@@ -732,7 +721,6 @@
             if(hint) hint.style.display = canUpload ? '' : 'none';
         }
 
-        // ==================== SHARE PREVIEW ====================
         async function showSharePreview() {
             const res = await fetch(`${WORKER_BASE}/share/verify?token=${ST.shareToken}`);
             if (!res.ok) { toast('Invalid or expired share link', 'error'); showLogin(); return; }
@@ -756,7 +744,6 @@
             if(D.userUI) D.userUI.innerHTML = '';
         }
 
-        // ==================== DRAG & DROP, PASTE, KEYBOARD ====================
         if(D.dropzone) {
             ['dragenter','dragover','dragleave','drop'].forEach(ev => D.dropzone.addEventListener(ev, e => e.preventDefault()));
             ['dragenter','dragover'].forEach(ev => D.dropzone.addEventListener(ev, () => D.dropzone.classList.add('dragover')));
@@ -780,7 +767,6 @@
         if(D.search) D.search.addEventListener('input', () => { ST.query = D.search.value.toLowerCase(); renderFiles(); });
         if(D.sortSel) D.sortSel.addEventListener('change', () => { ST.sort = D.sortSel.value; localStorage.setItem('sort', ST.sort); renderFiles(); D.sortSel.value = ST.sort; });
 
-        // ==================== INIT ====================
         async function init() {
             const p = new URLSearchParams(location.search);
             const utoken = p.get('utoken');
