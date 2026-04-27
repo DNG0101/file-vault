@@ -138,6 +138,8 @@ function showMain() {
         if(D.userUI) D.userUI.innerHTML = `<span style="font-size:0.85rem;">👤 ${ST.email} (${ST.role}) <button class="btn btn-sm btn-outline" id="btnUserLogout">🔒 Logout</button></span>`;
         const logoutBtn = document.getElementById('btnUserLogout');
         if(logoutBtn) logoutBtn.onclick = () => { ST.token = null; localStorage.removeItem('vtoken'); clearTimers(); showLogin(); toast('Logged out.'); };
+        // For non‑admin, dropzone visibility is controlled by applyRoleUI()
+        if(D.dropzone) D.dropzone.style.display = (ST.role === 'full' || ST.role === 'delete' || ST.role === 'upload') ? '' : 'none';
     }
 }
 function render() {
@@ -230,31 +232,42 @@ function loadAllUsers() {
             </div>`).join('');
         }
         D.listUsers.innerHTML = html || '<p>No users.</p>';
+        // Attach event listeners for all buttons
         D.listUsers.querySelectorAll('button').forEach(btn => {
-            btn.addEventListener('click', async () => {
-                const action = btn.dataset.action;
-                const email = btn.dataset.email;
-                let role = 'full';
-                const sel = btn.parentElement.querySelector(`.role-sel-${email}`);
-                if(sel) role = sel.value;
-                let endpoint = '';
-                if (action === 'approve') endpoint = 'approve';
-                else if (action === 'reapprove') endpoint = 'reapprove';
-                else if (action === 'update') endpoint = 'approve'; // update uses same as approve
-                else if (action === 'revoke') endpoint = 'revoke';
-                if (endpoint) {
-                    await fetch(`${WORKER_BASE}/admin/${endpoint}`, {
-                        method:'POST',
-                        headers:{'Content-Type':'application/json', ...getAuthHeaders()},
-                        body:JSON.stringify({email, role})
-                    });
-                    toast(`${email} ${action === 'revoke' ? 'revoked' : 'updated'}`);
-                    // Refresh all admin panels
-                    loadPending(); loadPendingCount(); loadAllUsers();
-                }
-            });
+            // Remove any existing listener to avoid duplication
+            btn.removeEventListener('click', handleUserButton);
+            btn.addEventListener('click', handleUserButton);
         });
     });
+}
+async function handleUserButton(e) {
+    const btn = e.currentTarget;
+    const action = btn.dataset.action;
+    const email = btn.dataset.email;
+    let role = 'full';
+    const sel = btn.parentElement.querySelector(`.role-sel-${email}`);
+    if(sel) role = sel.value;
+    let endpoint = '';
+    if (action === 'approve') endpoint = 'approve';
+    else if (action === 'reapprove') endpoint = 'reapprove';
+    else if (action === 'update') endpoint = 'approve';
+    else if (action === 'revoke') endpoint = 'revoke';
+    if (endpoint) {
+        try {
+            await fetch(`${WORKER_BASE}/admin/${endpoint}`, {
+                method:'POST',
+                headers:{'Content-Type':'application/json', ...getAuthHeaders()},
+                body:JSON.stringify({email, role})
+            });
+            toast(`${email} ${action === 'revoke' ? 'revoked' : 'updated'}`);
+            // Refresh all admin panels after a short delay to allow DB update
+            setTimeout(() => {
+                loadPending(); loadPendingCount(); loadAllUsers();
+            }, 500);
+        } catch(err) {
+            toast('Action failed: ' + err.message, 'error');
+        }
+    }
 }
 function loadLogs() {
     if(!D.logsCt) return;
@@ -410,7 +423,7 @@ async function shareFile(pid) {
     else toast('Share failed','error');
 }
 
-// ==================== UPLOAD ====================
+// ==================== UPLOAD (FIXED) ====================
 async function uploadFile(file, existingPid = null) {
     if (ST.uploadCtrl) ST.uploadCtrl.abort();
     ST.uploadCtrl = new AbortController();
@@ -418,13 +431,17 @@ async function uploadFile(file, existingPid = null) {
     try {
         let pid = existingPid;
         if (!pid) {
+            // Ensure we have a valid token and role
             const initRes = await fetch(`${WORKER_BASE}/upload-init`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
                 body: JSON.stringify({ fileName: file.name, fileSize: file.size, fileType: file.type || 'application/octet-stream' }),
                 signal: ST.uploadCtrl.signal
             });
-            if (!initRes.ok) throw new Error('Init failed');
+            if (!initRes.ok) {
+                const errText = await initRes.text();
+                throw new Error(`Init failed: ${errText}`);
+            }
             const initData = await initRes.json();
             pid = initData.publicId;
         }
