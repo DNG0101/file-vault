@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
-    <title>File Vault – Ultimate Gallery</title>
+    <title>File Vault – Final Edition</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
@@ -159,8 +159,8 @@
         shareToken: null,
         pendingCheckInterval: null
     };
-    let activeUploadKeys = new Set();
-    let activeUploadControllers = new Map();
+    let activeUploadKeys = new Set();      // prevent duplicate uploads
+    let activeUploadControllers = new Map(); // key -> AbortController
     let cardData = new Map();
 
     const $ = id => document.getElementById(id);
@@ -495,9 +495,23 @@
         } catch(err){ toast('Copy failed: '+err.message,'error'); }
     }
 
-    // Video player with robust null checks
+    // Wait for elements helper
+    function waitForElements(ids, timeout = 5000) {
+        return new Promise((resolve, reject) => {
+            const start = Date.now();
+            const check = () => {
+                const allExist = ids.every(id => document.getElementById(id));
+                if (allExist) resolve();
+                else if (Date.now() - start > timeout) reject(new Error('Timeout waiting for elements: ' + ids.join(', ')));
+                else setTimeout(check, 100);
+            };
+            check();
+        });
+    }
+
+    // Video player with waiting for controls
     let currentVideo = null, controlsTimeout = null, audioCtx = null, gainNode = null, sourceNode = null;
-    function setupVideoControls(video) {
+    async function setupVideoControls(video) {
         if(!video) return;
         currentVideo = video;
         const existing = document.querySelector('.video-controls');
@@ -518,71 +532,71 @@
             <button id="vidFullscreen">⛶</button>
         `;
         D.prevOv.appendChild(controlsDiv);
-        // Wait for the DOM to update before accessing the buttons
-        setTimeout(() => {
-            const playPause = $('#vidPlayPause'), back30 = $('#vidBack30'), forward30 = $('#vidForward30'), timeSpan = $('#vidTime'), seekSlider = $('#vidSeek');
-            const volumeSlider = $('#vidVolume'), volIcon = $('#vidVolIcon'), brightnessSlider = $('#vidBrightness'), aspectSelect = $('#vidAspect'), fullscreenBtn = $('#vidFullscreen');
-            if(!playPause || !back30 || !forward30 || !timeSpan || !seekSlider || !volumeSlider || !volIcon || !brightnessSlider || !aspectSelect || !fullscreenBtn) {
-                console.warn('Video controls not found, retrying...');
-                return;
+        try {
+            await waitForElements(['vidPlayPause', 'vidBack30', 'vidForward30', 'vidTime', 'vidSeek', 'vidVolume', 'vidVolIcon', 'vidBrightness', 'vidAspect', 'vidFullscreen'], 2000);
+        } catch(e) {
+            console.warn('Video controls timeout, retrying...', e);
+            setTimeout(() => setupVideoControls(video), 500);
+            return;
+        }
+        const playPause = $('#vidPlayPause'), back30 = $('#vidBack30'), forward30 = $('#vidForward30'), timeSpan = $('#vidTime'), seekSlider = $('#vidSeek');
+        const volumeSlider = $('#vidVolume'), volIcon = $('#vidVolIcon'), brightnessSlider = $('#vidBrightness'), aspectSelect = $('#vidAspect'), fullscreenBtn = $('#vidFullscreen');
+        function formatTime(sec){ if(isNaN(sec)) return '0:00'; const h=Math.floor(sec/3600), m=Math.floor((sec%3600)/60), s=Math.floor(sec%60); return h>0?`${h}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`:`${m}:${s.toString().padStart(2,'0')}`; }
+        function updateTime(){
+            if(!video) return;
+            const cur = video.currentTime, dur = video.duration || 0;
+            if(seekSlider) seekSlider.value = (cur/dur)*100||0;
+            if(timeSpan) timeSpan.textContent = `${formatTime(cur)} / ${formatTime(dur)}`;
+        }
+        video.addEventListener('timeupdate', updateTime);
+        video.addEventListener('loadedmetadata', updateTime);
+        video.addEventListener('play', ()=>playPause.textContent='⏸️');
+        video.addEventListener('pause', ()=>playPause.textContent='⏯️');
+        playPause.addEventListener('click', ()=>video.paused?video.play():video.pause());
+        back30.addEventListener('click', ()=>video.currentTime = Math.max(0, video.currentTime-30));
+        forward30.addEventListener('click', ()=>video.currentTime = Math.min(video.duration, video.currentTime+30));
+        seekSlider.addEventListener('input', ()=>{ if(video.duration) video.currentTime = (seekSlider.value/100)*video.duration; });
+        
+        let webAudioEnabled = false;
+        volumeSlider.addEventListener('input', async () => {
+            let val = volumeSlider.value;
+            volIcon.textContent = val==0?'🔇':val<30?'🔉':val<100?'🔊':'🔊⬆';
+            if(webAudioEnabled && gainNode) {
+                gainNode.gain.value = Math.min(val/100, 3);
+            } else {
+                video.volume = Math.min(val/100, 1);
             }
-            function formatTime(sec){ if(isNaN(sec)) return '0:00'; const h=Math.floor(sec/3600), m=Math.floor((sec%3600)/60), s=Math.floor(sec%60); return h>0?`${h}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`:`${m}:${s.toString().padStart(2,'0')}`; }
-            function updateTime(){
-                if(!video) return;
-                const cur = video.currentTime, dur = video.duration || 0;
-                if(seekSlider) seekSlider.value = (cur/dur)*100||0;
-                if(timeSpan) timeSpan.textContent = `${formatTime(cur)} / ${formatTime(dur)}`;
-            }
-            video.addEventListener('timeupdate', updateTime);
-            video.addEventListener('loadedmetadata', updateTime);
-            video.addEventListener('play', ()=>playPause.textContent='⏸️');
-            video.addEventListener('pause', ()=>playPause.textContent='⏯️');
-            playPause.addEventListener('click', ()=>video.paused?video.play():video.pause());
-            back30.addEventListener('click', ()=>video.currentTime = Math.max(0, video.currentTime-30));
-            forward30.addEventListener('click', ()=>video.currentTime = Math.min(video.duration, video.currentTime+30));
-            seekSlider.addEventListener('input', ()=>{ if(video.duration) video.currentTime = (seekSlider.value/100)*video.duration; });
-            
-            let webAudioEnabled = false;
-            volumeSlider.addEventListener('input', async () => {
-                let val = volumeSlider.value;
-                volIcon.textContent = val==0?'🔇':val<30?'🔉':val<100?'🔊':'🔊⬆';
-                if(webAudioEnabled && gainNode) {
-                    gainNode.gain.value = Math.min(val/100, 3);
-                } else {
-                    video.volume = Math.min(val/100, 1);
-                }
-            });
-            video.addEventListener('play', async () => {
-                if(!webAudioEnabled && typeof AudioContext !== 'undefined') {
-                    try {
-                        audioCtx = new AudioContext();
-                        gainNode = audioCtx.createGain();
-                        gainNode.connect(audioCtx.destination);
-                        sourceNode = audioCtx.createMediaElementSource(video);
-                        sourceNode.connect(gainNode);
-                        gainNode.gain.value = Math.min(volumeSlider.value/100, 3);
-                        if(audioCtx.state === 'suspended') await audioCtx.resume();
-                        webAudioEnabled = true;
-                    } catch(e) { console.warn('Web Audio failed', e); }
-                } else if(audioCtx && audioCtx.state === 'suspended') { await audioCtx.resume(); webAudioEnabled = true; }
-            });
-            document.addEventListener('click', ()=>{
-                if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-            }, {once: true});
-            
-            brightnessSlider.addEventListener('input', () => { video.style.filter = `brightness(${brightnessSlider.value/100})`; });
-            aspectSelect.addEventListener('change', () => { const asp = aspectSelect.value; video.style.aspectRatio = asp==='16:9'?'16/9':asp==='4:3'?'4/3':asp==='1:1'?'1/1':'auto'; });
-            fullscreenBtn.addEventListener('click', () => { if(document.fullscreenElement) document.exitFullscreen(); else video.parentElement?.requestFullscreen(); });
-            
-            function hideControls(){ controlsDiv.style.opacity='0'; controlsDiv.style.pointerEvents='none'; }
-            function showControls(){ controlsDiv.style.opacity='1'; controlsDiv.style.pointerEvents='auto'; if(controlsTimeout) clearTimeout(controlsTimeout); controlsTimeout = setTimeout(hideControls, 3000); }
-            video.addEventListener('mousemove', showControls);
-            video.addEventListener('click', showControls);
-            controlsDiv.addEventListener('mouseenter', showControls);
-            controlsDiv.addEventListener('mouseleave', showControls);
-            showControls();
-            video.volume = Math.min(volumeSlider.value/100, 1);
-        }, 50);
+        });
+        video.addEventListener('play', async () => {
+            if(!webAudioEnabled && typeof AudioContext !== 'undefined') {
+                try {
+                    audioCtx = new AudioContext();
+                    gainNode = audioCtx.createGain();
+                    gainNode.connect(audioCtx.destination);
+                    sourceNode = audioCtx.createMediaElementSource(video);
+                    sourceNode.connect(gainNode);
+                    gainNode.gain.value = Math.min(volumeSlider.value/100, 3);
+                    if(audioCtx.state === 'suspended') await audioCtx.resume();
+                    webAudioEnabled = true;
+                } catch(e) { console.warn('Web Audio failed', e); }
+            } else if(audioCtx && audioCtx.state === 'suspended') { await audioCtx.resume(); webAudioEnabled = true; }
+        });
+        document.addEventListener('click', ()=>{
+            if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+        }, {once: true});
+        
+        brightnessSlider.addEventListener('input', () => { video.style.filter = `brightness(${brightnessSlider.value/100})`; });
+        aspectSelect.addEventListener('change', () => { const asp = aspectSelect.value; video.style.aspectRatio = asp==='16:9'?'16/9':asp==='4:3'?'4/3':asp==='1:1'?'1/1':'auto'; });
+        fullscreenBtn.addEventListener('click', () => { if(document.fullscreenElement) document.exitFullscreen(); else video.parentElement?.requestFullscreen(); });
+        
+        function hideControls(){ controlsDiv.style.opacity='0'; controlsDiv.style.pointerEvents='none'; }
+        function showControls(){ controlsDiv.style.opacity='1'; controlsDiv.style.pointerEvents='auto'; if(controlsTimeout) clearTimeout(controlsTimeout); controlsTimeout = setTimeout(hideControls, 3000); }
+        video.addEventListener('mousemove', showControls);
+        video.addEventListener('click', showControls);
+        controlsDiv.addEventListener('mouseenter', showControls);
+        controlsDiv.addEventListener('mouseleave', showControls);
+        showControls();
+        video.volume = Math.min(volumeSlider.value/100, 1);
     }
     function openPreview(pid, type, mime) {
         D.prevCont.innerHTML = '';
@@ -739,7 +753,7 @@
     }
     async function deleteFile(pid){ if(!confirm('Delete?')) return; await fetch(`${WORKER_BASE}/delete`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({publicId:pid})}); await fetchFiles(); toast('Deleted'); }
 
-    // Upload
+    // Upload – single request, no double
     let pendingPaste = [];
     document.addEventListener('paste',(e)=>{
         const items = e.clipboardData.items;
