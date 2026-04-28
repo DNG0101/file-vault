@@ -20,7 +20,6 @@
             --shadow: 0 4px 12px rgba(0,0,0,0.05);
             --toast-bg: #1e293b;
             --toast-text: #f1f5f9;
-            --video-control-bg: rgba(0,0,0,0.85);
         }
         [data-theme="dark"] {
             --bg: #0f172a;
@@ -46,7 +45,7 @@
         .btn-sm { padding: 4px 12px; font-size: 0.8rem; }
         .toolbar, .paste-box { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
         .search-box { flex: 1; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--card-bg); color: var(--text); }
-        .dropzone { border: 2px dashed var(--border); border-radius: 16px; padding: 40px 20px; text-align: center; background: var(--card-bg); cursor: pointer; margin-bottom: 20px; }
+        .dropzone { border: 2px dashed var(--border); border-radius: 16px; padding: 40px 20px; text-align: center; background: var(--card-bg); cursor: pointer; margin-bottom: 20px; transition: 0.2s; }
         .dropzone:hover, .dragover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 5%, var(--card-bg)); }
         .progress-box { margin-bottom: 20px; background: var(--card-bg); border-radius: 12px; padding: 12px; border: 1px solid var(--border); }
         .progress-item { margin-bottom: 12px; }
@@ -90,7 +89,7 @@
         .preview-container video, .preview-container audio, .preview-container iframe, .preview-container img { max-width: 100%; max-height: 100%; outline: none; background: #000; }
         .custom-video-controls {
             position: absolute; bottom: 20px; left: 20px; right: 20px;
-            background: var(--video-control-bg); backdrop-filter: blur(8px);
+            background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
             border-radius: 12px; padding: 12px 20px; display: flex; flex-wrap: wrap;
             align-items: center; gap: 8px; justify-content: center; z-index: 1001;
             font-size: 0.8rem;
@@ -166,7 +165,7 @@
 </div>
 <div id="toastContainer"></div>
 <script>
-    // ==================== CONFIG ====================
+    // ========================= CONFIG =========================
     const WORKER_BASE = 'https://gdrive-files-api.donthulanithish53.workers.dev';
     let ST = {
         token: localStorage.getItem('vtoken'),
@@ -182,10 +181,10 @@
         shareToken: null,
         pendingCheckInterval: null
     };
-    let uploadingFiles = new Map(); // fileKey -> { controller, div }
-    let activeAbortControllers = new Set();
+    let uploadingFiles = new Map(); // fileKey -> AbortController
     let cardData = new Map();
 
+    // DOM shortcuts
     const $ = id => document.getElementById(id);
     const D = {
         stats: $('storageStats'), userUI: $('userUI'), adminBar: $('adminBar'),
@@ -255,7 +254,7 @@
         return '<div style="font-size:3rem;">📄</div>';
     }
 
-    // RBAC
+    // RBAC permission lookup
     const roleRights = {
         admin: { upload: true, delete: true, download: true, preview: true, play: true, copy: true, tick: true, comment: true },
         full:   { upload: true, delete: true, download: true, preview: true, play: true, copy: true, tick: true, comment: true },
@@ -270,7 +269,7 @@
         return roleRights[ST.role]?.[action] === true;
     }
 
-    // Auth with automatic token refresh after approval
+    // Authentication
     async function fetchUserInfo() {
         if (!ST.token) return false;
         try {
@@ -288,17 +287,12 @@
                 toast('You have been approved! Access granted.', 'success');
             }
             return true;
-        } catch (e) {
-            console.warn(e);
-            return false;
-        }
+        } catch (e) { console.warn(e); return false; }
     }
 
     function startPendingCheck() {
         if (ST.pendingCheckInterval) clearInterval(ST.pendingCheckInterval);
-        ST.pendingCheckInterval = setInterval(async () => {
-            await fetchUserInfo();
-        }, 30000);
+        ST.pendingCheckInterval = setInterval(async () => { await fetchUserInfo(); }, 30000);
     }
 
     function showLogin() {
@@ -347,8 +341,8 @@
             D.userUI.innerHTML = `<span>👤 ${ST.email} (${ST.role}) <button class="btn btn-sm btn-outline" id="btnUserLogout">🔒 Logout</button></span>`;
             const logoutBtn = $('btnUserLogout');
             if (logoutBtn) logoutBtn.onclick = () => {
-                for (const ctrl of activeAbortControllers) ctrl.abort();
-                activeAbortControllers.clear();
+                uploadFiles.forEach((_, key) => { uploadFiles.get(key)?.abort(); });
+                uploadingFiles.clear();
                 ST.token = null;
                 localStorage.removeItem('vtoken');
                 showLogin();
@@ -364,9 +358,9 @@
         else { showPending(); }
     }
 
+    // Admin panels
     function safeAddEvent(el, ev, fn) { if (el) el.addEventListener(ev, fn); }
 
-    // Reset token
     if (D.btnResetToken) D.btnResetToken.addEventListener('click', async () => {
         if (confirm('Reset admin token? You will need to login again.')) {
             await fetch(`${WORKER_BASE}/admin/reset-token`, { method: 'POST', headers: getAuthHeaders() });
@@ -377,7 +371,6 @@
         }
     });
 
-    // Admin actions
     safeAddEvent(D.btnSync, 'click', async () => {
         toast('Syncing...', 'info');
         try {
@@ -397,11 +390,7 @@
         loadLogs();
         toast('Logs cleared');
     });
-    safeAddEvent(D.btnBulkCancel, 'click', () => {
-        ST.selected.clear();
-        renderFiles();
-        updateBulkBar();
-    });
+    safeAddEvent(D.btnBulkCancel, 'click', () => { ST.selected.clear(); renderFiles(); updateBulkBar(); });
     safeAddEvent(D.btnBulkDelete, 'click', async () => {
         if (!confirm(`Delete ${ST.selected.size} files?`)) return;
         const ids = Array.from(ST.selected);
@@ -435,8 +424,8 @@
     }
     async function adminLogout() {
         if (confirm('Logout as admin?')) {
-            for (const ctrl of activeAbortControllers) ctrl.abort();
-            activeAbortControllers.clear();
+            uploadingFiles.forEach((ctrl) => ctrl.abort());
+            uploadingFiles.clear();
             ST.token = null;
             localStorage.removeItem('vtoken');
             showLogin();
@@ -477,10 +466,8 @@
         fetch(`${WORKER_BASE}/admin/all-users`, { headers: getAuthHeaders() })
             .then(r => r.json())
             .then(users => {
-                // Show all users (including sub-admins), exclude only the main admin? We'll show all.
-                // For each user, show appropriate actions.
                 D.listUsers.innerHTML = (users || []).map(u => {
-                    const isSubAdmin = u.is_admin === 1 && u.email !== ST.email; // ST.email is current admin
+                    const isSubAdmin = u.is_admin === 1 && u.email !== ST.email;
                     const isSelf = u.email === ST.email;
                     return `<div class="approval-item">
                         <span>${u.email} <span class="status-badge status-${u.status}">${u.status}</span> ${u.role ? `(${u.role})` : ''} ${isSubAdmin ? ' <span style="background:#f97316; padding:2px 6px; border-radius:10px;">Sub‑Admin</span>' : ''}</span>
@@ -549,7 +536,7 @@
                     loadPendingCount();
                     await fetchUserInfo();
                 }
-                loadAllUsers(); // refresh list
+                loadAllUsers();
             });
         });
     }
@@ -660,7 +647,6 @@
         }
     }
 
-    // Copy file (actual file for images, else download link)
     async function copyFile(pid, name, mime) {
         try {
             const response = await fetch(getDownloadUrl(pid), { headers: getAuthHeaders() });
@@ -678,13 +664,11 @@
         }
     }
 
-    // Advanced video player with Web Audio API for real volume boost (up to 300%)
+    // Video player with working controls (no dummy buttons)
     let currentVideo = null;
     let videoControlsTimeout = null;
     let audioContext = null;
     let gainNode = null;
-    let sourceNode = null;
-    let isUsingAudioContext = false;
 
     function setupVideoControls(video) {
         if (!video) return;
@@ -703,8 +687,6 @@
             <span id="vidVolIcon">🔊</span>
             <input type="range" id="vidBrightness" min="0" max="200" value="100" style="width:80px">
             <span>☀️</span>
-            <select id="vidAudioTrack"></select>
-            <select id="vidLanguage"></select>
             <select id="vidAspect">
                 <option value="auto">Auto</option>
                 <option value="16:9">16:9</option>
@@ -722,8 +704,6 @@
         const volumeSlider = document.getElementById('vidVolume');
         const volIcon = document.getElementById('vidVolIcon');
         const brightnessSlider = document.getElementById('vidBrightness');
-        const audioTrackSelect = document.getElementById('vidAudioTrack');
-        const languageSelect = document.getElementById('vidLanguage');
         const aspectSelect = document.getElementById('vidAspect');
         const fullscreenBtn = document.getElementById('vidFullscreen');
         
@@ -738,81 +718,42 @@
         forward30.addEventListener('click', () => video.currentTime = Math.min(video.duration, video.currentTime + 30));
         seekSlider.addEventListener('input', () => { if (video.duration) video.currentTime = (seekSlider.value / 100) * video.duration; });
         
-        // Volume boost using Web Audio API
-        async function initAudioContext() {
-            if (audioContext) return;
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            gainNode = audioContext.createGain();
-            gainNode.connect(audioContext.destination);
-            sourceNode = audioContext.createMediaElementSource(video);
-            sourceNode.connect(gainNode);
-            isUsingAudioContext = true;
-            // set initial gain based on volumeSlider
-            let gain = volumeSlider.value / 100;
-            gainNode.gain.value = Math.min(gain, 3); // max 300%
-        }
+        // Volume boost using Web Audio API (3x)
         volumeSlider.addEventListener('input', async () => {
             let val = volumeSlider.value;
-            volIcon.textContent = val == 0 ? '🔇' : val < 30 ? '🔉' : '🔊';
-            let gain = val / 100;
-            if (!isUsingAudioContext) {
-                // Fallback to native volume (max 1.0)
-                video.volume = Math.min(gain, 1);
+            volIcon.textContent = val == 0 ? '🔇' : val < 30 ? '🔉' : (val < 100 ? '🔊' : '🔊⬆');
+            if (!audioContext) {
+                // Fallback: native volume (max 1.0)
+                video.volume = Math.min(val / 100, 1);
             } else {
-                gainNode.gain.value = Math.min(gain, 3);
+                gainNode.gain.value = Math.min(val / 100, 3);
             }
         });
-        // When video starts, try to initialize AudioContext (icon)
+        // Initialize Web Audio on first play
         video.addEventListener('play', async () => {
-            if (!isUsingAudioContext && audioContext === undefined) {
+            if (!audioContext) {
                 try {
-                    await initAudioContext();
-                    // set gain
-                    let gain = volumeSlider.value / 100;
-                    gainNode.gain.value = Math.min(gain, 3);
-                } catch(e) { console.warn("AudioContext failed", e); }
-            }
-            if (audioContext && audioContext.state === 'suspended') {
-                await audioContext.resume();
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    gainNode = audioContext.createGain();
+                    gainNode.connect(audioContext.destination);
+                    const source = audioContext.createMediaElementSource(video);
+                    source.connect(gainNode);
+                    // set initial gain
+                    gainNode.gain.value = Math.min(volumeSlider.value / 100, 3);
+                    if (audioContext.state === 'suspended') await audioContext.resume();
+                } catch(e) { console.warn("AudioContext error, falling back to native volume", e); }
             }
         });
         
-        brightnessSlider.addEventListener('input', () => { let val = brightnessSlider.value / 100; video.style.filter = `brightness(${val})`; });
-        
-        function updateTracks() {
-            if (!video.audioTracks) return;
-            audioTrackSelect.innerHTML = '';
-            for (let i = 0; i < video.audioTracks.length; i++) {
-                const track = video.audioTracks[i];
-                const option = document.createElement('option');
-                option.value = i;
-                option.textContent = track.label || `Track ${i+1}`;
-                if (track.enabled) option.selected = true;
-                audioTrackSelect.appendChild(option);
-            }
-            languageSelect.innerHTML = '<option value="">No subtitles</option>';
-            for (let i = 0; i < video.textTracks.length; i++) {
-                const track = video.textTracks[i];
-                if (track.kind === 'subtitles' || track.kind === 'captions') {
-                    const option = document.createElement('option');
-                    option.value = i;
-                    option.textContent = track.language || `Lang ${i+1}`;
-                    languageSelect.appendChild(option);
-                }
-            }
-        }
-        video.addEventListener('loadedmetadata', updateTracks);
-        audioTrackSelect.addEventListener('change', () => {
-            if (!video.audioTracks) return;
-            for (let i = 0; i < video.audioTracks.length; i++) video.audioTracks[i].enabled = (i == audioTrackSelect.value);
+        brightnessSlider.addEventListener('input', () => { video.style.filter = `brightness(${brightnessSlider.value / 100})`; });
+        aspectSelect.addEventListener('change', () => {
+            const asp = aspectSelect.value;
+            video.style.aspectRatio = asp === '16:9' ? '16/9' : asp === '4:3' ? '4/3' : asp === '1:1' ? '1/1' : 'auto';
         });
-        languageSelect.addEventListener('change', () => {
-            if (!video.textTracks) return;
-            const idx = parseInt(languageSelect.value);
-            for (let i = 0; i < video.textTracks.length; i++) video.textTracks[i].mode = (i === idx) ? 'showing' : 'hidden';
+        fullscreenBtn.addEventListener('click', () => {
+            if (document.fullscreenElement) document.exitFullscreen();
+            else video.parentElement?.requestFullscreen();
         });
-        aspectSelect.addEventListener('change', () => { const asp = aspectSelect.value; video.style.aspectRatio = asp === '16:9' ? '16/9' : asp === '4:3' ? '4/3' : asp === '1:1' ? '1/1' : 'auto'; });
-        fullscreenBtn.addEventListener('click', () => { if (document.fullscreenElement) document.exitFullscreen(); else video.parentElement?.requestFullscreen(); });
         
         function hideControls() { controlsDiv.style.opacity = '0'; controlsDiv.style.pointerEvents = 'none'; }
         function showControls() { controlsDiv.style.opacity = '1'; controlsDiv.style.pointerEvents = 'auto'; if (videoControlsTimeout) clearTimeout(videoControlsTimeout); videoControlsTimeout = setTimeout(hideControls, 3000); }
@@ -822,9 +763,8 @@
         controlsDiv.addEventListener('mouseleave', showControls);
         showControls();
         
-        // Set initial volume
-        let initialGain = volumeSlider.value / 100;
-        video.volume = Math.min(initialGain, 1);
+        // initial volume fallback
+        video.volume = Math.min(volumeSlider.value / 100, 1);
     }
 
     function openPreview(pid, type, mime) {
@@ -849,8 +789,8 @@
             const img = document.createElement('img'); img.src = url; img.style.maxWidth = '95%'; img.style.maxHeight = '95%';
             element = img;
         } else if (type === 'pdf') {
-            const iframe = document.createElement('iframe'); iframe.src = url; iframe.style.width = '90%'; iframe.style.height = '90%';
-            element = iframe;
+            const ifr = document.createElement('iframe'); ifr.src = url; ifr.style.width = '90%'; ifr.style.height = '90%';
+            element = ifr;
         } else if (type === 'text') {
             const pre = document.createElement('pre');
             fetch(url, { headers: getAuthHeaders() }).then(r => r.text()).then(t => { pre.textContent = t; D.prevCont.appendChild(pre); });
@@ -871,24 +811,20 @@
         const controls = document.querySelector('.custom-video-controls');
         if (controls) controls.remove();
         if (videoControlsTimeout) clearTimeout(videoControlsTimeout);
-        if (audioContext) {
-            audioContext.close();
-            audioContext = null;
-        }
-        isUsingAudioContext = false;
+        if (audioContext) { audioContext.close(); audioContext = null; gainNode = null; }
         currentVideo = null;
     }
     safeAddEvent(D.btnCloseP, 'click', closePreview);
     safeAddEvent(D.btnFull, 'click', () => { if (document.fullscreenElement) document.exitFullscreen(); else if (D.prevOv) D.prevOv.requestFullscreen(); });
 
-    // Render grid with RBAC
+    // Render files with RBAC
     function renderFiles() {
         if (!D.grid) return;
         let list = [...ST.files];
         if (ST.query) list = list.filter(f => f.name.toLowerCase().includes(ST.query));
         const s = ST.sort;
-        list.sort((a, b) => {
-            switch (s) {
+        list.sort((a,b) => {
+            switch(s) {
                 case 'newest': return b.createdAt - a.createdAt;
                 case 'oldest': return a.createdAt - b.createdAt;
                 case 'name-asc': return a.name.localeCompare(b.name);
@@ -908,18 +844,18 @@
             const gridDiv = section.querySelector('.file-grid');
             files.forEach(f => {
                 const pt = prevType(f.mimeType);
-                const actionsHtml = [];
-                if (can('play') && (pt === 'video' || pt === 'audio')) actionsHtml.push(`<button class="btn-xs btn-xs-play" data-action="play" data-id="${f.publicId}" data-mime="${f.mimeType}">▶ Play</button>`);
-                if (can('preview')) actionsHtml.push(`<button class="btn-xs btn-xs-preview" data-action="preview" data-id="${f.publicId}" data-mime="${f.mimeType}">🔍 Preview</button>`);
-                if (can('download')) actionsHtml.push(`<button class="btn-xs btn-xs-download" data-action="download" data-id="${f.publicId}">⬇ Download</button>`);
-                if (can('delete')) actionsHtml.push(`<button class="btn-xs btn-xs-delete" data-action="delete" data-id="${f.publicId}">🗑 Delete</button>`);
-                if (can('copy')) actionsHtml.push(`<button class="btn-xs btn-xs-copy" data-action="copy" data-id="${f.publicId}" data-name="${esc(f.name)}" data-mime="${f.mimeType}">📋 Copy File</button>`);
+                const actions = [];
+                if (can('play') && (pt === 'video' || pt === 'audio')) actions.push(`<button class="btn-xs btn-xs-play" data-action="play" data-id="${f.publicId}" data-mime="${f.mimeType}">▶ Play</button>`);
+                if (can('preview')) actions.push(`<button class="btn-xs btn-xs-preview" data-action="preview" data-id="${f.publicId}" data-mime="${f.mimeType}">🔍 Preview</button>`);
+                if (can('download')) actions.push(`<button class="btn-xs btn-xs-download" data-action="download" data-id="${f.publicId}">⬇ Download</button>`);
+                if (can('delete')) actions.push(`<button class="btn-xs btn-xs-delete" data-action="delete" data-id="${f.publicId}">🗑 Delete</button>`);
+                if (can('copy')) actions.push(`<button class="btn-xs btn-xs-copy" data-action="copy" data-id="${f.publicId}" data-name="${esc(f.name)}" data-mime="${f.mimeType}">📋 Copy File</button>`);
                 const upBy = f.uploadedBy ? `<div style="font-size:0.7rem; color:var(--text-secondary); margin-bottom:4px;">📤 ${f.uploadedBy}</div>` : '';
-                const thumbnailHtml = getThumbnailHtml(f.mimeType, f.name, f.publicId);
+                const thumbnail = getThumbnailHtml(f.mimeType, f.name, f.publicId);
                 const card = document.createElement('div');
                 card.className = `card${ST.selected.has(f.publicId) ? ' selected' : ''}`;
                 card.dataset.publicId = f.publicId;
-                card.innerHTML = `<input type="checkbox" class="card-checkbox" data-id="${f.publicId}" ${ST.selected.has(f.publicId) ? 'checked' : ''}><div class="thumbnail">${thumbnailHtml}</div><div class="file-name">${esc(f.name)}</div><div class="file-meta">${fmtSz(f.size)} · ${new Date(f.createdAt).toLocaleString()}</div>${upBy}<div class="actions">${actionsHtml.join('')}<button class="tick-btn" data-action="tick" data-id="${f.publicId}"><span class="tooltip"></span></button><span class="tick-count"></span><div class="comment-section"><div class="comment-header"><span class="comment-icon">💬</span><span class="comment-count"></span></div><div class="comment-list"></div><div class="comment-form"><input type="text" placeholder="Add a comment..."><button class="btn-xs btn-outline post-comment">Post</button></div></div></div>`;
+                card.innerHTML = `<input type="checkbox" class="card-checkbox" data-id="${f.publicId}" ${ST.selected.has(f.publicId) ? 'checked' : ''}><div class="thumbnail">${thumbnail}</div><div class="file-name">${esc(f.name)}</div><div class="file-meta">${fmtSz(f.size)} · ${new Date(f.createdAt).toLocaleString()}</div>${upBy}<div class="actions">${actions.join('')}<button class="tick-btn" data-action="tick" data-id="${f.publicId}"><span class="tooltip"></span></button><span class="tick-count"></span><div class="comment-section"><div class="comment-header"><span class="comment-icon">💬</span><span class="comment-count"></span></div><div class="comment-list"></div><div class="comment-form"><input type="text" placeholder="Add a comment..."><button class="btn-xs btn-outline post-comment">Post</button></div></div></div>`;
                 gridDiv.appendChild(card);
                 (async () => {
                     const data = await loadCardData(f.publicId);
@@ -1008,7 +944,7 @@
         toast('Deleted');
     }
 
-    // Upload with progress and double-trigger prevention
+    // Upload (single request, no double)
     let pendingPasteFiles = [];
     document.addEventListener('paste', (e) => {
         const items = e.clipboardData.items;
@@ -1036,14 +972,13 @@
         const fileKey = existingPid || file.name + file.size + file.lastModified;
         if (uploadingFiles.has(fileKey)) { toast(`${file.name} already uploading.`, 'info'); return; }
         const abortCtrl = new AbortController();
-        activeAbortControllers.add(abortCtrl);
+        uploadingFiles.set(fileKey, abortCtrl);
         const progressDiv = document.createElement('div');
         progressDiv.className = 'progress-item';
         progressDiv.id = `upload-${Date.now()}`;
         progressDiv.innerHTML = `<div class="progress-header"><span>${esc(file.name)}</span><span class="progress-percent">0%</span></div><div class="progress-bar"><div class="progress-fill" style="width:0%"></div></div>`;
         D.uploadProgressList.classList.remove('hidden');
         D.uploadProgressList.appendChild(progressDiv);
-        uploadingFiles.set(fileKey, { controller: abortCtrl, div: progressDiv });
         try {
             let pid = existingPid;
             if (!pid) {
@@ -1061,9 +996,9 @@
             let uploaded = 0;
             const updateProgress = (percent) => {
                 const fill = progressDiv.querySelector('.progress-fill');
-                const percentSpan = progressDiv.querySelector('.progress-percent');
+                const pSpan = progressDiv.querySelector('.progress-percent');
                 if (fill) fill.style.width = percent + '%';
-                if (percentSpan) percentSpan.textContent = percent + '%';
+                if (pSpan) pSpan.textContent = percent + '%';
             };
             while (uploaded < file.size) {
                 if (abortCtrl.signal.aborted) throw new Error('Cancelled');
@@ -1106,7 +1041,6 @@
             if (D.uploadProgressList.children.length === 0) D.uploadProgressList.classList.add('hidden');
             if (err.message !== 'Cancelled') toast(`Upload failed: ${err.message}`, 'error');
         } finally {
-            activeAbortControllers.delete(abortCtrl);
             uploadingFiles.delete(fileKey);
         }
     }
@@ -1126,7 +1060,7 @@
     if (D.fileInp) D.fileInp.addEventListener('change', e => handleFiles(e.target.files));
     function handleFiles(files) { for (const f of files) uploadFile(f); }
 
-    // Keyboard navigation
+    // Keyboard navigation & Enter
     function setupKeyboardNav() {
         const cards = Array.from(document.querySelectorAll('.card'));
         if (cards.length === 0) return;
@@ -1160,7 +1094,6 @@
         });
     })();
 
-    // Share preview
     async function showSharePreview() {
         const res = await fetch(`${WORKER_BASE}/share/verify?token=${ST.shareToken}`);
         if (!res.ok) { toast('Invalid share link', 'error'); showLogin(); return; }
@@ -1174,7 +1107,6 @@
         D.userUI.innerHTML = '';
     }
 
-    // Init
     async function init() {
         const p = new URLSearchParams(location.search);
         const utoken = p.get('utoken');
