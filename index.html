@@ -267,7 +267,7 @@
         return roleRights[ST.role]?.[action] === true;
     }
 
-    // Authentication
+    // Auth
     async function fetchUserInfo() {
         if (!ST.token) return false;
         try {
@@ -500,7 +500,6 @@
                     await fetch(`${WORKER_BASE}/admin/make-subadmin`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }, body: JSON.stringify({ email, makeAdmin: true }) });
                     toast(`${email} promoted to sub‑admin.`, 'success');
                     loadAllUsers();
-                    // After role change, re‑fetch user info to update UI instantly
                     await fetchUserInfo();
                     return;
                 }
@@ -538,7 +537,7 @@
                     loadPendingCount();
                     await fetchUserInfo();
                 }
-                loadAllUsers(); // refresh list
+                loadAllUsers();
             });
         });
     }
@@ -666,12 +665,12 @@
         }
     }
 
-    // Video player with guaranteed audio (fallback to native volume)
+    // Video player with working audio (native volume + optional Web Audio boost)
     let currentVideo = null;
     let videoControlsTimeout = null;
     let audioContext = null;
     let gainNode = null;
-    let sourceConnected = false;
+    let sourceNode = null;
 
     function setupVideoControls(video) {
         if (!video) return;
@@ -721,50 +720,43 @@
         forward30.addEventListener('click', () => video.currentTime = Math.min(video.duration, video.currentTime + 30));
         seekSlider.addEventListener('input', () => { if (video.duration) video.currentTime = (seekSlider.value / 100) * video.duration; });
         
-        // Volume: use Web Audio for boost, fallback to native
+        // Volume control (native + Web Audio boost if available)
         volumeSlider.addEventListener('input', async () => {
             let val = volumeSlider.value;
             volIcon.textContent = val == 0 ? '🔇' : val < 30 ? '🔉' : (val < 100 ? '🔊' : '🔊⬆');
-            if (audioContext && gainNode && sourceConnected) {
+            if (audioContext && gainNode && sourceNode) {
                 gainNode.gain.value = Math.min(val / 100, 3);
             } else {
-                // Fallback: native volume (max 1.0)
                 video.volume = Math.min(val / 100, 1);
-                if (val > 100) toast('Volume boost limited to 100% because audio context not available', 'info');
             }
         });
-        // Initialize Web Audio on first play (user interaction required)
+        // Initialize Web Audio for boost on first play
         video.addEventListener('play', async () => {
             if (!audioContext && typeof AudioContext !== 'undefined') {
                 try {
                     audioContext = new AudioContext();
                     gainNode = audioContext.createGain();
                     gainNode.connect(audioContext.destination);
-                    const source = audioContext.createMediaElementSource(video);
-                    source.connect(gainNode);
-                    sourceConnected = true;
+                    sourceNode = audioContext.createMediaElementSource(video);
+                    sourceNode.connect(gainNode);
                     gainNode.gain.value = Math.min(volumeSlider.value / 100, 3);
                     if (audioContext.state === 'suspended') await audioContext.resume();
                 } catch (e) {
-                    console.warn('AudioContext failed, using native volume', e);
+                    console.warn('Web Audio failed, using native volume', e);
                     audioContext = null;
                 }
+            } else if (audioContext && audioContext.state === 'suspended') {
+                await audioContext.resume();
             }
         });
-        // Ensure audio context resumes on user click (required by browsers)
-        document.addEventListener('click', async () => {
-            if (audioContext && audioContext.state === 'suspended') await audioContext.resume();
+        // Resume AudioContext on first user click (required by browsers)
+        document.addEventListener('click', () => {
+            if (audioContext && audioContext.state === 'suspended') audioContext.resume();
         }, { once: true });
         
         brightnessSlider.addEventListener('input', () => { video.style.filter = `brightness(${brightnessSlider.value / 100})`; });
-        aspectSelect.addEventListener('change', () => {
-            const asp = aspectSelect.value;
-            video.style.aspectRatio = asp === '16:9' ? '16/9' : asp === '4:3' ? '4/3' : asp === '1:1' ? '1/1' : 'auto';
-        });
-        fullscreenBtn.addEventListener('click', () => {
-            if (document.fullscreenElement) document.exitFullscreen();
-            else video.parentElement?.requestFullscreen();
-        });
+        aspectSelect.addEventListener('change', () => { const asp = aspectSelect.value; video.style.aspectRatio = asp === '16:9' ? '16/9' : asp === '4:3' ? '4/3' : asp === '1:1' ? '1/1' : 'auto'; });
+        fullscreenBtn.addEventListener('click', () => { if (document.fullscreenElement) document.exitFullscreen(); else video.parentElement?.requestFullscreen(); });
         
         function hideControls() { controlsDiv.style.opacity = '0'; controlsDiv.style.pointerEvents = 'none'; }
         function showControls() { controlsDiv.style.opacity = '1'; controlsDiv.style.pointerEvents = 'auto'; if (videoControlsTimeout) clearTimeout(videoControlsTimeout); videoControlsTimeout = setTimeout(hideControls, 3000); }
@@ -774,7 +766,7 @@
         controlsDiv.addEventListener('mouseleave', showControls);
         showControls();
         
-        // Set initial volume (native fallback)
+        // Set initial volume (native)
         video.volume = Math.min(volumeSlider.value / 100, 1);
     }
 
@@ -822,7 +814,7 @@
         const controls = document.querySelector('.custom-video-controls');
         if (controls) controls.remove();
         if (videoControlsTimeout) clearTimeout(videoControlsTimeout);
-        if (audioContext) { audioContext.close(); audioContext = null; gainNode = null; sourceConnected = false; }
+        if (audioContext) { audioContext.close(); audioContext = null; gainNode = null; sourceNode = null; }
         currentVideo = null;
     }
     safeAddEvent(D.btnCloseP, 'click', closePreview);
