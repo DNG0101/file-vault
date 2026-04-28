@@ -50,7 +50,6 @@
         .dropzone:hover, .dragover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 5%, var(--card-bg)); }
         .progress-box { margin-bottom: 20px; background: var(--card-bg); border-radius: 12px; padding: 12px; border: 1px solid var(--border); }
         .progress-item { margin-bottom: 12px; }
-        .progress-item:last-child { margin-bottom: 0; }
         .progress-header { display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 4px; }
         .progress-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
         .progress-fill { height: 100%; width: 0%; background: var(--accent); transition: width 0.3s; }
@@ -58,9 +57,8 @@
         .section-title { font-size: 1.2rem; font-weight: 600; margin-bottom: 16px; border-bottom: 2px solid var(--accent); color: var(--accent); display: flex; gap: 10px; align-items: center; }
         .section-title span { background: var(--accent); color: white; padding: 2px 8px; border-radius: 20px; font-size: 0.8rem; }
         .file-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
-        .card { background: var(--card-bg); border-radius: var(--radius); padding: 12px; box-shadow: var(--shadow); border: 1px solid var(--border); position: relative; transition: all 0.2s; cursor: pointer; }
+        .card { background: var(--card-bg); border-radius: var(--radius); padding: 12px; box-shadow: var(--shadow); border: 1px solid var(--border); position: relative; cursor: pointer; }
         .card.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
-        .card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
         .card-checkbox { position: absolute; top: 10px; right: 10px; width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; z-index: 2; }
         .thumbnail { width: 100%; height: 160px; object-fit: cover; border-radius: 10px; margin-bottom: 10px; background: transparent; display: flex; align-items: center; justify-content: center; font-size: 3rem; overflow: hidden; }
         .thumbnail img, .thumbnail video { width: 100%; height: 100%; object-fit: cover; }
@@ -94,11 +92,13 @@
             position: absolute; bottom: 20px; left: 20px; right: 20px;
             background: var(--video-control-bg); backdrop-filter: blur(8px);
             border-radius: 12px; padding: 12px 20px; display: flex; flex-wrap: wrap;
-            align-items: center; gap: 12px; justify-content: center; transition: opacity 0.3s; z-index: 1001;
+            align-items: center; gap: 8px; justify-content: center; transition: opacity 0.3s; z-index: 1001;
+            font-size: 0.8rem;
         }
-        .custom-video-controls button, .custom-video-controls select {
-            background: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer;
+        .custom-video-controls button, .custom-video-controls select, .custom-video-controls input {
+            background: white; border: none; padding: 4px 8px; border-radius: 6px; cursor: pointer;
         }
+        .custom-video-controls input[type="range"] { width: 80px; }
         .preview-toolbar { position: absolute; top: 20px; right: 20px; display: flex; gap: 10px; z-index: 1001; }
         .preview-toolbar button { background: rgba(0,0,0,0.6); border: none; color: white; padding: 8px 16px; border-radius: 8px; cursor: pointer; }
         #toastContainer { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
@@ -106,12 +106,9 @@
         .toast.error { background: var(--danger); }
         .toast.success { background: var(--success); }
         @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-        @media (orientation: portrait) {
-            .file-grid { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
-        }
+        @media (orientation: portrait) { .file-grid { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); } }
         @media (max-width: 600px) { body { padding: 10px; } .file-grid { grid-template-columns: 1fr; } }
-        button:focus-visible, .card:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
-        .loading { text-align: center; padding: 40px; font-size: 1.2rem; color: var(--text-secondary); }
+        .loading { text-align: center; padding: 40px; color: var(--text-secondary); }
     </style>
 </head>
 <body>
@@ -155,7 +152,7 @@
         <button id="btnBulkDelete">🗑 Delete Selected</button>
         <button id="btnBulkCancel">✕</button>
     </div>
-    <div class="hint-text"><kbd>Ctrl+V</kbd> paste | <kbd>Ctrl+U</kbd> upload | <kbd>Ctrl+F</kbd> search | <kbd>Esc</kbd> close | <kbd>▲▼◀▶</kbd> navigate | <kbd>Enter</kbd> select/submit</div>
+    <div class="hint-text"><kbd>Ctrl+V</kbd> paste | <kbd>Ctrl+U</kbd> upload | <kbd>Ctrl+F</kbd> search | <kbd>Esc</kbd> close | <kbd>▲▼◀▶</kbd> navigate | <kbd>Enter</kbd> select | <kbd>Click</kbd> file to preview</div>
     <div class="dropzone" id="dropzone">
         <p>📂 Drop files here or click to browse</p>
         <input type="file" id="fileInput" multiple>
@@ -182,9 +179,10 @@
         sort: localStorage.getItem('sort') || 'newest',
         query: '',
         dark: localStorage.getItem('darkMode') === 'true',
-        shareToken: null
+        shareToken: null,
+        pendingCheckInterval: null
     };
-    let uploadingFiles = new Map(); // FIXED: Map, not Set
+    let uploadingFiles = new Map(); // Map of fileKey -> { controller, div }
     let activeAbortControllers = new Set();
     let cardData = new Map();
 
@@ -225,10 +223,7 @@
         el.className = `toast ${type}`;
         el.textContent = msg;
         D.toastBox.appendChild(el);
-        setTimeout(() => {
-            el.style.opacity = '0';
-            setTimeout(() => el.remove(), 300);
-        }, 3000);
+        setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 3000);
     }
     const esc = s => { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
     const fmtSz = b => {
@@ -263,31 +258,36 @@
     // RBAC
     const roleRights = {
         admin: { upload: true, delete: true, download: true, preview: true, play: true, copy: true, tick: true, comment: true },
-        full: { upload: true, delete: true, download: true, preview: true, play: true, copy: true, tick: true, comment: true },
+        full:   { upload: true, delete: true, download: true, preview: true, play: true, copy: true, tick: true, comment: true },
         delete: { upload: false, delete: true, download: true, preview: true, play: true, copy: true, tick: true, comment: true },
         upload: { upload: true, delete: false, download: true, preview: true, play: true, copy: true, tick: true, comment: true },
-        download: { upload: false, delete: false, download: true, preview: true, play: true, copy: true, tick: true, comment: true },
-        read: { upload: false, delete: false, download: false, preview: true, play: true, copy: false, tick: true, comment: true },
-        none: { upload: false, delete: false, download: false, preview: false, play: false, copy: false, tick: false, comment: false }
+        download:{ upload: false, delete: false, download: true, preview: true, play: true, copy: true, tick: true, comment: true },
+        read:   { upload: false, delete: false, download: false, preview: true, play: true, copy: false, tick: true, comment: true },
+        none:   { upload: false, delete: false, download: false, preview: false, play: false, copy: false, tick: false, comment: false }
     };
     function can(action) {
         if (ST.isAdmin) return true;
         return roleRights[ST.role]?.[action] === true;
     }
 
-    // Auth
+    // Auth with automatic token refresh after approval
     async function fetchUserInfo() {
         if (!ST.token) return false;
         try {
             const r = await fetch(`${WORKER_BASE}/user-info?utoken=${ST.token}`);
             if (!r.ok) throw new Error();
             const i = await r.json();
+            const wasApproved = ST.approved;
             ST.email = i.email;
             ST.isAdmin = i.isAdmin === true;
             ST.approved = i.approved;
             ST.role = i.role;
-            if (ST.approved) render();
-            else showPending();
+            if (!wasApproved && ST.approved) {
+                // Just got approved: reload the main view
+                if (ST.pendingCheckInterval) clearInterval(ST.pendingCheckInterval);
+                render();
+                toast('You have been approved! Access granted.', 'success');
+            }
             return true;
         } catch (e) {
             console.warn(e);
@@ -295,7 +295,15 @@
         }
     }
 
+    function startPendingCheck() {
+        if (ST.pendingCheckInterval) clearInterval(ST.pendingCheckInterval);
+        ST.pendingCheckInterval = setInterval(async () => {
+            await fetchUserInfo();
+        }, 30000); // check every 30s while pending
+    }
+
     function showLogin() {
+        if (ST.pendingCheckInterval) clearInterval(ST.pendingCheckInterval);
         D.adminBar?.classList.add('hidden');
         D.userUI.innerHTML = '';
         D.grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;"><h2>Welcome to File Vault</h2><p>Sign in to access your files.</p><button class="btn btn-primary" id="btnLogin">🔑 Login with Google</button></div>`;
@@ -312,12 +320,9 @@
         D.userUI.innerHTML = '';
         D.dropzone.style.display = 'none';
         document.querySelector('.hint-text').style.display = 'none';
-        D.grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;"><h2>🔐 Waiting for Approval</h2><p>Email: <strong>${ST.email}</strong></p><p>After admin approves you, click <strong>Refresh Status</strong>.</p><div><button class="btn btn-outline btn-sm" id="manualRefreshBtn">🔄 Refresh Status</button> <button class="btn btn-danger btn-sm" id="btnSelfRevoke">❌ Cancel</button></div></div>`;
+        D.grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;"><h2>🔐 Waiting for Approval</h2><p>Email: <strong>${ST.email}</strong></p><p>After admin approves you, this page will automatically refresh. You can also click <strong>Refresh Status</strong>.</p><div><button class="btn btn-outline btn-sm" id="manualRefreshBtn">🔄 Refresh Status</button> <button class="btn btn-danger btn-sm" id="btnSelfRevoke">❌ Cancel Request</button></div></div>`;
         const refreshBtn = $('manualRefreshBtn');
-        if (refreshBtn) refreshBtn.onclick = async () => {
-            toast('Checking...', 'info');
-            await fetchUserInfo();
-        };
+        if (refreshBtn) refreshBtn.onclick = async () => { toast('Checking...', 'info'); await fetchUserInfo(); };
         const selfRevokeBtn = $('btnSelfRevoke');
         if (selfRevokeBtn) selfRevokeBtn.onclick = async () => {
             if (!confirm('Cancel request?')) return;
@@ -327,9 +332,11 @@
             showLogin();
             toast('Request cancelled.');
         };
+        startPendingCheck();
     }
 
     function showMain() {
+        if (ST.pendingCheckInterval) clearInterval(ST.pendingCheckInterval);
         document.querySelector('.hint-text').style.display = '';
         if (ST.isAdmin) {
             D.adminBar?.classList.remove('hidden');
@@ -472,7 +479,7 @@
             .then(r => r.json())
             .then(users => {
                 const active = users.filter(u => u.status !== 'revoked' && u.is_admin !== 1);
-                D.listUsers.innerHTML = active.map(u => `<div class="approval-item"><span>${u.email} <span class="status-badge status-${u.status}">${u.status}</span> ${u.role ? `(${u.role})` : ''}</span><div>${u.status === 'pending' ? `<select class="role-sel-${u.email}"><option value="full">Full</option><option value="delete">Delete</option><option value="upload">Upload Only</option><option value="download">Download</option><option value="read">Read</option><option value="none">None</option></select><button class="btn-sm btn-success" data-action="approve" data-email="${u.email}">Approve</button>` : ''}${u.status === 'approved' ? `<select class="role-sel-${u.email}"><option value="full" ${u.role === 'full' ? 'selected' : ''}>Full</option><option value="delete" ${u.role === 'delete' ? 'selected' : ''}>Delete</option><option value="upload" ${u.role === 'upload' ? 'selected' : ''}>Upload Only</option><option value="download" ${u.role === 'download' ? 'selected' : ''}>Download</option><option value="read" ${u.role === 'read' ? 'selected' : ''}>Read</option><option value="none" ${u.role === 'none' ? 'selected' : ''}>None</option></select><button class="btn-sm btn-primary" data-action="update" data-email="${u.email}">Update</button><button class="btn-sm btn-danger" data-action="revoke" data-email="${u.email}">Revoke</button><button class="btn-sm btn-warning" data-action="makeadmin" data-email="${u.email}">Make Sub‑Admin</button>` : ''}</div></div>`).join('');
+                D.listUsers.innerHTML = active.map(u => `<div class="approval-item"><span>${u.email} <span class="status-badge status-${u.status}">${u.status}</span> ${u.role ? `(${u.role})` : ''}</span><div>${u.status === 'pending' ? `<select class="role-sel-${u.email}"><option value="full">Full</option><option value="delete">Delete</option><option value="upload">Upload Only</option><option value="download">Download</option><option value="read">Read</option><option value="none">None</option></select><button class="btn-sm btn-success" data-action="approve" data-email="${u.email}">Approve</button>` : ''}${u.status === 'approved' ? `<select class="role-sel-${u.email}"><option value="full" ${u.role === 'full' ? 'selected' : ''}>Full</option><option value="delete" ${u.role === 'delete' ? 'selected' : ''}>Delete</option><option value="upload" ${u.role === 'upload' ? 'selected' : ''}>Upload Only</option><option value="download" ${u.role === 'download' ? 'selected' : ''}>Download</option><option value="read" ${u.role === 'read' ? 'selected' : ''}>Read</option><option value="none" ${u.role === 'none' ? 'selected' : ''}>None</option></select><button class="btn-sm btn-primary" data-action="update" data-email="${u.email}">Update Role</button><button class="btn-sm btn-danger" data-action="revoke" data-email="${u.email}">Revoke</button><button class="btn-sm btn-warning" data-action="makeadmin" data-email="${u.email}">Make Sub‑Admin</button>` : ''}</div></div>`).join('');
                 attachUserEvents();
             });
     }
@@ -492,15 +499,21 @@
                 if (sel) role = sel.value;
                 let endpoint = '';
                 if (action === 'approve') endpoint = 'approve';
-                else if (action === 'update') endpoint = 'approve';
+                else if (action === 'update') endpoint = 'update-role';
                 else if (action === 'revoke') endpoint = 'revoke';
-                if (endpoint) {
-                    await fetch(`${WORKER_BASE}/admin/${endpoint}`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }, body: JSON.stringify({ email, role }) });
-                    toast(`${email} ${action === 'revoke' ? 'revoked' : 'updated'}`);
-                    loadPending();
-                    loadPendingCount();
-                    loadAllUsers();
+                if (endpoint === 'update-role') {
+                    await fetch(`${WORKER_BASE}/admin/update-role`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }, body: JSON.stringify({ email, role }) });
+                    toast(`${email} role updated to ${role}`);
+                } else if (endpoint === 'revoke') {
+                    await fetch(`${WORKER_BASE}/admin/revoke`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }, body: JSON.stringify({ email }) });
+                    toast(`${email} revoked`);
+                } else if (endpoint === 'approve') {
+                    await fetch(`${WORKER_BASE}/admin/approve`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }, body: JSON.stringify({ email, role }) });
+                    toast(`${email} approved`);
                 }
+                loadAllUsers();
+                loadPending();
+                loadPendingCount();
             });
         });
     }
@@ -621,7 +634,7 @@
         }
     }
 
-    // Universal preview
+    // Advanced video player with brightness, audio tracks, language, aspect ratio, volume boost
     let currentVideo = null;
     let controlsTimeout = null;
     function setupVideoControls(video) {
@@ -631,7 +644,26 @@
         if (existing) existing.remove();
         const controlsDiv = document.createElement('div');
         controlsDiv.className = 'custom-video-controls';
-        controlsDiv.innerHTML = `<button id="vidPlayPause">⏯️</button><button id="vidBack30">←30s</button><button id="vidForward30">30s→</button><span id="vidTime">0:00 / 0:00</span><input type="range" id="vidSeek" value="0" step="0.1" style="flex:1"><input type="range" id="vidVolume" min="0" max="100" value="100"><span id="vidVolIcon">🔊</span><select id="vidAspect"><option value="auto">Auto</option><option value="16:9">16:9</option><option value="4:3">4:3</option><option value="1:1">1:1</option></select><button id="vidFullscreen">⛶</button>`;
+        controlsDiv.innerHTML = `
+            <button id="vidPlayPause">⏯️</button>
+            <button id="vidBack30">←30s</button>
+            <button id="vidForward30">30s→</button>
+            <span id="vidTime">0:00 / 0:00</span>
+            <input type="range" id="vidSeek" value="0" step="0.1" style="width:100px">
+            <input type="range" id="vidVolume" min="0" max="100" value="100" style="width:60px">
+            <span id="vidVolIcon">🔊</span>
+            <input type="range" id="vidBrightness" min="0" max="200" value="100" style="width:60px">
+            <span>☀️</span>
+            <select id="vidAudioTrack"></select>
+            <select id="vidLanguage"></select>
+            <select id="vidAspect">
+                <option value="auto">Auto</option>
+                <option value="16:9">16:9</option>
+                <option value="4:3">4:3</option>
+                <option value="1:1">1:1</option>
+            </select>
+            <button id="vidFullscreen">⛶</button>
+        `;
         D.prevOv.appendChild(controlsDiv);
         const playPause = document.getElementById('vidPlayPause');
         const back30 = document.getElementById('vidBack30');
@@ -640,9 +672,13 @@
         const seekSlider = document.getElementById('vidSeek');
         const volumeSlider = document.getElementById('vidVolume');
         const volIcon = document.getElementById('vidVolIcon');
+        const brightnessSlider = document.getElementById('vidBrightness');
+        const audioTrackSelect = document.getElementById('vidAudioTrack');
+        const languageSelect = document.getElementById('vidLanguage');
         const aspectSelect = document.getElementById('vidAspect');
         const fullscreenBtn = document.getElementById('vidFullscreen');
-        if (!playPause || !back30 || !forward30 || !timeSpan || !seekSlider || !volumeSlider || !volIcon || !aspectSelect || !fullscreenBtn) return;
+        if (!playPause || !back30 || !forward30 || !timeSpan || !seekSlider || !volumeSlider || !volIcon || !brightnessSlider || !audioTrackSelect || !languageSelect || !aspectSelect || !fullscreenBtn) return;
+        
         function formatTime(sec) { if (isNaN(sec)) return '0:00'; const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = Math.floor(sec % 60); return h > 0 ? `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}` : `${m}:${s.toString().padStart(2, '0')}`; }
         function updateTime() { if (!video) return; const cur = video.currentTime, dur = video.duration || 0; seekSlider.value = (cur / dur) * 100 || 0; timeSpan.textContent = `${formatTime(cur)} / ${formatTime(dur)}`; }
         video.addEventListener('timeupdate', updateTime);
@@ -653,9 +689,54 @@
         back30.addEventListener('click', () => video.currentTime = Math.max(0, video.currentTime - 30));
         forward30.addEventListener('click', () => video.currentTime = Math.min(video.duration, video.currentTime + 30));
         seekSlider.addEventListener('input', () => { if (video.duration) video.currentTime = (seekSlider.value / 100) * video.duration; });
-        volumeSlider.addEventListener('input', () => { const val = volumeSlider.value; video.volume = val / 100; volIcon.textContent = val == 0 ? '🔇' : val < 30 ? '🔉' : '🔊'; });
+        volumeSlider.addEventListener('input', () => { let val = volumeSlider.value; video.volume = val / 100; volIcon.textContent = val == 0 ? '🔇' : val < 30 ? '🔉' : '🔊'; });
+        brightnessSlider.addEventListener('input', () => { let val = brightnessSlider.value / 100; video.style.filter = `brightness(${val})`; });
+        
+        // Populate audio tracks and languages
+        function updateTracks() {
+            if (!video.audioTracks) return;
+            audioTrackSelect.innerHTML = '';
+            languageSelect.innerHTML = '';
+            for (let i = 0; i < video.audioTracks.length; i++) {
+                const track = video.audioTracks[i];
+                const option = document.createElement('option');
+                option.value = i;
+                option.textContent = track.label || `Track ${i+1}`;
+                if (track.enabled) option.selected = true;
+                audioTrackSelect.appendChild(option);
+            }
+            // Language selection (if multiple languages in text tracks)
+            for (let i = 0; i < video.textTracks.length; i++) {
+                const track = video.textTracks[i];
+                if (track.kind === 'subtitles' || track.kind === 'captions') {
+                    const option = document.createElement('option');
+                    option.value = i;
+                    option.textContent = track.language || `Language ${i+1}`;
+                    languageSelect.appendChild(option);
+                }
+            }
+            if (languageSelect.options.length === 0) {
+                languageSelect.innerHTML = '<option value="">No subtitles</option>';
+            }
+        }
+        video.addEventListener('loadedmetadata', updateTracks);
+        audioTrackSelect.addEventListener('change', () => {
+            if (!video.audioTracks) return;
+            for (let i = 0; i < video.audioTracks.length; i++) {
+                video.audioTracks[i].enabled = (i == audioTrackSelect.value);
+            }
+        });
+        languageSelect.addEventListener('change', () => {
+            if (!video.textTracks) return;
+            const idx = parseInt(languageSelect.value);
+            for (let i = 0; i < video.textTracks.length; i++) {
+                video.textTracks[i].mode = (i === idx) ? 'showing' : 'hidden';
+            }
+        });
+        
         aspectSelect.addEventListener('change', () => { const asp = aspectSelect.value; video.style.aspectRatio = asp === '16:9' ? '16/9' : asp === '4:3' ? '4/3' : asp === '1:1' ? '1/1' : 'auto'; });
         fullscreenBtn.addEventListener('click', () => { if (document.fullscreenElement) document.exitFullscreen(); else video.parentElement?.requestFullscreen(); });
+        
         const hideControls = () => { controlsDiv.style.opacity = '0'; controlsDiv.style.pointerEvents = 'none'; };
         const showControls = () => { controlsDiv.style.opacity = '1'; controlsDiv.style.pointerEvents = 'auto'; if (controlsTimeout) clearTimeout(controlsTimeout); controlsTimeout = setTimeout(hideControls, 3000); };
         video.addEventListener('mousemove', showControls);
@@ -681,32 +762,20 @@
             element = video;
         } else if (type === 'audio') {
             const audio = document.createElement('audio');
-            audio.src = url;
-            audio.controls = true;
-            audio.autoplay = true;
-            audio.style.width = '100%';
+            audio.src = url; audio.controls = true; audio.autoplay = true; audio.style.width = '100%';
             element = audio;
         } else if (type === 'image') {
-            const img = document.createElement('img');
-            img.src = url;
-            img.style.maxWidth = '95%';
-            img.style.maxHeight = '95%';
+            const img = document.createElement('img'); img.src = url; img.style.maxWidth = '95%'; img.style.maxHeight = '95%';
             element = img;
         } else if (type === 'pdf') {
-            const iframe = document.createElement('iframe');
-            iframe.src = url;
-            iframe.style.width = '90%';
-            iframe.style.height = '90%';
+            const iframe = document.createElement('iframe'); iframe.src = url; iframe.style.width = '90%'; iframe.style.height = '90%';
             element = iframe;
         } else if (type === 'text') {
             const pre = document.createElement('pre');
             fetch(url, { headers: getAuthHeaders() }).then(r => r.text()).then(t => { pre.textContent = t; D.prevCont.appendChild(pre); });
             element = null;
         } else {
-            const embed = document.createElement('embed');
-            embed.src = url;
-            embed.style.width = '90%';
-            embed.style.height = '90%';
+            const embed = document.createElement('embed'); embed.src = url; embed.style.width = '90%'; embed.style.height = '90%';
             element = embed;
         }
         if (element) D.prevCont.appendChild(element);
@@ -764,7 +833,6 @@
                 const card = document.createElement('div');
                 card.className = `card${ST.selected.has(f.publicId) ? ' selected' : ''}`;
                 card.dataset.publicId = f.publicId;
-                card.tabIndex = 0;
                 card.innerHTML = `<input type="checkbox" class="card-checkbox" data-id="${f.publicId}" ${ST.selected.has(f.publicId) ? 'checked' : ''}><div class="thumbnail">${thumbnailHtml}</div><div class="file-name">${esc(f.name)}</div><div class="file-meta">${fmtSz(f.size)} · ${new Date(f.createdAt).toLocaleString()}</div>${upBy}<div class="actions">${actionsHtml.join('')}<button class="tick-btn" data-action="tick" data-id="${f.publicId}"><span class="tooltip"></span></button><span class="tick-count"></span><div class="comment-section"><div class="comment-header"><span class="comment-icon">💬</span><span class="comment-count"></span></div><div class="comment-list"></div><div class="comment-form"><input type="text" placeholder="Add a comment..."><button class="btn-xs btn-outline post-comment">Post</button></div></div></div>`;
                 gridDiv.appendChild(card);
                 (async () => {
@@ -785,19 +853,8 @@
                     const commentInput = card.querySelector('.comment-form input');
                     const postBtn = card.querySelector('.post-comment');
                     if (postBtn) {
-                        commentInput.addEventListener('keypress', (e) => {
-                            if (e.key === 'Enter') {
-                                e.preventDefault();
-                                postBtn.click();
-                            }
-                        });
-                        postBtn.addEventListener('click', async () => {
-                            const text = commentInput.value;
-                            if (text.trim()) {
-                                await addComment(f.publicId, text);
-                                commentInput.value = '';
-                            }
-                        });
+                        commentInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); postBtn.click(); } });
+                        postBtn.addEventListener('click', async () => { const text = commentInput.value; if (text.trim()) { await addComment(f.publicId, text); commentInput.value = ''; } });
                     }
                     const commentHeader = card.querySelector('.comment-header');
                     if (commentHeader) commentHeader.addEventListener('click', () => card.querySelector('.comment-list')?.classList.toggle('show'));
@@ -827,7 +884,7 @@
                 btn.addEventListener('click', actionHandler);
             }
         });
-        // Card click: open preview/play (if not clicking on checkbox or action buttons)
+        // Card click = preview/play
         D.grid.querySelectorAll('.card').forEach(card => {
             card.removeEventListener('click', cardClickHandler);
             card.addEventListener('click', cardClickHandler);
@@ -838,9 +895,7 @@
     async function tickHandler(e) { e.stopPropagation(); await toggleTick(e.currentTarget.dataset.id); }
     function actionHandler(e) { e.stopPropagation(); const action = e.currentTarget.dataset.action, id = e.currentTarget.dataset.id, mime = e.currentTarget.dataset.mime, name = e.currentTarget.dataset.name; if (action === 'copy') copyFileUrl(id, name); else fileAction(action, id, mime); }
     function cardClickHandler(e) {
-        // If clicked on checkbox or action button, do nothing (already handled)
         if (e.target.classList.contains('card-checkbox') || e.target.closest('.actions')) return;
-        // Otherwise, open preview/play for the file
         const pid = this.dataset.publicId;
         const file = ST.files.find(f => f.publicId === pid);
         if (!file) return;
@@ -905,7 +960,7 @@
         progressDiv.innerHTML = `<div class="progress-header"><span>${esc(file.name)}</span><span class="progress-percent">0%</span></div><div class="progress-bar"><div class="progress-fill" style="width:0%"></div></div>`;
         D.uploadProgressList.classList.remove('hidden');
         D.uploadProgressList.appendChild(progressDiv);
-        uploadingFiles.set(fileKey, { controller: abortCtrl, div: progressDiv, file });
+        uploadingFiles.set(fileKey, { controller: abortCtrl, div: progressDiv });
         try {
             let pid = existingPid;
             if (!pid) {
