@@ -105,10 +105,8 @@
         .toast.error { background: var(--danger); }
         .toast.success { background: var(--success); }
         @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-        /* Auto-rotate support: adjust grid columns on landscape */
         @media (orientation: landscape) and (max-width: 900px) {
             .file-grid { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
-            .custom-video-controls button, .custom-video-controls select { padding: 4px 8px; font-size: 0.7rem; }
         }
         @media (max-width: 600px) { body { padding: 10px; } .file-grid { grid-template-columns: 1fr; } }
         button:focus-visible, .card:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
@@ -225,7 +223,7 @@
         if(mime.startsWith('text')) return '<div style="font-size:3rem;">📝</div>';
         return '<div style="font-size:3rem;">📄</div>';
     }
-    // Auth functions (same as before but with reset token button)
+    // Auth functions
     async function fetchUserInfo(){ if(!ST.token) return false; return withLock(async()=>{ const r=await fetch(`${WORKER_BASE}/user-info?utoken=${ST.token}`); if(!r.ok) throw new Error(); const i=await r.json(); ST.email=i.email; ST.isAdmin=i.isAdmin===true; ST.approved=i.approved; ST.role=i.role; if(ST.approved) render(); else showPending(); return true; }).catch(e=>{console.warn(e); return false;}); }
     function showLogin(){ D.adminBar?.classList.add('hidden'); D.userUI.innerHTML=''; D.grid.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:60px;"><h2>Welcome to File Vault</h2><p>Sign in to access your files.</p><button class="btn btn-primary" id="btnLogin">🔑 Login with Google</button></div>`; const loginBtn=$('btnLogin'); if(loginBtn) loginBtn.onclick=async()=>{ const r=await fetch(`${WORKER_BASE}/auth-url`); if(r.ok) window.location=(await r.json()).authUrl; else toast('Login failed','error'); }; }
     function showPending(){ D.adminBar?.classList.add('hidden'); D.userUI.innerHTML=''; D.dropzone.style.display='none'; document.querySelector('.hint-text').style.display='none'; D.grid.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:60px;"><h2>🔐 Waiting for Approval</h2><p>Email: <strong>${ST.email}</strong></p><p>After admin approves you, click <strong>Refresh Status</strong>.</p><div><button class="btn btn-outline btn-sm" id="manualRefreshBtn">🔄 Refresh Status</button> <button class="btn btn-danger btn-sm" id="btnSelfRevoke">❌ Cancel</button></div></div>`; const refreshBtn=$('manualRefreshBtn'); if(refreshBtn) refreshBtn.onclick=async()=>{ toast('Checking...','info'); await fetchUserInfo(); }; const selfRevokeBtn=$('btnSelfRevoke'); if(selfRevokeBtn) selfRevokeBtn.onclick=async()=>{ if(!confirm('Cancel request?')) return; await withLock(async()=>{ await fetch(`${WORKER_BASE}/user-revoke-self`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({utoken:ST.token})}); }); ST.token=null; localStorage.removeItem('vtoken'); showLogin(); toast('Request cancelled.'); }; }
@@ -238,7 +236,7 @@
             ST.token = null; localStorage.removeItem('vtoken'); showLogin(); toast('Token reset. Please login again.', 'success');
         }
     });
-    // Admin panels (simplified - keep your existing logic)
+    // Admin panels (simplified, fully functional)
     function safeAddEvent(el,ev,fn){ if(el) el.addEventListener(ev,fn); }
     safeAddEvent(D.btnSync,'click',async()=>{ toast('Syncing...','info'); await withLock(async()=>{ await fetch(`${WORKER_BASE}/sync`,{method:'POST',headers:getAuthHeaders()}); await fetchFiles(); toast('Sync done','success'); }).catch(()=>toast('Sync failed','error')); });
     safeAddEvent(D.btnAppr,'click',()=>togglePanel(D.pnlAppr,loadPending));
@@ -265,7 +263,7 @@
     function attachUserEvents(){ D.listUsers.querySelectorAll('button').forEach(btn=>{ btn.addEventListener('click',async()=>{ const action=btn.dataset.action; const email=btn.dataset.email; if(action==='makeadmin'){ await fetch(`${WORKER_BASE}/admin/make-subadmin`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({email,makeAdmin:true})}); toast(`${email} promoted to sub‑admin.`,'success'); loadAllUsers(); return; } let role='full'; const sel=btn.parentElement.querySelector(`.role-sel-${email}`); if(sel) role=sel.value; let endpoint=''; if(action==='approve') endpoint='approve'; else if(action==='update') endpoint='approve'; else if(action==='revoke') endpoint='revoke'; if(endpoint){ await fetch(`${WORKER_BASE}/admin/${endpoint}`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({email,role})}); toast(`${email} ${action==='revoke'?'revoked':'updated'}`); loadPending(); loadPendingCount(); loadAllUsers(); } }); }); }
     function loadLogs(){ fetch(`${WORKER_BASE}/admin/logs?limit=200`,{headers:getAuthHeaders()}).then(r=>r.json()).then(d=>{ D.logsCt.innerHTML=d.logs.length?d.logs.map(l=>`<div><strong>${new Date(l.ts).toLocaleString()}</strong> ${l.actor} ${l.action} <strong>${l.meta?.fileName||l.target}</strong></div>`).join(''):'<p>No logs.</p>'; }); }
     function loadAnalytics(){ fetch(`${WORKER_BASE}/admin/analytics`,{headers:getAuthHeaders()}).then(r=>r.json()).then(d=>{ D.analyticsCt.innerHTML=`<p>Files: ${d.files.total} (${fmtSz(d.files.totalSize)}) | Users: ${d.users.total}</p>`; }); }
-    // File core (same as before but with fixed copy & rename)
+    // File core
     async function fetchFiles(){ await withLock(async()=>{ const r=await fetch(`${WORKER_BASE}/list`,{headers:getAuthHeaders()}); if(!r.ok) throw new Error(); const data=await r.json(); ST.files=data.files; renderFiles(); }).catch(e=>toast('Failed to load files','error')); }
     async function loadCardData(pid){ const [commentsRes,tickRes]=await Promise.all([ fetch(`${WORKER_BASE}/comment/list?fileId=${pid}`,{headers:getAuthHeaders()}), fetch(`${WORKER_BASE}/tick/get?fileId=${pid}`,{headers:getAuthHeaders()}) ]); const comments=await commentsRes.json(); const tickData=await tickRes.json(); return { comments:comments.comments, ticked:tickData.ticked, count:tickData.count, users:tickData.users }; }
     async function refreshCard(pid){ const card=document.querySelector(`.card[data-public-id="${pid}"]`); if(!card) return; const newData=await loadCardData(pid); cardData.set(pid,newData); const tickBtn=card.querySelector('.tick-btn'); if(tickBtn){ tickBtn.innerHTML=newData.ticked?'✅':'☑️'; let tooltipSpan=tickBtn.querySelector('.tooltip'); if(!tooltipSpan){ tooltipSpan=document.createElement('span'); tooltipSpan.className='tooltip'; tickBtn.appendChild(tooltipSpan); } tooltipSpan.textContent=newData.users.length?`Ticked by: ${newData.users.join(', ')}`:'No ticks yet'; } card.querySelector('.tick-count').textContent=newData.count; card.querySelector('.comment-count').textContent=newData.comments.length; const commentList=card.querySelector('.comment-list'); if(commentList){ commentList.innerHTML=newData.comments.map(c=>`<div class="comment" data-comment-id="${c.id}"><span class="comment-text"><strong>${esc(c.user_email)}</strong> ${esc(c.text)}</span><div class="comment-actions">${c.user_email===ST.email||ST.isAdmin?`<button class="delete-comment" data-id="${c.id}">🗑</button>`:''}${c.user_email===ST.email||ST.isAdmin?`<button class="edit-comment" data-id="${c.id}" data-text="${esc(c.text)}">✏️</button>`:''}</div></div>`).join(''); attachCommentEvents(pid,commentList); } }
@@ -291,7 +289,7 @@
         } catch(err){ toast('Copy failed: '+err.message, 'error'); }
     }
     async function createShareLink(pid){ toast('Creating share link...','info'); const expiresIn=3600*24*7; await withLock(async()=>{ const r=await fetch(`${WORKER_BASE}/share/create`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({publicId:pid,expiresIn})}); const data=await r.json(); if(r.ok){ await navigator.clipboard.writeText(data.shareUrl); toast('Share link copied!','success'); } else { toast('Failed to create share link','error'); } }).catch(()=>toast('Share failed','error')); }
-    // Video player (fixed null checks)
+    // Video player
     let currentVideo = null, controlsTimeout = null;
     function setupVideoControls(video){
         if(!video) return;
@@ -459,7 +457,7 @@
     async function deleteFile(pid){ if(!confirm('Delete?')) return; await withLock(async()=>{ const r=await fetch(`${WORKER_BASE}/delete`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({publicId:pid})}); if(r.ok){ await fetchFiles(); toast('Deleted'); } else throw new Error(); }).catch(()=>toast('Delete failed','error')); }
     function replaceFile(pid){ const inp=document.createElement('input'); inp.type='file'; inp.onchange=async()=>{ const file=inp.files[0]; if(!file) return; await withLock(async()=>{ const init=await fetch(`${WORKER_BASE}/update`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({publicId:pid,fileName:file.name,fileSize:file.size,fileType:file.type||'application/octet-stream'})}); if(!init.ok){ toast('Replace init failed','error'); return; } const data=await init.json(); await uploadFile(file, data.publicId); await fetchFiles(); }); }; inp.click(); }
     async function renameFile(pid){ const f=ST.files.find(f=>f.publicId===pid); if(!f) return; const newName=prompt('New name:', f.name); if(!newName || newName===f.name) return; await withLock(async()=>{ const r=await fetch(`${WORKER_BASE}/rename`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({publicId:pid,newName})}); if(r.ok){ await fetchFiles(); toast('Renamed'); } else throw new Error(); }).catch(()=>toast('Rename failed','error')); }
-    // Upload (same as before)
+    // Upload
     let pendingPasteFiles = [];
     document.addEventListener('paste', (e)=>{ const items=e.clipboardData.items; for(let i=0;i<items.length;i++){ if(items[i].kind==='file'){ const file=items[i].getAsFile(); if(file) pendingPasteFiles.push(file); } } if(pendingPasteFiles.length>0){ toast(`${pendingPasteFiles.length} file(s) pasted. Click Send.`,'success'); D.pasteInput.value=`${pendingPasteFiles.length} file(s) ready`; } else { toast('No file in clipboard.','info'); } });
     safeAddEvent(D.sendPasteBtn,'click',async()=>{ if(pendingPasteFiles.length===0){ toast('No pasted files.','info'); return; } toast(`Uploading ${pendingPasteFiles.length} files...`,'info'); for(const file of pendingPasteFiles) await uploadFile(file); pendingPasteFiles=[]; D.pasteInput.value=''; toast('All uploaded.','success'); });
