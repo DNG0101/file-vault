@@ -182,7 +182,7 @@
         shareToken: null,
         pendingCheckInterval: null
     };
-    let uploadingFiles = new Map(); // Map of fileKey -> { controller, div }
+    let uploadingFiles = new Map(); // fileKey -> { controller, div }
     let activeAbortControllers = new Set();
     let cardData = new Map();
 
@@ -377,7 +377,7 @@
         }
     });
 
-    // Admin actions
+    // Admin actions (sync, users, logs, etc.)
     safeAddEvent(D.btnSync, 'click', async () => {
         toast('Syncing...', 'info');
         try {
@@ -503,7 +503,6 @@
                 if (endpoint === 'update-role') {
                     await fetch(`${WORKER_BASE}/admin/update-role`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }, body: JSON.stringify({ email, role }) });
                     toast(`${email} role updated to ${role}`);
-                    // Refresh user info and files
                     await fetchUserInfo();
                     await fetchFiles();
                 } else if (endpoint === 'revoke') {
@@ -639,7 +638,6 @@
                 await navigator.clipboard.write([ new ClipboardItem({ [blob.type]: blob }) ]);
                 toast('Image copied to clipboard!', 'success');
             } else {
-                // Fallback: copy download link
                 await navigator.clipboard.writeText(getDownloadUrl(pid));
                 toast('Download link copied (file copy not supported for this type)', 'info');
             }
@@ -648,7 +646,7 @@
         }
     }
 
-    // Advanced video player with brightness, audio tracks, language, aspect ratio, volume boost
+    // Advanced video player
     let currentVideo = null;
     function setupVideoControls(video) {
         if (!video) return;
@@ -663,7 +661,7 @@
             <button id="vidForward30">30s→</button>
             <span id="vidTime">0:00 / 0:00</span>
             <input type="range" id="vidSeek" value="0" step="0.1" style="width:100px">
-            <input type="range" id="vidVolume" min="0" max="300" value="100" style="width:80px">
+            <input type="range" id="vidVolume" min="0" max="300" value="100" step="5" style="width:80px">
             <span id="vidVolIcon">🔊</span>
             <input type="range" id="vidBrightness" min="0" max="200" value="100" style="width:80px">
             <span>☀️</span>
@@ -722,7 +720,7 @@
                 if (track.kind === 'subtitles' || track.kind === 'captions') {
                     const option = document.createElement('option');
                     option.value = i;
-                    option.textContent = track.language || `Language ${i+1}`;
+                    option.textContent = track.language || `Lang ${i+1}`;
                     languageSelect.appendChild(option);
                 }
             }
@@ -965,7 +963,7 @@
                 const initData = await initRes.json();
                 pid = initData.publicId;
             }
-            const CHUNK = 5 * 1024 * 1024;
+            const CHUNK = 2 * 1024 * 1024;
             let uploaded = 0;
             const updateProgress = (percent) => {
                 const fill = progressDiv.querySelector('.progress-fill');
