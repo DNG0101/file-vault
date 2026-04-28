@@ -12,11 +12,9 @@
             --text-secondary: #64748b;
             --border: #e2e8f0;
             --accent: #3b82f6;
-            --accent-hover: #2563eb;
             --success: #10b981;
             --danger: #ef4444;
             --warn: #f59e0b;
-            --purple: #8b5cf6;
             --radius: 14px;
             --shadow: 0 4px 12px rgba(0,0,0,0.05);
             --toast-bg: #1e293b;
@@ -62,17 +60,19 @@
         .card { background: var(--card-bg); border-radius: var(--radius); padding: 12px; box-shadow: var(--shadow); border: 1px solid var(--border); position: relative; transition: all 0.2s; display: flex; flex-direction: column; }
         .card.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
         .card-checkbox { position: absolute; top: 10px; right: 10px; width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; z-index: 2; }
-        .thumbnail { width: 100%; height: 160px; background: transparent; border-radius: 10px; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; font-size: 3rem; overflow: hidden; }
-        .thumbnail img, .thumbnail video { width: 100%; height: 100%; object-fit: cover; border-radius: 10px; background: transparent; }
+        .thumbnail { width: 100%; height: 160px; border-radius: 10px; margin-bottom: 10px; background: transparent; display: flex; align-items: center; justify-content: center; font-size: 3rem; overflow: hidden; }
+        .thumbnail img, .thumbnail video { width: 100%; height: 100%; object-fit: cover; }
         .file-name { font-weight: 600; word-break: break-word; margin-bottom: 6px; font-size: 0.9rem; }
         .file-meta { font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 10px; }
         .actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
         .btn-xs { padding: 4px 8px; border: none; border-radius: 6px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
         .btn-xs-play { background: var(--accent); color: white; }
-        .btn-xs-preview { background: var(--purple); color: white; }
+        .btn-xs-preview { background: #8b5cf6; color: white; }
         .btn-xs-download { background: var(--success); color: white; }
         .btn-xs-delete { background: var(--danger); color: white; }
         .btn-xs-copy { background: #0d6efd; color: white; }
+        .tick-btn { background: none; border: none; cursor: pointer; font-size: 1.2rem; margin-right: 8px; padding: 0; }
+        .tick-count { font-size: 0.7rem; color: var(--text-secondary); margin-right: 8px; }
         .comment-section { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 8px; font-size: 0.75rem; }
         .comment-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-weight: 600; cursor: pointer; }
         .comment-icon { font-size: 1rem; }
@@ -80,13 +80,10 @@
         .comment-list { max-height: 150px; overflow-y: auto; margin-bottom: 6px; display: none; }
         .comment-list.show { display: block; }
         .comment { padding: 4px 0; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-        .comment strong { color: var(--accent); }
-        .comment-text { word-break: break-word; flex: 1; margin-right: 8px; }
-        .comment-actions button { background: none; border: none; cursor: pointer; font-size: 0.7rem; margin-left: 4px; color: var(--text-secondary); }
+        .comment-text { flex: 1; margin-right: 8px; }
+        .comment-actions button { background: none; border: none; cursor: pointer; font-size: 0.7rem; color: var(--text-secondary); }
         .comment-form { display: flex; gap: 6px; margin-top: 6px; }
         .comment-form input { flex: 1; padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--card-bg); color: var(--text); }
-        .tick-btn { background: none; border: none; cursor: pointer; font-size: 1.2rem; margin-right: 4px; padding: 0; }
-        .tick-count { font-size: 0.7rem; color: var(--text-secondary); margin-right: 8px; }
         .admin-bar, .panel { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; margin-bottom: 16px; }
         .panel { max-height: 500px; overflow-y: auto; }
         .approval-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); gap: 10px; flex-wrap: wrap; }
@@ -97,9 +94,8 @@
         .preview-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 1000; display: flex; justify-content: center; align-items: center; flex-direction: column; }
         .preview-overlay.hidden { display: none; }
         .preview-container { width: 90%; height: 90%; display: flex; align-items: center; justify-content: center; }
-        .preview-container video, .preview-container audio { max-width: 100%; max-height: 100%; outline: none; background: #000; }
+        .preview-container video, .preview-container audio { max-width: 100%; max-height: 100%; outline: none; }
         .video-controls { position: absolute; bottom: 20px; left: 20px; background: rgba(0,0,0,0.6); padding: 8px 12px; border-radius: 8px; display: flex; gap: 10px; z-index: 1001; }
-        .video-controls button { background: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; }
         .preview-toolbar { position: absolute; top: 20px; right: 20px; display: flex; gap: 10px; z-index: 1001; }
         .preview-toolbar button { background: rgba(0,0,0,0.6); border: none; color: white; padding: 8px 16px; border-radius: 8px; cursor: pointer; }
         #toastContainer { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
@@ -211,6 +207,7 @@
             try { return await fn(); } finally { globalLock = false; }
         }
 
+        // ==================== STATE ====================
         let ST = {
             token: localStorage.getItem('vtoken'),
             email: null,
@@ -226,8 +223,10 @@
             shareToken: null,
         };
         let uploadingFiles = new Set();
+        let cardData = new Map(); // publicId -> { comments, ticked, count }
         let pendingPasteFiles = [];
 
+        // DOM helpers
         const $ = id => document.getElementById(id);
         const D = {
             stats: $('storageStats'), userUI: $('userUI'), adminBar: $('adminBar'),
@@ -276,9 +275,9 @@
         const fmtSpeed = bytesPerSec => { if(bytesPerSec<1024) return bytesPerSec.toFixed(0)+' B/s'; if(bytesPerSec<1048576) return (bytesPerSec/1024).toFixed(1)+' KB/s'; return (bytesPerSec/1048576).toFixed(1)+' MB/s'; };
         const getThumbnailHtml = (mime, name, publicId) => {
             if (mime.startsWith('image')) {
-                return `<img src="${WORKER_BASE}/video/${publicId}?utoken=${ST.token}" style="width:100%; height:100%; object-fit:cover; border-radius:10px; background:transparent;">`;
+                return `<img src="${WORKER_BASE}/video/${publicId}?utoken=${ST.token}" style="width:100%; height:100%; object-fit:cover; border-radius:10px;">`;
             } else if (mime.startsWith('video')) {
-                return `<video src="${WORKER_BASE}/video/${publicId}?utoken=${ST.token}" style="width:100%; height:100%; object-fit:cover; border-radius:10px; background:transparent;" muted preload="metadata"></video>`;
+                return `<video src="${WORKER_BASE}/video/${publicId}?utoken=${ST.token}" style="width:100%; height:100%; object-fit:cover; border-radius:10px;" muted preload="metadata"></video>`;
             } else if (mime.startsWith('audio')) return '🎵';
             else if (mime === 'application/pdf') return '📕';
             else if (mime.startsWith('text')) return '📝';
@@ -311,7 +310,7 @@
             });
         })();
 
-        // Authentication
+        // Auth & UI
         async function fetchUserInfo() {
             if (!ST.token) return false;
             return withLock(async () => {
@@ -321,7 +320,7 @@
                 const wasApproved = ST.approved;
                 ST.email = i.email; ST.isAdmin = i.isAdmin === true; ST.approved = i.approved; ST.role = i.role;
                 if (!wasApproved && ST.approved) {
-                    toast('Access granted! You have been approved.', 'success');
+                    toast('Access granted!', 'success');
                     render();
                 }
                 return true;
@@ -385,7 +384,7 @@
             showMain(); applyRoleUI(); fetchFiles();
         }
 
-        // Admin panels (events attached later)
+        // Admin panels (simple, working)
         function safeAddEvent(element, event, handler) { if(element) element.addEventListener(event, handler); }
 
         safeAddEvent(D.btnSync, 'click', async () => {
@@ -535,7 +534,7 @@
                 .then(d => { D.analyticsCt.innerHTML = `<p>Files: ${d.files.total} (${fmtSz(d.files.totalSize)}) | Users: ${d.users.total}</p>`; });
         }
 
-        // Core file logic
+        // ==================== FILE LOGIC ====================
         async function fetchFiles() {
             await withLock(async () => {
                 const r = await fetch(`${WORKER_BASE}/list`, { headers:getAuthHeaders() });
@@ -547,15 +546,51 @@
         }
 
         async function loadCardData(publicId) {
-            try {
-                const [commentsRes, tickRes] = await Promise.all([
-                    fetch(`${WORKER_BASE}/comment/list?fileId=${publicId}`, { headers:getAuthHeaders() }),
-                    fetch(`${WORKER_BASE}/tick/get?fileId=${publicId}`, { headers:getAuthHeaders() })
-                ]);
-                const comments = await commentsRes.json();
-                const tickData = await tickRes.json();
-                return { comments: comments.comments || [], ticked: tickData.ticked || false, count: tickData.count || 0 };
-            } catch(e) { return { comments: [], ticked: false, count: 0 }; }
+            const [commentsRes, tickRes] = await Promise.all([
+                fetch(`${WORKER_BASE}/comment/list?fileId=${publicId}`, { headers:getAuthHeaders() }),
+                fetch(`${WORKER_BASE}/tick/get?fileId=${publicId}`, { headers:getAuthHeaders() })
+            ]);
+            const comments = await commentsRes.json();
+            const tickData = await tickRes.json();
+            return { comments: comments.comments, ticked: tickData.ticked, count: tickData.count };
+        }
+
+        async function refreshCard(publicId) {
+            const card = document.querySelector(`.card[data-public-id="${publicId}"]`);
+            if (!card) return;
+            const newData = await loadCardData(publicId);
+            cardData.set(publicId, newData);
+            const tickBtn = card.querySelector('.tick-btn');
+            if (tickBtn) tickBtn.innerHTML = newData.ticked ? '✅' : '☑️';
+            const tickCountSpan = card.querySelector('.tick-count');
+            if (tickCountSpan) tickCountSpan.textContent = newData.count;
+            const commentCountSpan = card.querySelector('.comment-count');
+            if (commentCountSpan) commentCountSpan.textContent = newData.comments.length;
+            const commentList = card.querySelector('.comment-list');
+            if (commentList) {
+                commentList.innerHTML = newData.comments.map(c => `
+                    <div class="comment">
+                        <span class="comment-text"><strong>${esc(c.user_email)}</strong> ${esc(c.text)}</span>
+                        <div class="comment-actions">
+                            ${c.user_email === ST.email || ST.isAdmin ? `<button class="delete-comment" data-id="${c.id}">🗑</button>` : ''}
+                        </div>
+                    </div>
+                `).join('');
+                commentList.querySelectorAll('.delete-comment').forEach(btn => {
+                    btn.addEventListener('click', async () => {
+                        if (!confirm('Delete this comment?')) return;
+                        const commentId = btn.dataset.id;
+                        await withLock(async () => {
+                            await fetch(`${WORKER_BASE}/comment/delete`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+                                body: JSON.stringify({ commentId })
+                            });
+                            await refreshCard(publicId);
+                        });
+                    });
+                });
+            }
         }
 
         async function addComment(publicId, text) {
@@ -566,68 +601,21 @@
                     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
                     body: JSON.stringify({ fileId: publicId, text })
                 });
-                // Refresh only this card
-                const newData = await loadCardData(publicId);
-                updateCardData(publicId, newData);
+                await refreshCard(publicId);
             }).catch(e => toast('Comment failed', 'error'));
         }
 
-        async function deleteComment(commentId, publicId) {
-            await withLock(async () => {
-                await fetch(`${WORKER_BASE}/comment/delete`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-                    body: JSON.stringify({ commentId })
-                });
-                const newData = await loadCardData(publicId);
-                updateCardData(publicId, newData);
-            }).catch(e => toast('Delete comment failed', 'error'));
-        }
-
         async function toggleTick(publicId) {
-            const card = document.querySelector(`.card[data-public-id="${publicId}"]`);
-            if (!card) return;
-            const tickBtn = card.querySelector('.tick-btn');
-            const currentTicked = tickBtn?.innerHTML === '✅';
+            const data = cardData.get(publicId);
+            if (!data) return;
             await withLock(async () => {
                 await fetch(`${WORKER_BASE}/tick/set`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-                    body: JSON.stringify({ fileId: publicId, ticked: !currentTicked })
+                    body: JSON.stringify({ fileId: publicId, ticked: !data.ticked })
                 });
-                const newData = await loadCardData(publicId);
-                updateCardData(publicId, newData);
+                await refreshCard(publicId);
             }).catch(e => toast('Tick failed', 'error'));
-        }
-
-        function updateCardData(publicId, data) {
-            const card = document.querySelector(`.card[data-public-id="${publicId}"]`);
-            if (!card) return;
-            const tickBtn = card.querySelector('.tick-btn');
-            if (tickBtn) tickBtn.innerHTML = data.ticked ? '✅' : '☑️';
-            const tickCountSpan = card.querySelector('.tick-count');
-            if (tickCountSpan) tickCountSpan.textContent = data.count;
-            const commentCountSpan = card.querySelector('.comment-count');
-            if (commentCountSpan) commentCountSpan.textContent = data.comments.length;
-            const commentList = card.querySelector('.comment-list');
-            if (commentList) {
-                commentList.innerHTML = data.comments.map(c => `
-                    <div class="comment" data-comment-id="${c.id}">
-                        <span class="comment-text"><strong>${esc(c.user_email)}</strong> ${esc(c.text)}</span>
-                        <div class="comment-actions">
-                            ${c.user_email === ST.email || ST.isAdmin ? `<button class="delete-comment" data-id="${c.id}">🗑</button>` : ''}
-                        </div>
-                    </div>
-                `).join('');
-                commentList.querySelectorAll('.delete-comment').forEach(btn => {
-                    btn.addEventListener('click', async (e) => {
-                        e.stopPropagation();
-                        if (!confirm('Delete this comment?')) return;
-                        const commentId = btn.dataset.id;
-                        await deleteComment(commentId, publicId);
-                    });
-                });
-            }
         }
 
         function renderFiles() {
@@ -654,7 +642,7 @@
                 const section = document.createElement('div'); section.className = 'file-section';
                 section.innerHTML = `<div class="section-title">📤 ${esc(uploader)} <span>${files.length}</span></div><div class="file-grid"></div>`;
                 const gridDiv = section.querySelector('.file-grid');
-                for (const f of files) {
+                files.forEach(f => {
                     const actions = getFileActions(f.publicId);
                     const upBy = f.uploadedBy ? `<div style="font-size:0.7rem; color:var(--text-secondary); margin-bottom:4px;">📤 ${f.uploadedBy}</div>` : '';
                     const thumbnailHtml = getThumbnailHtml(f.mimeType, f.name, f.publicId);
@@ -689,21 +677,42 @@
                         </div>
                     `;
                     gridDiv.appendChild(card);
-                    // Load data asynchronously
                     (async () => {
                         const data = await loadCardData(f.publicId);
-                        updateCardData(f.publicId, data);
-                        // Attach comment header toggle
-                        const header = card.querySelector('.comment-header');
-                        if (header) {
-                            header.addEventListener('click', () => {
-                                const list = card.querySelector('.comment-list');
-                                if (list) list.classList.toggle('show');
+                        cardData.set(f.publicId, data);
+                        const tickBtn = card.querySelector('.tick-btn');
+                        if (tickBtn) tickBtn.innerHTML = data.ticked ? '✅' : '☑️';
+                        const tickCountSpan = card.querySelector('.tick-count');
+                        if (tickCountSpan) tickCountSpan.textContent = data.count;
+                        const commentCountSpan = card.querySelector('.comment-count');
+                        if (commentCountSpan) commentCountSpan.textContent = data.comments.length;
+                        const commentList = card.querySelector('.comment-list');
+                        if (commentList) {
+                            commentList.innerHTML = data.comments.map(c => `
+                                <div class="comment">
+                                    <span class="comment-text"><strong>${esc(c.user_email)}</strong> ${esc(c.text)}</span>
+                                    <div class="comment-actions">
+                                        ${c.user_email === ST.email || ST.isAdmin ? `<button class="delete-comment" data-id="${c.id}">🗑</button>` : ''}
+                                    </div>
+                                </div>
+                            `).join('');
+                            commentList.querySelectorAll('.delete-comment').forEach(btn => {
+                                btn.addEventListener('click', async () => {
+                                    if (!confirm('Delete this comment?')) return;
+                                    const commentId = btn.dataset.id;
+                                    await withLock(async () => {
+                                        await fetch(`${WORKER_BASE}/comment/delete`, {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+                                            body: JSON.stringify({ commentId })
+                                        });
+                                        await refreshCard(f.publicId);
+                                    });
+                                });
                             });
                         }
-                        // Attach post comment button
-                        const postBtn = card.querySelector('.post-comment');
                         const commentInput = card.querySelector('.comment-form input');
+                        const postBtn = card.querySelector('.post-comment');
                         if (postBtn) {
                             postBtn.addEventListener('click', async () => {
                                 const text = commentInput.value;
@@ -713,8 +722,15 @@
                                 }
                             });
                         }
+                        const commentHeader = card.querySelector('.comment-header');
+                        if (commentHeader) {
+                            commentHeader.addEventListener('click', () => {
+                                const list = card.querySelector('.comment-list');
+                                if (list) list.classList.toggle('show');
+                            });
+                        }
                     })();
-                }
+                });
                 D.grid.appendChild(section);
             }
             attachEvents();
@@ -766,12 +782,12 @@
             const name = btn.dataset.name;
             const id = btn.dataset.id;
             const textToCopy = `File: ${name}\nPublic ID: ${id}\nDownload: ${getDownloadUrl(id)}`;
-            navigator.clipboard.writeText(textToCopy).then(() => toast('File info copied', 'success')).catch(() => toast('Copy failed', 'error'));
+            navigator.clipboard.writeText(textToCopy).then(() => toast('File info copied to clipboard', 'success')).catch(() => toast('Copy failed', 'error'));
         }
         function actionHandler(e) { e.stopPropagation(); const action = e.currentTarget.dataset.action, id = e.currentTarget.dataset.id; if (action && action !== 'tick') fileAction(action, id); }
         function cardClickHandler(e) { if (e.target.classList.contains('card-checkbox') || e.target.closest('.actions')) return; const cb = this.querySelector('.card-checkbox'); if (cb) toggleSelect(cb.dataset.id, !cb.checked); }
         function toggleSelect(id, checked) { if (checked) ST.selected.add(id); else ST.selected.delete(id); updateBulkBar(); const card = document.querySelector(`.card[data-public-id="${id}"]`); if (card) card.classList.toggle('selected', checked); }
-        function updateBulkBar() { if (D.bulkBar) { if (ST.selected.size) { D.bulkBar.classList.remove('hidden'); if (D.bulkCnt) D.bulkCnt.textContent = `${ST.selected.size} selected`; } else D.bulkBar.classList.add('hidden'); } }
+        function updateBulkBar() { if (D.bulkBar) { if (ST.selected.size) { D.bulkBar.classList.remove('hidden'); D.bulkCnt.textContent = `${ST.selected.size} selected`; } else D.bulkBar.classList.add('hidden'); } }
         function fileAction(action, id) {
             switch(action) {
                 case 'play': openPreview(id, 'video'); break;
@@ -789,7 +805,7 @@
             }).catch(() => toast('Delete failed', 'error'));
         }
 
-        // Upload
+        // Upload (with progress)
         async function uploadFile(file, existingPid = null) {
             const fileKey = existingPid || file.name + file.size + file.lastModified;
             if (uploadingFiles.has(fileKey)) { toast(`${file.name} already uploading.`, 'info'); return; }
@@ -806,7 +822,10 @@
                         body: JSON.stringify({ fileName: file.name, fileSize: file.size, fileType: file.type || 'application/octet-stream' }),
                         signal: ST.uploadCtrl.signal
                     });
-                    if (!initRes.ok) throw new Error('Init failed');
+                    if (!initRes.ok) {
+                        const errText = await initRes.text();
+                        throw new Error(`Init failed: ${errText}`);
+                    }
                     const initData = await initRes.json();
                     pid = initData.publicId;
                 }
@@ -830,8 +849,7 @@
                             if (typeof data.uploadedBytes === 'number') {
                                 uploaded = data.uploadedBytes;
                                 const now = Date.now();
-                                const timeDiff = Math.max(1, now - lastTime);
-                                const speed = ((uploaded - lastBytes) / timeDiff) * 1000;
+                                const speed = ((uploaded - lastBytes) / Math.max(1, now - lastTime)) * 1000;
                                 updateProgress(uploaded, file.size, speed);
                                 lastBytes = uploaded; lastTime = now;
                             }
@@ -894,7 +912,7 @@
             toast('All pasted files uploaded.', 'success');
         });
 
-        // Preview
+        // Preview with custom video controls
         let currentVideo = null;
         function openPreview(pid, type) {
             if (!D.prevCont) return;
@@ -913,8 +931,14 @@
                         const val = parseInt(D.volumeBoost.value,10);
                         D.volPercent.textContent = val+'%';
                         video.volume = Math.min(val / 100, 1);
+                        if (val > 100) toast('Volume boost above 100% may not work', 'info');
                     }
                 };
+                // Optional: add subtitle/language support if available in video
+                if (video.textTracks && video.textTracks.length) {
+                    const track = video.textTracks[0];
+                    if (track) track.mode = 'showing';
+                }
             } else if (type === 'audio') {
                 const audio = document.createElement('audio');
                 audio.src = url; audio.controls = true; audio.autoplay = true; audio.style.width = '100%';
@@ -949,7 +973,6 @@
             if (hint) hint.style.display = canUpload ? '' : 'none';
         }
 
-        // Share preview
         async function showSharePreview() {
             const res = await fetch(`${WORKER_BASE}/share/verify?token=${ST.shareToken}`);
             if (!res.ok) { toast('Invalid or expired share link', 'error'); showLogin(); return; }
