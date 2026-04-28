@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>File Vault – Gallery</title>
     <style>
+        /* ========== CSS (modern gallery style) ========== */
         :root {
             --bg: #f8fafc;
             --card-bg: #ffffff;
@@ -62,9 +63,8 @@
         .card { background: var(--card-bg); border-radius: var(--radius); padding: 12px; box-shadow: var(--shadow); border: 1px solid var(--border); position: relative; transition: all 0.2s; display: flex; flex-direction: column; }
         .card.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
         .card-checkbox { position: absolute; top: 10px; right: 10px; width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; z-index: 2; }
-        .thumbnail { width: 100%; height: 160px; background: transparent; display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: 10px; margin-bottom: 10px; }
-        .thumbnail img { width: 100%; height: 100%; object-fit: cover; }
-        .thumbnail span { font-size: 3rem; }
+        .thumbnail { width: 100%; height: 160px; object-fit: cover; border-radius: 10px; margin-bottom: 10px; background: transparent; display: flex; align-items: center; justify-content: center; font-size: 3rem; overflow: hidden; }
+        .thumbnail img, .thumbnail video { width: 100%; height: 100%; object-fit: cover; }
         .file-name { font-weight: 600; word-break: break-word; margin-bottom: 6px; font-size: 0.9rem; }
         .file-meta { font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 10px; }
         .actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
@@ -92,17 +92,17 @@
         .tick-count { font-size: 0.7rem; color: var(--text-secondary); margin-right: 8px; }
         .admin-bar, .panel { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; margin-bottom: 16px; }
         .panel { max-height: 500px; overflow-y: auto; }
-        .approval-item, .user-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); gap: 10px; flex-wrap: wrap; }
+        .approval-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); gap: 10px; flex-wrap: wrap; }
         .status-badge { padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; }
         .status-approved { background: #d1fae5; color: #065f46; }
         .status-pending { background: #fef3c7; color: #92400e; }
         .bulk-bar { background: var(--accent); color: white; padding: 8px 16px; border-radius: 8px; margin-bottom: 12px; display: flex; align-items: center; gap: 12px; }
         .preview-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 1000; display: flex; justify-content: center; align-items: center; flex-direction: column; }
         .preview-overlay.hidden { display: none; }
-        .preview-container { width: 90%; height: 90%; display: flex; align-items: center; justify-content: center; position: relative; }
-        .preview-container video { max-width: 100%; max-height: 100%; outline: none; background: #000; }
-        .video-controls { position: absolute; bottom: 20px; left: 20px; right: 20px; background: rgba(0,0,0,0.7); padding: 8px; border-radius: 8px; display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
-        .video-controls button, .video-controls select { background: rgba(255,255,255,0.2); border: none; color: white; padding: 4px 8px; border-radius: 4px; cursor: pointer; }
+        .preview-container { width: 90%; height: 90%; display: flex; align-items: center; justify-content: center; }
+        .preview-container video, .preview-container audio { max-width: 100%; max-height: 100%; outline: none; }
+        .video-controls { position: absolute; bottom: 20px; left: 20px; background: rgba(0,0,0,0.6); padding: 8px 12px; border-radius: 8px; display: flex; gap: 10px; z-index: 1001; }
+        .video-controls button { background: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; }
         .preview-toolbar { position: absolute; top: 20px; right: 20px; display: flex; gap: 10px; z-index: 1001; }
         .preview-toolbar button { background: rgba(0,0,0,0.6); border: none; color: white; padding: 8px 16px; border-radius: 8px; cursor: pointer; }
         #toastContainer { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
@@ -129,20 +129,14 @@
             <button class="btn btn-outline btn-sm" id="btnSync">🔄 Sync</button>
             <button class="btn btn-outline btn-sm" id="btnApprovals">👥 Pending <span id="pendingBadge" class="badge-count hidden">0</span></button>
             <button class="btn btn-outline btn-sm" id="btnAllUsers">👤 Users</button>
-            <button class="btn btn-outline btn-sm" id="btnAllComments">💬 All Comments</button>
             <button class="btn btn-outline btn-sm" id="btnLogs">📋 Logs</button>
             <button class="btn btn-outline btn-sm" id="btnAnalytics">📊 Analytics</button>
             <button class="btn btn-outline btn-sm" id="btnShareManager">🔗 Shares</button>
             <button class="btn btn-danger btn-sm" id="btnAdminLogout">🔒 Logout</button>
-            <div style="display: flex; gap: 8px; margin-left: auto;">
-                <input type="email" id="addUserEmail" placeholder="Email to add" style="padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border);">
-                <button class="btn-sm btn-outline" id="addUserBtn">➕ Add User</button>
-            </div>
         </div>
 
         <div class="panel hidden" id="approvalPanel"><h3>Pending Approvals</h3><div id="approvalList"></div><button class="btn-sm btn-outline" id="refreshPendingBtn">🔄 Refresh</button></div>
-        <div class="panel hidden" id="usersPanel"><h3>Active Users</h3><div id="usersList"></div><button class="btn-sm btn-outline" id="refreshUsersBtn">🔄 Refresh</button></div>
-        <div class="panel hidden" id="allCommentsPanel"><h3>All Comments (Admin)</h3><div id="allCommentsList"></div><button class="btn-sm btn-outline" id="refreshCommentsBtn">🔄 Refresh</button></div>
+        <div class="panel hidden" id="usersPanel"><h3>Active Users</h3><div id="usersList"></div><button class="btn-sm btn-outline" id="refreshUsersBtn">🔄 Refresh</button><div style="margin-top:12px;"><input type="text" id="newUserEmail" placeholder="user@example.com" style="flex:1; padding:6px; border-radius:6px; border:1px solid var(--border);"><button id="addUserBtn" class="btn-sm btn-primary">➕ Add User</button></div></div>
         <div class="panel hidden" id="logsPanel"><h3>Audit Logs</h3><div id="logsContent"></div><button class="btn btn-danger btn-sm" id="btnClearLogs">🗑 Clear All Logs</button><button class="btn-sm btn-outline" id="refreshLogsBtn">🔄 Refresh</button></div>
         <div class="panel hidden" id="analyticsPanel"><h3>Analytics</h3><div id="analyticsContent"></div><button class="btn-sm btn-outline" id="refreshAnalyticsBtn">🔄 Refresh</button></div>
         <div class="panel hidden" id="sharePanel"><h3>Share Manager</h3><div id="shareContent"></div></div>
@@ -159,7 +153,7 @@
 
         <!-- Paste & Send Box -->
         <div class="paste-box">
-            <input type="text" id="pasteInput" placeholder="Paste files (Ctrl+V) and click Send..." readonly>
+            <input type="text" id="pasteInput" placeholder="Paste files (Ctrl+V) then click Send...">
             <button class="btn btn-primary" id="sendPasteBtn">📤 Send</button>
         </div>
 
@@ -196,7 +190,11 @@
 
     <div class="preview-overlay hidden" id="previewOverlay">
         <div class="preview-container" id="previewContainer"></div>
-        <div class="video-controls" id="videoControls"></div>
+        <div class="video-controls" id="videoControls" style="display:none;">
+            <button id="back30">← 30s</button>
+            <button id="forward30">30s →</button>
+            <input type="range" id="volumeBoost" min="0" max="200" value="100" step="5"> <span id="volPercent">100%</span>
+        </div>
         <div class="preview-toolbar">
             <button id="btnFullscreen">⛶ Fullscreen</button>
             <button id="btnClosePreview">✕ Close</button>
@@ -234,7 +232,7 @@
         };
         let uploadingFiles = new Set();
         let cardData = new Map(); // publicId -> { comments, ticked, count }
-        let pastedFiles = []; // store pasted files for send button
+        let pendingPasteFiles = []; // store pasted files until Send clicked
 
         // DOM helpers
         const $ = id => document.getElementById(id);
@@ -247,11 +245,10 @@
             btnCloseP: $('btnClosePreview'), search: $('searchInput'), sortSel: $('sortSelect'),
             bulkBar: $('bulkBar'), bulkCnt: $('bulkCount'), toastBox: $('toastContainer'),
             btnDark: $('btnDarkMode'), btnSync: $('btnSync'), btnAppr: $('btnApprovals'),
-            btnAllUsers: $('btnAllUsers'), btnAllComments: $('btnAllComments'), btnLogs: $('btnLogs'),
-            btnAnalytics: $('btnAnalytics'), btnShare: $('btnShareManager'), btnUnAuth: $('btnAdminLogout'),
+            btnAllUsers: $('btnAllUsers'), btnLogs: $('btnLogs'), btnAnalytics: $('btnAnalytics'),
+            btnShare: $('btnShareManager'), btnUnAuth: $('btnAdminLogout'),
             pnlAppr: $('approvalPanel'), listAppr: $('approvalList'),
             pnlUsers: $('usersPanel'), listUsers: $('usersList'),
-            pnlAllComments: $('allCommentsPanel'), allCommentsList: $('allCommentsList'),
             pnlLogs: $('logsPanel'), logsCt: $('logsContent'),
             pnlAnalytics: $('analyticsPanel'), analyticsCt: $('analyticsContent'),
             pnlShare: $('sharePanel'), shareCt: $('shareContent'),
@@ -259,9 +256,8 @@
             btnBulkDelete: $('btnBulkDelete'), btnBulkCancel: $('btnBulkCancel'),
             refreshFilesBtn: $('refreshFilesBtn'), refreshPendingBtn: $('refreshPendingBtn'),
             refreshUsersBtn: $('refreshUsersBtn'), refreshLogsBtn: $('refreshLogsBtn'), refreshAnalyticsBtn: $('refreshAnalyticsBtn'),
-            refreshCommentsBtn: $('refreshCommentsBtn'),
-            pasteInput: $('pasteInput'), sendPasteBtn: $('sendPasteBtn'),
-            addUserEmail: $('addUserEmail'), addUserBtn: $('addUserBtn'),
+            pasteInput: $('pasteInput'), sendPasteBtn: $('sendPasteBtn'), addUserBtn: $('addUserBtn'), newUserEmail: $('newUserEmail'),
+            videoControls: $('videoControls'), back30: $('back30'), forward30: $('forward30'), volumeBoost: $('volumeBoost'), volPercent: $('volPercent'),
         };
 
         function getAuthHeaders() {
@@ -287,12 +283,13 @@
         const fmtSpeed = bytesPerSec => { if(bytesPerSec<1024) return bytesPerSec.toFixed(0)+' B/s'; if(bytesPerSec<1048576) return (bytesPerSec/1024).toFixed(1)+' KB/s'; return (bytesPerSec/1048576).toFixed(1)+' MB/s'; };
         const getThumbnailHtml = (mime, name, publicId) => {
             if (mime.startsWith('image')) {
-                return `<img src="${WORKER_BASE}/video/${publicId}?utoken=${ST.token}" style="width:100%; height:100%; object-fit:cover;" onerror="this.style.display='none'; this.parentElement.innerHTML='🖼️'">`;
-            } else if (mime.startsWith('video')) return '<span>🎬</span>';
-            else if (mime.startsWith('audio')) return '<span>🎵</span>';
-            else if (mime === 'application/pdf') return '<span>📕</span>';
-            else if (mime.startsWith('text')) return '<span>📝</span>';
-            else return '<span>📄</span>';
+                return `<img src="${WORKER_BASE}/video/${publicId}?utoken=${ST.token}" style="width:100%; height:100%; object-fit:cover; border-radius:10px;">`;
+            } else if (mime.startsWith('video')) {
+                return `<video src="${WORKER_BASE}/video/${publicId}?utoken=${ST.token}" style="width:100%; height:100%; object-fit:cover; border-radius:10px;" muted preload="metadata"></video>`;
+            } else if (mime.startsWith('audio')) return '🎵';
+            else if (mime === 'application/pdf') return '📕';
+            else if (mime.startsWith('text')) return '📝';
+            else return '📄';
         };
         const prevType = m => {
             if (!m) return '';
@@ -395,7 +392,7 @@
             showMain(); applyRoleUI(); fetchFiles();
         }
 
-        // Admin panels
+        // Admin panels (full functional)
         function safeAddEvent(element, event, handler) { if(element) element.addEventListener(event, handler); }
 
         safeAddEvent(D.btnSync, 'click', async () => {
@@ -409,7 +406,6 @@
         });
         safeAddEvent(D.btnAppr, 'click', () => togglePanel(D.pnlAppr, loadPending));
         safeAddEvent(D.btnAllUsers, 'click', () => togglePanel(D.pnlUsers, loadAllUsers));
-        safeAddEvent(D.btnAllComments, 'click', () => togglePanel(D.pnlAllComments, loadAllComments));
         safeAddEvent(D.btnLogs, 'click', () => togglePanel(D.pnlLogs, loadLogs));
         safeAddEvent(D.btnAnalytics, 'click', () => togglePanel(D.pnlAnalytics, loadAnalytics));
         safeAddEvent(D.btnShare, 'click', () => togglePanel(D.pnlShare, () => { if(D.shareCt) D.shareCt.innerHTML = '<p>Create a share link from a file card (🔗 Share).</p>'; }));
@@ -438,26 +434,18 @@
         safeAddEvent(D.refreshUsersBtn, 'click', () => loadAllUsers());
         safeAddEvent(D.refreshLogsBtn, 'click', () => loadLogs());
         safeAddEvent(D.refreshAnalyticsBtn, 'click', () => loadAnalytics());
-        safeAddEvent(D.refreshCommentsBtn, 'click', () => loadAllComments());
-        // Add user by email
         safeAddEvent(D.addUserBtn, 'click', async () => {
-            const email = D.addUserEmail.value.trim();
+            const email = D.newUserEmail.value.trim();
             if (!email) { toast('Enter email', 'error'); return; }
+            const role = 'full'; // default role
             await withLock(async () => {
-                const r = await fetch(`${WORKER_BASE}/admin/add-user-by-email`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-                    body: JSON.stringify({ email, role: 'full' })
-                });
-                if (r.ok) {
-                    toast(`User ${email} added and approved`, 'success');
-                    D.addUserEmail.value = '';
-                    loadAllUsers();
-                    loadPendingCount();
-                } else {
-                    toast('Failed to add user', 'error');
-                }
-            });
+                const r = await fetch(`${WORKER_BASE}/admin/add-user`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({ email, role }) });
+                if (!r.ok) throw new Error();
+                toast(`User ${email} added`, 'success');
+                D.newUserEmail.value = '';
+                loadAllUsers();
+                loadPendingCount();
+            }).catch(e => toast('Failed to add user', 'error'));
         });
 
         function togglePanel(panel, loadFn) { if(panel) { panel.classList.toggle('hidden'); if(!panel.classList.contains('hidden')) loadFn(); } }
@@ -496,7 +484,7 @@
                 .then(r=>r.json())
                 .then(users => {
                     const active = users.filter(u => u.status !== 'revoked' && u.is_admin !== 1);
-                    let html = active.map(u => `<div class="user-item">
+                    let html = active.map(u => `<div class="approval-item">
                         <span>${u.email} <span class="status-badge status-${u.status}">${u.status}</span> ${u.role?`(${u.role})` : ''}</span>
                         <div>
                             ${u.status==='pending' ? 
@@ -536,30 +524,6 @@
                                     loadPending(); loadPendingCount(); loadAllUsers();
                                 });
                             }
-                        });
-                    });
-                });
-        }
-        function loadAllComments() {
-            if(!D.allCommentsList) return;
-            fetch(`${WORKER_BASE}/admin/all-comments`, { headers:getAuthHeaders() })
-                .then(r=>r.json())
-                .then(data => {
-                    D.allCommentsList.innerHTML = data.comments.length ? data.comments.map(c => `
-                        <div class="comment" data-id="${c.id}">
-                            <div><strong>${esc(c.user_email)}</strong> on <strong>${esc(c.file_name || c.file_id)}</strong>: ${esc(c.text)}</div>
-                            <div><button class="btn-xs btn-danger admin-del-comment" data-id="${c.id}">🗑 Delete</button></div>
-                        </div>
-                    `).join('') : '<p>No comments yet.</p>';
-                    D.allCommentsList.querySelectorAll('.admin-del-comment').forEach(btn => {
-                        btn.addEventListener('click', async () => {
-                            if (!confirm('Delete this comment?')) return;
-                            const commentId = btn.dataset.id;
-                            await withLock(async () => {
-                                await fetch(`${WORKER_BASE}/admin/delete-comment`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({ commentId }) });
-                                toast('Comment deleted');
-                                loadAllComments();
-                            });
                         });
                     });
                 });
@@ -605,40 +569,25 @@
             if (!card) return;
             const newData = await loadCardData(publicId);
             cardData.set(publicId, newData);
+            // Update tick button
             const tickBtn = card.querySelector('.tick-btn');
             if (tickBtn) tickBtn.innerHTML = newData.ticked ? '✅' : '☑️';
             const tickCountSpan = card.querySelector('.tick-count');
             if (tickCountSpan) tickCountSpan.textContent = newData.count;
-            const commentCountSpan = card.querySelector('.comment-count');
-            if (commentCountSpan) commentCountSpan.textContent = newData.comments.length;
+            // Update comment icon count
+            const commentIcon = card.querySelector('.comment-header .comment-count');
+            if (commentIcon) commentIcon.textContent = newData.comments.length;
+            // Update comment list
             const commentList = card.querySelector('.comment-list');
             if (commentList) {
                 commentList.innerHTML = newData.comments.map(c => `
                     <div class="comment" data-comment-id="${c.id}">
                         <span class="comment-text"><strong>${esc(c.user_email)}</strong> ${esc(c.text)}</span>
                         <div class="comment-actions">
-                            ${(c.user_email === ST.email || ST.isAdmin) ? `<button class="edit-comment" data-id="${c.id}" data-text="${esc(c.text)}">✏️</button>` : ''}
-                            ${(c.user_email === ST.email || ST.isAdmin) ? `<button class="delete-comment" data-id="${c.id}">🗑</button>` : ''}
+                            ${c.user_email === ST.email || ST.isAdmin ? `<button class="delete-comment" data-id="${c.id}">🗑</button>` : ''}
                         </div>
                     </div>
                 `).join('');
-                commentList.querySelectorAll('.edit-comment').forEach(btn => {
-                    btn.addEventListener('click', async (e) => {
-                        const commentId = btn.dataset.id;
-                        const oldText = btn.dataset.text;
-                        const newText = prompt('Edit comment:', oldText);
-                        if (newText && newText !== oldText) {
-                            await withLock(async () => {
-                                await fetch(`${WORKER_BASE}/comment/edit`, {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-                                    body: JSON.stringify({ commentId, text: newText })
-                                });
-                                await refreshCard(publicId);
-                            });
-                        }
-                    });
-                });
                 commentList.querySelectorAll('.delete-comment').forEach(btn => {
                     btn.addEventListener('click', async () => {
                         if (!confirm('Delete this comment?')) return;
@@ -725,7 +674,7 @@
                             ${actions.includes('rename') ? `<button class="btn-xs btn-xs-rename" data-action="rename" data-id="${f.publicId}">✏️ Rename</button>` : ''}
                             ${actions.includes('replace') ? `<button class="btn-xs btn-xs-replace" data-action="replace" data-id="${f.publicId}">🔄 Replace</button>` : ''}
                             ${actions.includes('delete') ? `<button class="btn-xs btn-xs-delete" data-action="delete" data-id="${f.publicId}">🗑 Delete</button>` : ''}
-                            <button class="btn-xs btn-xs-copy" data-action="copy" data-id="${f.publicId}" data-url="${getDownloadUrl(f.publicId)}">🔗 Copy Link</button>
+                            <button class="btn-xs btn-xs-copy" data-action="copy" data-id="${f.publicId}" data-name="${esc(f.name)}">📋 Copy</button>
                             <button class="tick-btn" data-action="tick" data-id="${f.publicId}"></button>
                             <span class="tick-count"></span>
                             <div class="comment-section">
@@ -758,28 +707,10 @@
                                 <div class="comment" data-comment-id="${c.id}">
                                     <span class="comment-text"><strong>${esc(c.user_email)}</strong> ${esc(c.text)}</span>
                                     <div class="comment-actions">
-                                        ${(c.user_email === ST.email || ST.isAdmin) ? `<button class="edit-comment" data-id="${c.id}" data-text="${esc(c.text)}">✏️</button>` : ''}
-                                        ${(c.user_email === ST.email || ST.isAdmin) ? `<button class="delete-comment" data-id="${c.id}">🗑</button>` : ''}
+                                        ${c.user_email === ST.email || ST.isAdmin ? `<button class="delete-comment" data-id="${c.id}">🗑</button>` : ''}
                                     </div>
                                 </div>
                             `).join('');
-                            commentList.querySelectorAll('.edit-comment').forEach(btn => {
-                                btn.addEventListener('click', async (e) => {
-                                    const commentId = btn.dataset.id;
-                                    const oldText = btn.dataset.text;
-                                    const newText = prompt('Edit comment:', oldText);
-                                    if (newText && newText !== oldText) {
-                                        await withLock(async () => {
-                                            await fetch(`${WORKER_BASE}/comment/edit`, {
-                                                method: 'POST',
-                                                headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-                                                body: JSON.stringify({ commentId, text: newText })
-                                            });
-                                            await refreshCard(f.publicId);
-                                        });
-                                    }
-                                });
-                            });
                             commentList.querySelectorAll('.delete-comment').forEach(btn => {
                                 btn.addEventListener('click', async () => {
                                     if (!confirm('Delete this comment?')) return;
@@ -806,9 +737,10 @@
                                 }
                             });
                         }
-                        const commentHeader = card.querySelector('.comment-header');
-                        if (commentHeader) {
-                            commentHeader.addEventListener('click', () => {
+                        // Comment header toggle
+                        const header = card.querySelector('.comment-header');
+                        if (header) {
+                            header.addEventListener('click', () => {
                                 const list = card.querySelector('.comment-list');
                                 if (list) list.classList.toggle('show');
                             });
@@ -822,7 +754,7 @@
         }
 
         function getFileActions(pid) {
-            if (ST.isAdmin) return ['play','preview','download','rename','replace','delete','copy'];
+            if (ST.isAdmin) return ['play','preview','download','rename','replace','delete'];
             if (!ST.role) return [];
             const f = ST.files.find(f => f.publicId === pid);
             if (!f) return [];
@@ -831,9 +763,7 @@
             if ((pt === 'video' || pt === 'audio') && ['full','delete','upload','download','read'].includes(ST.role)) a.push('play');
             if (['image','pdf','text'].includes(pt) && ['full','delete','upload','download','read'].includes(ST.role)) a.push('preview');
             if (['full','delete','upload','download'].includes(ST.role)) a.push('download');
-            if (['full','delete'].includes(ST.role)) a.push('delete');  // only full & delete can delete
-            if (ST.role === 'full') a.push('rename','replace');        // only full can rename/replace
-            a.push('copy'); // copy link for everyone
+            if (['full','delete'].includes(ST.role)) a.push('delete');
             return a;
         }
 
@@ -847,6 +777,9 @@
                 if (btn.classList.contains('tick-btn')) {
                     btn.removeEventListener('click', tickHandler);
                     btn.addEventListener('click', tickHandler);
+                } else if (btn.classList.contains('btn-xs-copy')) {
+                    btn.removeEventListener('click', copyHandler);
+                    btn.addEventListener('click', copyHandler);
                 } else {
                     btn.removeEventListener('click', actionHandler);
                     btn.addEventListener('click', actionHandler);
@@ -859,23 +792,15 @@
         }
         function checkboxHandler(e) { e.stopPropagation(); toggleSelect(e.target.dataset.id, e.target.checked); }
         async function tickHandler(e) { e.stopPropagation(); const pid = e.currentTarget.dataset.id; await toggleTick(pid); }
-        async function actionHandler(e) {
+        function copyHandler(e) {
             e.stopPropagation();
             const btn = e.currentTarget;
-            const action = btn.dataset.action;
+            const name = btn.dataset.name;
             const id = btn.dataset.id;
-            if (action === 'copy') {
-                const url = btn.dataset.url;
-                try {
-                    await navigator.clipboard.writeText(url);
-                    toast('Link copied to clipboard', 'success');
-                } catch(err) {
-                    toast('Failed to copy', 'error');
-                }
-                return;
-            }
-            if (action) fileAction(action, id);
+            const textToCopy = `File: ${name}\nPublic ID: ${id}\nDownload: ${getDownloadUrl(id)}`;
+            navigator.clipboard.writeText(textToCopy).then(() => toast('File info copied to clipboard', 'success')).catch(() => toast('Copy failed', 'error'));
         }
+        function actionHandler(e) { e.stopPropagation(); const action = e.currentTarget.dataset.action, id = e.currentTarget.dataset.id; if (action && action !== 'tick') fileAction(action, id); }
         function cardClickHandler(e) { if (e.target.classList.contains('card-checkbox') || e.target.closest('.actions')) return; const cb = this.querySelector('.card-checkbox'); if (cb) toggleSelect(cb.dataset.id, !cb.checked); }
         function toggleSelect(id, checked) { if (checked) ST.selected.add(id); else ST.selected.delete(id); updateBulkBar(); const card = document.querySelector(`.card[data-public-id="${id}"]`); if (card) card.classList.toggle('selected', checked); }
         function updateBulkBar() { if (D.bulkBar) { if (ST.selected.size) { D.bulkBar.classList.remove('hidden'); if (D.bulkCnt) D.bulkCnt.textContent = `${ST.selected.size} selected`; } else D.bulkBar.classList.add('hidden'); } }
@@ -925,7 +850,7 @@
             }).catch(() => toast('Rename failed', 'error'));
         }
 
-        // Upload (with progress)
+        // Upload (supports multiple files from paste -> send)
         async function uploadFile(file, existingPid = null) {
             const fileKey = existingPid || file.name + file.size + file.lastModified;
             if (uploadingFiles.has(fileKey)) { toast(`${file.name} already uploading.`, 'info'); return; }
@@ -1003,39 +928,35 @@
         const sleep = ms => new Promise(r => setTimeout(r, ms));
         safeAddEvent(D.cancelBtn, 'click', () => { if (ST.uploadCtrl) { ST.uploadCtrl.abort(); ST.uploadCtrl = null; if (D.progBox) D.progBox.classList.add('hidden'); } });
 
-        // Paste multiple files
-        let tempPastedFiles = [];
+        // Paste & Send Box: accumulate pasted files, upload on Send click
+        let pendingPasteFiles = [];
         document.addEventListener('paste', (e) => {
             const items = e.clipboardData.items;
-            const files = [];
             for (let i = 0; i < items.length; i++) {
                 if (items[i].kind === 'file') {
-                    files.push(items[i].getAsFile());
+                    const file = items[i].getAsFile();
+                    if (file) pendingPasteFiles.push(file);
                 }
             }
-            if (files.length > 0) {
-                tempPastedFiles = files;
-                D.pasteInput.value = `${files.length} file(s) pasted. Click Send.`;
-                toast(`${files.length} file(s) pasted. Click "Send" to upload.`, 'success');
+            if (pendingPasteFiles.length > 0) {
+                toast(`${pendingPasteFiles.length} file(s) pasted. Click Send to upload.`, 'success');
+                D.pasteInput.value = `${pendingPasteFiles.length} file(s) ready`;
             } else {
-                // Maybe text
-                D.pasteInput.value = 'No files pasted. Use Ctrl+V with files.';
+                toast('No file found in clipboard.', 'info');
             }
         });
         safeAddEvent(D.sendPasteBtn, 'click', async () => {
-            if (tempPastedFiles.length === 0) {
-                toast('No pasted files. Use Ctrl+V on files first.', 'info');
-                return;
-            }
-            for (const file of tempPastedFiles) {
+            if (pendingPasteFiles.length === 0) { toast('No pasted files. Use Ctrl+V first.', 'info'); return; }
+            toast(`Uploading ${pendingPasteFiles.length} files...`, 'info');
+            for (const file of pendingPasteFiles) {
                 await uploadFile(file);
             }
-            tempPastedFiles = [];
+            pendingPasteFiles = [];
             D.pasteInput.value = '';
             toast('All pasted files uploaded.', 'success');
         });
 
-        // Preview with enhanced video controls
+        // Preview with custom video controls (30s skip, volume boost)
         let currentVideo = null;
         function openPreview(pid, type) {
             if (!D.prevCont) return;
@@ -1046,78 +967,42 @@
                 video.src = url; video.controls = false; video.autoplay = true; video.style.width = '100%'; video.style.height = '100%'; video.style.objectFit = 'contain';
                 D.prevCont.appendChild(video);
                 currentVideo = video;
-                // Add custom controls
-                const controlsDiv = D.videoControls;
-                controlsDiv.innerHTML = `
-                    <button id="rewind30">⏪ 30s</button>
-                    <button id="forward30">30s ⏩</button>
-                    <select id="speedSelect">
-                        <option value="0.5">0.5x</option><option value="0.75">0.75x</option><option value="1" selected>1x</option>
-                        <option value="1.25">1.25x</option><option value="1.5">1.5x</option><option value="2">2x</option>
-                    </select>
-                    <input type="range" id="volumeSlider" min="0" max="200" value="100" step="5">
-                    <span id="volumePercent">100%</span>
-                    <button id="aspectRatio">Aspect: contain</button>
-                `;
-                controlsDiv.style.display = 'flex';
-                const rewind = controlsDiv.querySelector('#rewind30');
-                const forward = controlsDiv.querySelector('#forward30');
-                const speedSel = controlsDiv.querySelector('#speedSelect');
-                const volumeSlider = controlsDiv.querySelector('#volumeSlider');
-                const volumePercent = controlsDiv.querySelector('#volumePercent');
-                const aspectBtn = controlsDiv.querySelector('#aspectRatio');
-                let aspectModes = ['contain', 'cover', 'fill'];
-                let aspectIndex = 0;
-                rewind.onclick = () => { if (currentVideo) currentVideo.currentTime -= 30; };
-                forward.onclick = () => { if (currentVideo) currentVideo.currentTime += 30; };
-                speedSel.onchange = () => { if (currentVideo) currentVideo.playbackRate = parseFloat(speedSel.value); };
-                volumeSlider.oninput = () => {
-                    let val = parseInt(volumeSlider.value);
-                    volumePercent.textContent = val + '%';
-                    if (currentVideo) {
-                        // Volume max is 1 (100%), but we want up to 200% using gain node? Simpler: just cap at 1 and show percentage. Browsers limit to 1.
-                        // We'll use a gain node for >100% via Web Audio API (complex). For simplicity, just set volume and show that >100% not possible natively.
-                        // I'll implement a simple workaround: use audioContext for boosting, but to keep code simple, we'll just set volume up to 1 and warn.
-                        if (val > 100) {
-                            toast('Volume boost requires Web Audio API (advanced). For now, max 100%.', 'info');
-                            val = 100;
-                            volumeSlider.value = 100;
-                        }
-                        currentVideo.volume = val / 100;
+                D.videoControls.style.display = 'flex';
+                // Attach custom controls
+                D.back30.onclick = () => { if (video) video.currentTime -= 30; };
+                D.forward30.onclick = () => { if (video) video.currentTime += 30; };
+                D.volumeBoost.oninput = () => {
+                    if (video) {
+                        const val = parseInt(D.volumeBoost.value,10);
+                        D.volPercent.textContent = val+'%';
+                        video.volume = Math.min(val / 100, 1); // boost beyond 100% not possible without Web Audio, but we show percentage
+                        if (val > 100) toast('Volume boost beyond 100% may not work', 'info');
                     }
-                };
-                aspectBtn.onclick = () => {
-                    aspectIndex = (aspectIndex + 1) % aspectModes.length;
-                    const mode = aspectModes[aspectIndex];
-                    if (currentVideo) currentVideo.style.objectFit = mode;
-                    aspectBtn.textContent = `Aspect: ${mode}`;
                 };
             } else if (type === 'audio') {
                 const audio = document.createElement('audio');
                 audio.src = url; audio.controls = true; audio.autoplay = true; audio.style.width = '100%';
                 D.prevCont.appendChild(audio);
                 D.videoControls.style.display = 'none';
+                currentVideo = null;
             } else if (type === 'image') {
                 const img = document.createElement('img'); img.src = url; img.style.maxWidth = '95%'; img.style.maxHeight = '95%';
                 D.prevCont.appendChild(img);
                 D.videoControls.style.display = 'none';
+                currentVideo = null;
             } else if (type === 'pdf') {
                 const ifr = document.createElement('iframe'); ifr.src = url; ifr.style.width = '90%'; ifr.style.height = '90%';
                 D.prevCont.appendChild(ifr);
                 D.videoControls.style.display = 'none';
+                currentVideo = null;
             } else if (type === 'text') {
                 fetch(url, { headers: getAuthHeaders() }).then(r => r.text()).then(t => { const pre = document.createElement('pre'); pre.textContent = t; D.prevCont.appendChild(pre); });
                 D.videoControls.style.display = 'none';
+                currentVideo = null;
             } else { return; }
-            D.prevOv.classList.remove('hidden');
+            if (D.prevOv) D.prevOv.classList.remove('hidden');
         }
-        function closePreview() {
-            if (D.prevCont) D.prevCont.innerHTML = '';
-            if (D.videoControls) D.videoControls.style.display = 'none';
-            D.prevOv.classList.add('hidden');
-            if (document.fullscreenElement) document.exitFullscreen();
-            currentVideo = null;
-        }
+        function closePreview() { if (D.prevCont) D.prevCont.innerHTML = ''; if (D.prevOv) D.prevOv.classList.add('hidden'); if (document.fullscreenElement) document.exitFullscreen(); D.videoControls.style.display = 'none'; currentVideo = null; }
         safeAddEvent(D.btnCloseP, 'click', closePreview);
         safeAddEvent(D.btnFull, 'click', () => { if (document.fullscreenElement) document.exitFullscreen(); else if (D.prevOv) D.prevOv.requestFullscreen(); });
 
@@ -1128,7 +1013,7 @@
             if (hint) hint.style.display = canUpload ? '' : 'none';
         }
 
-        // Share preview
+        // Share preview (simplified)
         async function showSharePreview() {
             const res = await fetch(`${WORKER_BASE}/share/verify?token=${ST.shareToken}`);
             if (!res.ok) { toast('Invalid or expired share link', 'error'); showLogin(); return; }
