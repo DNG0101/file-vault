@@ -48,7 +48,10 @@
         .search-box { flex: 1; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--card-bg); color: var(--text); }
         .dropzone { border: 2px dashed var(--border); border-radius: 16px; padding: 40px 20px; text-align: center; background: var(--card-bg); cursor: pointer; margin-bottom: 20px; }
         .dropzone:hover, .dragover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 5%, var(--card-bg)); }
-        .progress-box { margin-bottom: 20px; }
+        .progress-box { margin-bottom: 20px; background: var(--card-bg); border-radius: 12px; padding: 12px; border: 1px solid var(--border); }
+        .progress-item { margin-bottom: 12px; }
+        .progress-item:last-child { margin-bottom: 0; }
+        .progress-header { display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 4px; }
         .progress-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
         .progress-fill { height: 100%; width: 0%; background: var(--accent); transition: width 0.3s; }
         .file-section { margin-bottom: 32px; }
@@ -69,10 +72,7 @@
         .btn-xs-preview { background: var(--purple); color: white; }
         .btn-xs-download { background: var(--success); color: white; }
         .btn-xs-delete { background: var(--danger); color: white; }
-        .btn-xs-replace { background: var(--warn); color: #222; }
-        .btn-xs-rename { background: #6c757d; color: white; }
         .btn-xs-copy { background: #0d6efd; color: white; }
-        .btn-xs-share { background: #1e7e34; color: white; }
         .tick-btn { background: none; border: none; font-size: 1.2rem; cursor: pointer; position: relative; }
         .tick-btn .tooltip { visibility: hidden; background: #333; color: #fff; border-radius: 6px; padding: 4px 8px; position: absolute; bottom: 125%; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 0.7rem; }
         .tick-btn:hover .tooltip { visibility: visible; }
@@ -89,7 +89,7 @@
         .preview-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 1000; display: flex; justify-content: center; align-items: center; flex-direction: column; }
         .preview-overlay.hidden { display: none; }
         .preview-container { width: 90%; height: 85%; display: flex; align-items: center; justify-content: center; }
-        .preview-container video, .preview-container audio { max-width: 100%; max-height: 100%; outline: none; background: #000; }
+        .preview-container video, .preview-container audio, .preview-container iframe, .preview-container img { max-width: 100%; max-height: 100%; outline: none; background: #000; }
         .custom-video-controls {
             position: absolute; bottom: 20px; left: 20px; right: 20px;
             background: var(--video-control-bg); backdrop-filter: blur(8px);
@@ -106,7 +106,7 @@
         .toast.error { background: var(--danger); }
         .toast.success { background: var(--success); }
         @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-        @media (orientation: landscape) and (max-width: 900px) {
+        @media (orientation: portrait) {
             .file-grid { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
             .custom-video-controls button, .custom-video-controls select { padding: 4px 8px; font-size: 0.7rem; }
         }
@@ -130,7 +130,6 @@
         <button class="btn-outline btn-sm" id="btnAllUsers">👤 Users</button>
         <button class="btn-outline btn-sm" id="btnLogs">📋 Logs</button>
         <button class="btn-outline btn-sm" id="btnAnalytics">📊 Analytics</button>
-        <button class="btn-outline btn-sm" id="btnShareManager">🔗 Shares</button>
         <button class="btn-danger btn-sm" id="btnAdminLogout">🔒 Logout</button>
         <button class="btn-outline btn-sm" id="btnResetToken" style="background:#f97316;">🔄 Reset Token</button>
     </div>
@@ -138,7 +137,6 @@
     <div class="panel hidden" id="usersPanel"><h3>Active Users</h3><div id="usersList"></div><button class="btn-sm btn-outline" id="refreshUsersBtn">🔄 Refresh</button><div style="margin-top:12px;"><input type="text" id="newUserEmail" placeholder="user@example.com"><button id="addUserBtn" class="btn-sm btn-primary">➕ Add User</button></div></div>
     <div class="panel hidden" id="logsPanel"><h3>Audit Logs</h3><div id="logsContent"></div><button class="btn-danger btn-sm" id="btnClearLogs">🗑 Clear All Logs</button><button class="btn-sm btn-outline" id="refreshLogsBtn">🔄 Refresh</button></div>
     <div class="panel hidden" id="analyticsPanel"><h3>Analytics</h3><div id="analyticsContent"></div><button class="btn-sm btn-outline" id="refreshAnalyticsBtn">🔄 Refresh</button></div>
-    <div class="panel hidden" id="sharePanel"><h3>Share Manager</h3><div id="shareContent"></div></div>
     <div class="toolbar">
         <input type="text" class="search-box" id="searchInput" placeholder="Search files... (Ctrl+F)">
         <select id="sortSelect">
@@ -157,15 +155,12 @@
         <button id="btnBulkDelete">🗑 Delete Selected</button>
         <button id="btnBulkCancel">✕</button>
     </div>
-    <div class="hint-text"><kbd>Ctrl+V</kbd> paste | <kbd>Ctrl+U</kbd> upload | <kbd>Ctrl+F</kbd> search | <kbd>Esc</kbd> close | <kbd>▲▼◀▶</kbd> navigate | <kbd>Enter</kbd> select</div>
+    <div class="hint-text"><kbd>Ctrl+V</kbd> paste | <kbd>Ctrl+U</kbd> upload | <kbd>Ctrl+F</kbd> search | <kbd>Esc</kbd> close | <kbd>▲▼◀▶</kbd> navigate | <kbd>Enter</kbd> select/submit</div>
     <div class="dropzone" id="dropzone">
         <p>📂 Drop files here or click to browse</p>
         <input type="file" id="fileInput" multiple>
     </div>
-    <div class="progress-box hidden" id="progressBox">
-        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-        <div class="progress-text"><span id="percentDisplay">0%</span><span id="speedDisplay">0 KB/s</span><span id="sizeDisplay">0 / 0 B</span><button class="cancel-btn" id="cancelUpload">Cancel</button></div>
-    </div>
+    <div id="uploadProgressList" class="progress-box hidden"></div>
     <div id="fileGrid"></div>
 </div>
 <div class="preview-overlay hidden" id="previewOverlay">
@@ -181,27 +176,22 @@
     let ST = {
         token: localStorage.getItem('vtoken'), email: null, isAdmin: false, approved: false, role: null,
         files: [], selected: new Set(), sort: localStorage.getItem('sort')||'newest', query: '',
-        uploadCtrl: null, dark: localStorage.getItem('darkMode')==='true', shareToken: null
+        dark: localStorage.getItem('darkMode')==='true', shareToken: null, abortControllers: new Set()
     };
-    let uploadingFiles = new Set(); // track actively uploading files to prevent double
+    let uploadingFiles = new Map(); // fileKey -> { controller, progressDiv, file }
     let cardData = new Map();
     const $ = id => document.getElementById(id);
     const D = {
         stats: $('storageStats'), userUI: $('userUI'), adminBar: $('adminBar'),
-        dropzone: $('dropzone'), fileInp: $('fileInput'), progBox: $('progressBox'),
-        progFill: $('progressFill'), pctDisp: $('percentDisplay'), speedDisp: $('speedDisplay'),
-        sizeDisp: $('sizeDisplay'), cancelBtn: $('cancelUpload'), grid: $('fileGrid'),
-        prevOv: $('previewOverlay'), prevCont: $('previewContainer'), btnFull: $('btnFullscreen'),
-        btnCloseP: $('btnClosePreview'), search: $('searchInput'), sortSel: $('sortSelect'),
-        bulkBar: $('bulkBar'), bulkCnt: $('bulkCount'), toastBox: $('toastContainer'),
+        dropzone: $('dropzone'), fileInp: $('fileInput'), uploadProgressList: $('uploadProgressList'),
+        grid: $('fileGrid'), prevOv: $('previewOverlay'), prevCont: $('previewContainer'),
+        btnFull: $('btnFullscreen'), btnCloseP: $('btnClosePreview'), search: $('searchInput'),
+        sortSel: $('sortSelect'), bulkBar: $('bulkBar'), bulkCnt: $('bulkCount'), toastBox: $('toastContainer'),
         btnDark: $('btnDarkMode'), btnSync: $('btnSync'), btnAppr: $('btnApprovals'),
         btnAllUsers: $('btnAllUsers'), btnLogs: $('btnLogs'), btnAnalytics: $('btnAnalytics'),
-        btnShare: $('btnShareManager'), btnUnAuth: $('btnAdminLogout'),
-        pnlAppr: $('approvalPanel'), listAppr: $('approvalList'),
-        pnlUsers: $('usersPanel'), listUsers: $('usersList'),
-        pnlLogs: $('logsPanel'), logsCt: $('logsContent'),
+        btnUnAuth: $('btnAdminLogout'), pnlAppr: $('approvalPanel'), listAppr: $('approvalList'),
+        pnlUsers: $('usersPanel'), listUsers: $('usersList'), pnlLogs: $('logsPanel'), logsCt: $('logsContent'),
         pnlAnalytics: $('analyticsPanel'), analyticsCt: $('analyticsContent'),
-        pnlShare: $('sharePanel'), shareCt: $('shareContent'),
         pendingBadge: $('pendingBadge'), btnClearLogs: $('btnClearLogs'),
         btnBulkDelete: $('btnBulkDelete'), btnBulkCancel: $('btnBulkCancel'),
         refreshFilesBtn: $('refreshFilesBtn'), refreshPendingBtn: $('refreshPendingBtn'),
@@ -215,52 +205,49 @@
     function toast(msg, type='info'){ if(!D.toastBox) return; const el=document.createElement('div'); el.className=`toast ${type}`; el.textContent=msg; D.toastBox.appendChild(el); setTimeout(()=>{el.style.opacity='0'; setTimeout(()=>el.remove(),300);},3000); }
     const esc = s => { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; };
     const fmtSz = b => { if(!b) return '0 B'; const u=['B','KB','MB','GB']; let i=0,s=b; while(s>=1024&&i<3){s/=1024;i++;} return s.toFixed(1)+' '+u[i]; };
-    const fmtSpeed = bps => { if(bps<1024) return bps.toFixed(0)+' B/s'; if(bps<1048576) return (bps/1024).toFixed(1)+' KB/s'; return (bps/1048576).toFixed(1)+' MB/s'; };
-    const prevType = m => { if(!m) return ''; if(m.startsWith('video')) return 'video'; if(m.startsWith('audio')) return 'audio'; if(m.startsWith('image')) return 'image'; if(m==='application/pdf') return 'pdf'; if(m.startsWith('text')) return 'text'; return ''; };
+    const prevType = m => { if(!m) return ''; if(m.startsWith('video')) return 'video'; if(m.startsWith('audio')) return 'audio'; if(m.startsWith('image')) return 'image'; if(m==='application/pdf') return 'pdf'; if(m.includes('word')||m.includes('document')) return 'word'; if(m.includes('spreadsheet')||m.includes('excel')) return 'excel'; if(m.includes('presentation')||m.includes('powerpoint')) return 'ppt'; if(m.startsWith('text')) return 'text'; return 'other'; };
     function getThumbnailHtml(mime, name, pid) {
-        if(mime.startsWith('image')) return `<img src="${getPreviewUrl(pid)}" style="width:100%;height:100%;object-fit:cover;border-radius:10px;" loading="lazy">`;
-        if(mime.startsWith('video')) return `<video src="${getPreviewUrl(pid)}" style="width:100%;height:100%;object-fit:cover;border-radius:10px;" muted preload="metadata"></video>`;
-        if(mime.startsWith('audio')) return '<div style="font-size:3rem;">🎵</div>';
-        if(mime==='application/pdf') return '<div style="font-size:3rem;">📕</div>';
-        if(mime.startsWith('text')) return '<div style="font-size:3rem;">📝</div>';
+        const pt = prevType(mime);
+        if(pt==='image') return `<img src="${getPreviewUrl(pid)}" style="width:100%;height:100%;object-fit:cover;border-radius:10px;" loading="lazy">`;
+        if(pt==='video') return `<video src="${getPreviewUrl(pid)}" style="width:100%;height:100%;object-fit:cover;border-radius:10px;" muted preload="metadata"></video>`;
+        if(pt==='audio') return '<div style="font-size:3rem;">🎵</div>';
+        if(pt==='pdf') return '<div style="font-size:3rem;">📕</div>';
+        if(pt==='text') return '<div style="font-size:3rem;">📝</div>';
         return '<div style="font-size:3rem;">📄</div>';
     }
-    // RBAC permission check
+    // RBAC
     const roleRights = {
-        admin: { upload:true, delete:true, rename:true, replace:true, share:true, download:true, preview:true, play:true, copy:true, tick:true, comment:true },
-        full:   { upload:true, delete:true, rename:true, replace:true, share:true, download:true, preview:true, play:true, copy:true, tick:true, comment:true },
-        delete: { upload:false, delete:true, rename:false, replace:false, share:true, download:true, preview:true, play:true, copy:true, tick:true, comment:true },
-        upload: { upload:true, delete:false, rename:false, replace:false, share:true, download:true, preview:true, play:true, copy:true, tick:true, comment:true },
-        download:{ upload:false, delete:false, rename:false, replace:false, share:true, download:true, preview:true, play:true, copy:true, tick:true, comment:true },
-        read:   { upload:false, delete:false, rename:false, replace:false, share:false, download:false, preview:true, play:true, copy:false, tick:true, comment:true },
-        none:   { upload:false, delete:false, rename:false, replace:false, share:false, download:false, preview:false, play:false, copy:false, tick:false, comment:false }
+        admin: { upload:true, delete:true, download:true, preview:true, play:true, copy:true, tick:true, comment:true },
+        full:   { upload:true, delete:true, download:true, preview:true, play:true, copy:true, tick:true, comment:true },
+        delete: { upload:false, delete:true, download:true, preview:true, play:true, copy:true, tick:true, comment:true },
+        upload: { upload:true, delete:false, download:true, preview:true, play:true, copy:true, tick:true, comment:true },
+        download:{ upload:false, delete:false, download:true, preview:true, play:true, copy:true, tick:true, comment:true },
+        read:   { upload:false, delete:false, download:false, preview:true, play:true, copy:false, tick:true, comment:true },
+        none:   { upload:false, delete:false, download:false, preview:false, play:false, copy:false, tick:false, comment:false }
     };
-    function can(action) {
-        if(ST.isAdmin) return true;
-        const rights = roleRights[ST.role] || roleRights.none;
-        return rights[action] === true;
-    }
-    // Auth functions
+    function can(action) { if(ST.isAdmin) return true; return roleRights[ST.role]?.[action] === true; }
+    // Auth
     async function fetchUserInfo(){ if(!ST.token) return false; return withLock(async()=>{ const r=await fetch(`${WORKER_BASE}/user-info?utoken=${ST.token}`); if(!r.ok) throw new Error(); const i=await r.json(); ST.email=i.email; ST.isAdmin=i.isAdmin===true; ST.approved=i.approved; ST.role=i.role; if(ST.approved) render(); else showPending(); return true; }).catch(e=>{console.warn(e); return false;}); }
     function showLogin(){ D.adminBar?.classList.add('hidden'); D.userUI.innerHTML=''; D.grid.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:60px;"><h2>Welcome to File Vault</h2><p>Sign in to access your files.</p><button class="btn btn-primary" id="btnLogin">🔑 Login with Google</button></div>`; const loginBtn=$('btnLogin'); if(loginBtn) loginBtn.onclick=async()=>{ const r=await fetch(`${WORKER_BASE}/auth-url`); if(r.ok) window.location=(await r.json()).authUrl; else toast('Login failed','error'); }; }
     function showPending(){ D.adminBar?.classList.add('hidden'); D.userUI.innerHTML=''; D.dropzone.style.display='none'; document.querySelector('.hint-text').style.display='none'; D.grid.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:60px;"><h2>🔐 Waiting for Approval</h2><p>Email: <strong>${ST.email}</strong></p><p>After admin approves you, click <strong>Refresh Status</strong>.</p><div><button class="btn btn-outline btn-sm" id="manualRefreshBtn">🔄 Refresh Status</button> <button class="btn btn-danger btn-sm" id="btnSelfRevoke">❌ Cancel</button></div></div>`; const refreshBtn=$('manualRefreshBtn'); if(refreshBtn) refreshBtn.onclick=async()=>{ toast('Checking...','info'); await fetchUserInfo(); }; const selfRevokeBtn=$('btnSelfRevoke'); if(selfRevokeBtn) selfRevokeBtn.onclick=async()=>{ if(!confirm('Cancel request?')) return; await withLock(async()=>{ await fetch(`${WORKER_BASE}/user-revoke-self`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({utoken:ST.token})}); }); ST.token=null; localStorage.removeItem('vtoken'); showLogin(); toast('Request cancelled.'); }; }
-    function showMain(){ document.querySelector('.hint-text').style.display=''; if(ST.isAdmin){ D.adminBar?.classList.remove('hidden'); D.userUI.innerHTML=''; D.dropzone.style.display=can('upload')?'':'none'; loadPendingCount(); } else { D.adminBar?.classList.add('hidden'); D.userUI.innerHTML=`<span>👤 ${ST.email} (${ST.role}) <button class="btn btn-sm btn-outline" id="btnUserLogout">🔒 Logout</button></span>`; const logoutBtn=$('btnUserLogout'); if(logoutBtn) logoutBtn.onclick=()=>{ ST.token=null; localStorage.removeItem('vtoken'); showLogin(); toast('Logged out.'); }; D.dropzone.style.display=can('upload')?'':'none'; } }
+    function showMain(){ document.querySelector('.hint-text').style.display=''; if(ST.isAdmin){ D.adminBar?.classList.remove('hidden'); D.userUI.innerHTML=''; D.dropzone.style.display=can('upload')?'':'none'; loadPendingCount(); } else { D.adminBar?.classList.add('hidden'); D.userUI.innerHTML=`<span>👤 ${ST.email} (${ST.role}) <button class="btn btn-sm btn-outline" id="btnUserLogout">🔒 Logout</button></span>`; const logoutBtn=$('btnUserLogout'); if(logoutBtn) logoutBtn.onclick=()=>{ abortAllFetches(); ST.token=null; localStorage.removeItem('vtoken'); showLogin(); toast('Logged out.'); }; D.dropzone.style.display=can('upload')?'':'none'; } }
     function render(){ if(!ST.email){ showLogin(); return; } if(ST.isAdmin || ST.approved){ showMain(); fetchFiles(); } else { showPending(); } }
-    // Reset token button
+    // Abort all ongoing fetches on logout
+    function abortAllFetches(){ for(const ctrl of ST.abortControllers) ctrl.abort(); ST.abortControllers.clear(); }
+    // Reset token
     if(D.btnResetToken) D.btnResetToken.addEventListener('click', async () => { 
         if(confirm('Reset admin token? You will need to login again.')) {
             await fetch(`${WORKER_BASE}/admin/reset-token`, { method:'POST', headers:getAuthHeaders() });
             ST.token = null; localStorage.removeItem('vtoken'); showLogin(); toast('Token reset. Please login again.', 'success');
         }
     });
-    // Admin panels (simplified, fully functional)
+    // Admin panels
     function safeAddEvent(el,ev,fn){ if(el) el.addEventListener(ev,fn); }
     safeAddEvent(D.btnSync,'click',async()=>{ toast('Syncing...','info'); await withLock(async()=>{ await fetch(`${WORKER_BASE}/sync`,{method:'POST',headers:getAuthHeaders()}); await fetchFiles(); toast('Sync done','success'); }).catch(()=>toast('Sync failed','error')); });
     safeAddEvent(D.btnAppr,'click',()=>togglePanel(D.pnlAppr,loadPending));
     safeAddEvent(D.btnAllUsers,'click',()=>togglePanel(D.pnlUsers,loadAllUsers));
     safeAddEvent(D.btnLogs,'click',()=>togglePanel(D.pnlLogs,loadLogs));
     safeAddEvent(D.btnAnalytics,'click',()=>togglePanel(D.pnlAnalytics,loadAnalytics));
-    safeAddEvent(D.btnShare,'click',()=>togglePanel(D.pnlShare,()=>{ if(D.shareCt) D.shareCt.innerHTML='<p>Create a share link from a file card (🔗 Share).</p>'; }));
     safeAddEvent(D.btnUnAuth,'click',adminLogout);
     safeAddEvent(D.btnClearLogs,'click',async()=>{ if(!confirm('Delete all logs?')) return; await withLock(async()=>{ await fetch(`${WORKER_BASE}/admin/logs/clear`,{method:'POST',headers:getAuthHeaders()}); loadLogs(); toast('Logs cleared'); }); });
     safeAddEvent(D.btnBulkCancel,'click',()=>{ ST.selected.clear(); renderFiles(); updateBulkBar(); });
@@ -272,7 +259,7 @@
     safeAddEvent(D.refreshAnalyticsBtn,'click',()=>loadAnalytics());
     safeAddEvent(D.addUserBtn,'click',async()=>{ const email=D.newUserEmail.value.trim(); if(!email){ toast('Enter email','error'); return; } await withLock(async()=>{ await fetch(`${WORKER_BASE}/admin/add-user`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({email,role:'full'})}); toast(`User ${email} added`,'success'); D.newUserEmail.value=''; loadAllUsers(); loadPendingCount(); }).catch(e=>toast('Failed to add user','error')); });
     function togglePanel(panel,loadFn){ if(panel){ panel.classList.toggle('hidden'); if(!panel.classList.contains('hidden')) loadFn(); } }
-    async function adminLogout(){ if(confirm('Logout as admin?')){ ST.token=null; localStorage.removeItem('vtoken'); showLogin(); toast('Admin logged out'); } }
+    async function adminLogout(){ if(confirm('Logout as admin?')){ abortAllFetches(); ST.token=null; localStorage.removeItem('vtoken'); showLogin(); toast('Admin logged out'); } }
     async function loadPendingCount(){ if(!ST.isAdmin||!D.pendingBadge) return; const r=await fetch(`${WORKER_BASE}/admin/pending`,{headers:getAuthHeaders()}); const p=await r.json(); D.pendingBadge.textContent=p.length; D.pendingBadge.classList.toggle('hidden',p.length===0); }
     function loadPending(){ fetch(`${WORKER_BASE}/admin/pending`,{headers:getAuthHeaders()}).then(r=>r.json()).then(users=>{ D.listAppr.innerHTML=users.length?users.map(u=>`<div class="approval-item"><span>${u.email}</span><div><select class="role-sel"><option value="full">Full</option><option value="delete">Delete</option><option value="upload">Upload Only</option><option value="download">Download Only</option><option value="read">Read Only</option><option value="none">None</option></select><button class="btn btn-sm btn-success" data-email="${u.email}">Approve</button><button class="btn btn-sm btn-danger" data-email="${u.email}">Deny</button></div></div>`).join(''):'<p>No pending users.</p>'; attachApproveEvents(); }); }
     function attachApproveEvents(){ D.listAppr.querySelectorAll('button').forEach(btn=>{ btn.addEventListener('click',async()=>{ const email=btn.dataset.email; const role=btn.parentElement.querySelector('.role-sel')?.value||'full'; const isApprove=btn.classList.contains('btn-success'); const endpoint=isApprove?'approve':'deny'; await withLock(async()=>{ await fetch(`${WORKER_BASE}/admin/${endpoint}`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({email,role})}); toast(`${email} ${isApprove?'approved':'denied'}`); loadPending(); loadPendingCount(); loadAllUsers(); }); }); }); }
@@ -287,7 +274,7 @@
     function attachCommentEvents(pid,container){ container.querySelectorAll('.delete-comment').forEach(btn=>{ btn.addEventListener('click',async(e)=>{ e.stopPropagation(); if(!confirm('Delete comment?')) return; await withLock(async()=>{ await fetch(`${WORKER_BASE}/comment/delete`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({commentId:btn.dataset.id})}); await refreshCard(pid); }); }); }); container.querySelectorAll('.edit-comment').forEach(btn=>{ btn.addEventListener('click',async(e)=>{ e.stopPropagation(); const newText=prompt('Edit comment:',btn.dataset.text); if(newText&&newText!==btn.dataset.text){ await withLock(async()=>{ await fetch(`${WORKER_BASE}/comment/edit`,{method:'PATCH',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({commentId:btn.dataset.id,text:newText})}); await refreshCard(pid); }); } }); }); }
     async function addComment(pid,text){ if(!text.trim()) return; await withLock(async()=>{ await fetch(`${WORKER_BASE}/comment/add`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({fileId:pid,text})}); await refreshCard(pid); }).catch(e=>toast('Comment failed','error')); }
     async function toggleTick(pid){ const data=cardData.get(pid); if(!data) return; await withLock(async()=>{ const r=await fetch(`${WORKER_BASE}/tick/set`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({fileId:pid,ticked:!data.ticked})}); const res=await r.json(); if(res.success){ const newData={...data,ticked:!data.ticked,count:res.count,users:res.users}; cardData.set(pid,newData); const card=document.querySelector(`.card[data-public-id="${pid}"]`); if(card){ const tickBtn=card.querySelector('.tick-btn'); tickBtn.innerHTML=newData.ticked?'✅':'☑️'; let tooltipSpan=tickBtn.querySelector('.tooltip'); if(!tooltipSpan){ tooltipSpan=document.createElement('span'); tooltipSpan.className='tooltip'; tickBtn.appendChild(tooltipSpan); } tooltipSpan.textContent=newData.users.length?`Ticked by: ${newData.users.join(', ')}`:'No ticks yet'; card.querySelector('.tick-count').textContent=newData.count; } } }).catch(e=>toast('Tick failed','error')); }
-    async function copyFileDirect(pid, name, mimeType){
+    async function copyFile(pid, name, mimeType){
         try {
             const response = await fetch(getDownloadUrl(pid), { headers: getAuthHeaders() });
             if(!response.ok) throw new Error('Download failed');
@@ -305,8 +292,52 @@
             }
         } catch(err){ toast('Copy failed: '+err.message, 'error'); }
     }
-    async function createShareLink(pid){ toast('Creating share link...','info'); const expiresIn=3600*24*7; await withLock(async()=>{ const r=await fetch(`${WORKER_BASE}/share/create`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({publicId:pid,expiresIn})}); const data=await r.json(); if(r.ok){ await navigator.clipboard.writeText(data.shareUrl); toast('Share link copied!','success'); } else { toast('Failed to create share link','error'); } }).catch(()=>toast('Share failed','error')); }
-    // Video player
+    // Universal preview
+    function openPreview(pid, type, mime){
+        if(!D.prevCont) return;
+        D.prevCont.innerHTML = '';
+        const url = getPreviewUrl(pid);
+        let element;
+        if(type === 'video'){
+            const video = document.createElement('video');
+            video.src = url; video.autoplay = true; video.controls = false;
+            video.style.width = '100%'; video.style.height = '100%'; video.style.objectFit = 'contain';
+            video.style.backgroundColor = '#000';
+            element = video;
+        } else if(type === 'audio'){
+            const audio = document.createElement('audio');
+            audio.src = url; audio.controls = true; audio.autoplay = true;
+            audio.style.width = '100%';
+            element = audio;
+        } else if(type === 'image'){
+            const img = document.createElement('img');
+            img.src = url; img.style.maxWidth = '95%'; img.style.maxHeight = '95%';
+            element = img;
+        } else if(type === 'pdf'){
+            const iframe = document.createElement('iframe');
+            iframe.src = url; iframe.style.width = '90%'; iframe.style.height = '90%';
+            element = iframe;
+        } else if(type === 'text'){
+            const pre = document.createElement('pre');
+            fetch(url, { headers:getAuthHeaders() }).then(r=>r.text()).then(t=>{ pre.textContent=t; D.prevCont.appendChild(pre); });
+            element = null;
+        } else if(mime && (mime.includes('word')||mime.includes('document'))){
+            // Use Google Docs viewer
+            const iframe = document.createElement('iframe');
+            iframe.src = `https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`;
+            iframe.style.width = '90%'; iframe.style.height = '90%';
+            element = iframe;
+        } else {
+            // fallback: embed
+            const embed = document.createElement('embed');
+            embed.src = url; embed.style.width = '90%'; embed.style.height = '90%';
+            element = embed;
+        }
+        if(element) D.prevCont.appendChild(element);
+        if(type === 'video') setupVideoControls(element);
+        D.prevOv.classList.remove('hidden');
+    }
+    // Video controls with aspect ratio fix
     let currentVideo = null, controlsTimeout = null;
     function setupVideoControls(video){
         if(!video) return;
@@ -351,40 +382,10 @@
         controlsDiv.addEventListener('mouseleave', showControls);
         showControls();
     }
-    function openPreview(pid, type){
-        if(!D.prevCont) return;
-        D.prevCont.innerHTML = '';
-        const url = getPreviewUrl(pid);
-        if(type === 'video'){
-            const video = document.createElement('video');
-            video.src = url;
-            video.autoplay = true;
-            video.style.width = '100%';
-            video.style.height = '100%';
-            video.style.objectFit = 'contain';
-            video.style.backgroundColor = '#000';
-            D.prevCont.appendChild(video);
-            video.load();
-            setupVideoControls(video);
-        } else if(type === 'audio'){
-            const audio = document.createElement('audio');
-            audio.src = url; audio.controls = true; audio.autoplay = true; audio.style.width = '100%';
-            D.prevCont.appendChild(audio);
-        } else if(type === 'image'){
-            const img = document.createElement('img'); img.src = url; img.style.maxWidth = '95%'; img.style.maxHeight = '95%';
-            D.prevCont.appendChild(img);
-        } else if(type === 'pdf'){
-            const ifr = document.createElement('iframe'); ifr.src = url; ifr.style.width = '90%'; ifr.style.height = '90%';
-            D.prevCont.appendChild(ifr);
-        } else if(type === 'text'){
-            fetch(url, { headers:getAuthHeaders() }).then(r=>r.text()).then(t=>{ const pre=document.createElement('pre'); pre.textContent=t; D.prevCont.appendChild(pre); });
-        } else { return; }
-        D.prevOv.classList.remove('hidden');
-    }
     function closePreview(){ D.prevCont.innerHTML=''; D.prevOv.classList.add('hidden'); if(document.fullscreenElement) document.exitFullscreen(); const controls=document.querySelector('.custom-video-controls'); if(controls) controls.remove(); currentVideo=null; if(controlsTimeout) clearTimeout(controlsTimeout); }
     safeAddEvent(D.btnCloseP,'click',closePreview);
     safeAddEvent(D.btnFull,'click',()=>{ if(document.fullscreenElement) document.exitFullscreen(); else if(D.prevOv) D.prevOv.requestFullscreen(); });
-    // Render grid with RBAC buttons
+    // Render grid
     function renderFiles(){
         if(!D.grid) return;
         let list = [...ST.files];
@@ -402,14 +403,11 @@
             files.forEach(f=>{
                 const pt = prevType(f.mimeType);
                 const actionsHtml = [];
-                if(can('play') && (pt==='video'||pt==='audio')) actionsHtml.push(`<button class="btn-xs btn-xs-play" data-action="play" data-id="${f.publicId}">▶ Play</button>`);
-                if(can('preview') && ['image','pdf','text'].includes(pt)) actionsHtml.push(`<button class="btn-xs btn-xs-preview" data-action="preview" data-id="${f.publicId}">🔍 Preview</button>`);
+                if(can('play') && (pt==='video'||pt==='audio')) actionsHtml.push(`<button class="btn-xs btn-xs-play" data-action="play" data-id="${f.publicId}" data-mime="${f.mimeType}">▶ Play</button>`);
+                if(can('preview')) actionsHtml.push(`<button class="btn-xs btn-xs-preview" data-action="preview" data-id="${f.publicId}" data-mime="${f.mimeType}">🔍 Preview</button>`);
                 if(can('download')) actionsHtml.push(`<button class="btn-xs btn-xs-download" data-action="download" data-id="${f.publicId}">⬇ Download</button>`);
-                if(can('rename')) actionsHtml.push(`<button class="btn-xs btn-xs-rename" data-action="rename" data-id="${f.publicId}">✏️ Rename</button>`);
-                if(can('replace')) actionsHtml.push(`<button class="btn-xs btn-xs-replace" data-action="replace" data-id="${f.publicId}">🔄 Replace</button>`);
                 if(can('delete')) actionsHtml.push(`<button class="btn-xs btn-xs-delete" data-action="delete" data-id="${f.publicId}">🗑 Delete</button>`);
                 if(can('copy')) actionsHtml.push(`<button class="btn-xs btn-xs-copy" data-action="copy" data-id="${f.publicId}" data-name="${esc(f.name)}" data-mime="${f.mimeType}">📋 Copy File</button>`);
-                if(can('share')) actionsHtml.push(`<button class="btn-xs btn-xs-share" data-action="share" data-id="${f.publicId}">🔗 Share</button>`);
                 const upBy = f.uploadedBy ? `<div style="font-size:0.7rem; color:var(--text-secondary); margin-bottom:4px;">📤 ${f.uploadedBy}</div>` : '';
                 const thumbnailHtml = getThumbnailHtml(f.mimeType, f.name, f.publicId);
                 const card = document.createElement('div');
@@ -450,70 +448,71 @@
         D.grid.querySelectorAll('.actions button').forEach(btn=>{
             if(btn.classList.contains('tick-btn')){ btn.removeEventListener('click', tickHandler); btn.addEventListener('click', tickHandler); }
             else if(btn.classList.contains('btn-xs-copy')){ btn.removeEventListener('click', copyHandler); btn.addEventListener('click', copyHandler); }
-            else if(btn.classList.contains('btn-xs-share')){ btn.removeEventListener('click', shareHandler); btn.addEventListener('click', shareHandler); }
             else { btn.removeEventListener('click', actionHandler); btn.addEventListener('click', actionHandler); }
         });
         D.grid.querySelectorAll('.card').forEach(card=>{ card.removeEventListener('click', cardClickHandler); card.addEventListener('click', cardClickHandler); });
     }
     function checkboxHandler(e){ e.stopPropagation(); toggleSelect(e.target.dataset.id, e.target.checked); }
     async function tickHandler(e){ e.stopPropagation(); await toggleTick(e.currentTarget.dataset.id); }
-    async function copyHandler(e){ e.stopPropagation(); const btn=e.currentTarget; await copyFileDirect(btn.dataset.id, btn.dataset.name, btn.dataset.mime); }
-    async function shareHandler(e){ e.stopPropagation(); await createShareLink(e.currentTarget.dataset.id); }
-    function actionHandler(e){ e.stopPropagation(); const action=e.currentTarget.dataset.action, id=e.currentTarget.dataset.id; if(action && action!=='tick' && action!=='copy' && action!=='share') fileAction(action, id); }
+    async function copyHandler(e){ e.stopPropagation(); const btn=e.currentTarget; await copyFile(btn.dataset.id, btn.dataset.name, btn.dataset.mime); }
+    function actionHandler(e){ e.stopPropagation(); const action=e.currentTarget.dataset.action, id=e.currentTarget.dataset.id, mime=e.currentTarget.dataset.mime; if(action && action!=='tick' && action!=='copy') fileAction(action, id, mime); }
     function cardClickHandler(e){ if(e.target.classList.contains('card-checkbox')||e.target.closest('.actions')) return; const cb=this.querySelector('.card-checkbox'); if(cb) toggleSelect(cb.dataset.id, !cb.checked); }
     function toggleSelect(id, checked){ if(checked) ST.selected.add(id); else ST.selected.delete(id); updateBulkBar(); const card=document.querySelector(`.card[data-public-id="${id}"]`); if(card) card.classList.toggle('selected', checked); }
     function updateBulkBar(){ if(D.bulkBar){ if(ST.selected.size){ D.bulkBar.classList.remove('hidden'); D.bulkCnt.textContent=`${ST.selected.size} selected`; } else D.bulkBar.classList.add('hidden'); } }
-    function fileAction(action, id){
+    function fileAction(action, id, mime){
+        const file = ST.files.find(f=>f.publicId===id);
+        const type = prevType(file?.mimeType);
         switch(action){
-            case 'play': openPreview(id, 'video'); break;
-            case 'preview': openPreview(id, prevType(ST.files.find(f=>f.publicId===id)?.mimeType)); break;
+            case 'play': openPreview(id, 'video', mime); break;
+            case 'preview': openPreview(id, type, mime); break;
             case 'download': window.open(getDownloadUrl(id), '_blank'); break;
             case 'delete': deleteFile(id); break;
-            case 'replace': replaceFile(id); break;
-            case 'rename': renameFile(id); break;
         }
     }
     async function deleteFile(pid){ if(!confirm('Delete?')) return; await withLock(async()=>{ const r=await fetch(`${WORKER_BASE}/delete`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({publicId:pid})}); if(r.ok){ await fetchFiles(); toast('Deleted'); } else throw new Error(); }).catch(()=>toast('Delete failed','error')); }
-    function replaceFile(pid){ const inp=document.createElement('input'); inp.type='file'; inp.onchange=async()=>{ const file=inp.files[0]; if(!file) return; await withLock(async()=>{ const init=await fetch(`${WORKER_BASE}/update`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({publicId:pid,fileName:file.name,fileSize:file.size,fileType:file.type||'application/octet-stream'})}); if(!init.ok){ toast('Replace init failed','error'); return; } const data=await init.json(); await uploadFile(file, data.publicId); await fetchFiles(); }); }; inp.click(); }
-    async function renameFile(pid){ const f=ST.files.find(f=>f.publicId===pid); if(!f) return; const newName=prompt('New name:', f.name); if(!newName || newName===f.name) return; await withLock(async()=>{ const r=await fetch(`${WORKER_BASE}/rename`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({publicId:pid,newName})}); if(r.ok){ await fetchFiles(); toast('Renamed'); } else throw new Error(); }).catch(()=>toast('Rename failed','error')); }
-    // Upload with double-trigger prevention
+    // Upload with progress list and double-trigger prevention
     let pendingPasteFiles = [];
     document.addEventListener('paste', (e)=>{ const items=e.clipboardData.items; for(let i=0;i<items.length;i++){ if(items[i].kind==='file'){ const file=items[i].getAsFile(); if(file) pendingPasteFiles.push(file); } } if(pendingPasteFiles.length>0){ toast(`${pendingPasteFiles.length} file(s) pasted. Click Send.`,'success'); D.pasteInput.value=`${pendingPasteFiles.length} file(s) ready`; } else { toast('No file in clipboard.','info'); } });
     safeAddEvent(D.sendPasteBtn,'click',async()=>{ if(pendingPasteFiles.length===0){ toast('No pasted files.','info'); return; } toast(`Uploading ${pendingPasteFiles.length} files...`,'info'); for(const file of pendingPasteFiles) await uploadFile(file); pendingPasteFiles=[]; D.pasteInput.value=''; toast('All uploaded.','success'); });
     async function uploadFile(file, existingPid=null){
         const fileKey = existingPid || file.name+file.size+file.lastModified;
         if(uploadingFiles.has(fileKey)){ toast(`${file.name} already uploading.`,'info'); return; }
-        uploadingFiles.add(fileKey);
-        if(ST.uploadCtrl) ST.uploadCtrl.abort();
-        ST.uploadCtrl = new AbortController();
-        D.progBox.classList.remove('hidden');
+        const abortCtrl = new AbortController();
+        ST.abortControllers.add(abortCtrl);
+        const progressDiv = document.createElement('div');
+        progressDiv.className = 'progress-item';
+        progressDiv.id = `upload-${Date.now()}`;
+        progressDiv.innerHTML = `<div class="progress-header"><span>${esc(file.name)}</span><span class="progress-percent">0%</span></div><div class="progress-bar"><div class="progress-fill" style="width:0%"></div></div>`;
+        D.uploadProgressList.classList.remove('hidden');
+        D.uploadProgressList.appendChild(progressDiv);
+        uploadingFiles.set(fileKey, { controller: abortCtrl, div: progressDiv, file });
         try {
             let pid = existingPid;
             if(!pid){
-                const initRes = await fetch(`${WORKER_BASE}/upload-init`,{ method:'POST', headers:{'Content-Type':'application/json',...getAuthHeaders()}, body:JSON.stringify({fileName:file.name, fileSize:file.size, fileType:file.type||'application/octet-stream'}), signal:ST.uploadCtrl.signal });
+                const initRes = await fetch(`${WORKER_BASE}/upload-init`,{ method:'POST', headers:{'Content-Type':'application/json',...getAuthHeaders()}, body:JSON.stringify({fileName:file.name, fileSize:file.size, fileType:file.type||'application/octet-stream'}), signal:abortCtrl.signal });
                 if(!initRes.ok){ const errText=await initRes.text(); throw new Error(`Init failed: ${errText}`); }
                 const initData = await initRes.json();
                 pid = initData.publicId;
             }
-            const CHUNK = 5*1024*1024;
-            let uploaded=0, lastBytes=0, lastTime=Date.now();
+            const CHUNK = 2 * 1024 * 1024; // 2MB for faster seeking
+            let uploaded=0;
+            const updateProgress = (percent) => {
+                const fill = progressDiv.querySelector('.progress-fill');
+                const percentSpan = progressDiv.querySelector('.progress-percent');
+                if(fill) fill.style.width = percent+'%';
+                if(percentSpan) percentSpan.textContent = percent+'%';
+            };
             while(uploaded < file.size){
-                if(ST.uploadCtrl.signal.aborted) throw new Error('Cancelled');
+                if(abortCtrl.signal.aborted) throw new Error('Cancelled');
                 const end = Math.min(uploaded+CHUNK-1, file.size-1);
                 const chunk = file.slice(uploaded, end+1);
                 let retries=3, done=false;
                 while(retries-- && !done){
-                    const chunkRes = await fetch(`${WORKER_BASE}/upload-chunk/${pid}`,{ method:'PUT', headers:{'Content-Range':`bytes ${uploaded}-${end}/${file.size}`, ...getAuthHeaders()}, body:chunk, signal:ST.uploadCtrl.signal });
+                    const chunkRes = await fetch(`${WORKER_BASE}/upload-chunk/${pid}`,{ method:'PUT', headers:{'Content-Range':`bytes ${uploaded}-${end}/${file.size}`, ...getAuthHeaders()}, body:chunk, signal:abortCtrl.signal });
                     const data = await chunkRes.json();
                     if(chunkRes.ok){
                         if(data.complete===true || data.status==='complete'){ done=true; break; }
-                        if(typeof data.uploadedBytes === 'number'){
-                            uploaded = data.uploadedBytes;
-                            const now = Date.now();
-                            const speed = ((uploaded-lastBytes)/Math.max(1, now-lastTime))*1000;
-                            updateProgress(uploaded, file.size, speed);
-                            lastBytes=uploaded; lastTime=now;
-                        }
+                        if(typeof data.uploadedBytes === 'number'){ uploaded = data.uploadedBytes; updateProgress(Math.round(uploaded/file.size*100)); }
                         done=true;
                     } else {
                         if(retries<=0) throw new Error(data.error||'Chunk error');
@@ -522,36 +521,35 @@
                 }
                 if(done && uploaded>=file.size) break;
                 if(!done){
-                    const statusRes = await fetch(`${WORKER_BASE}/upload-status/${pid}`,{ headers:getAuthHeaders(), signal:ST.uploadCtrl.signal });
-                    if(statusRes.ok){ const s=await statusRes.json(); uploaded=s.uploadedBytes||uploaded; updateProgress(uploaded, file.size, 0); }
+                    const statusRes = await fetch(`${WORKER_BASE}/upload-status/${pid}`,{ headers:getAuthHeaders(), signal:abortCtrl.signal });
+                    if(statusRes.ok){ const s=await statusRes.json(); uploaded = s.uploadedBytes || uploaded; updateProgress(Math.round(uploaded/file.size*100)); }
                 }
             }
-            toast(`${file.name} uploaded`,'success');
+            progressDiv.remove();
+            if(D.uploadProgressList.children.length === 0) D.uploadProgressList.classList.add('hidden');
+            toast(`${file.name} uploaded successfully!`, 'success');
             await fetchFiles();
-            // Clear file input value to prevent double upload on same file
             if(D.fileInp) D.fileInp.value = '';
-            // Also clear pending paste array (if this file came from paste)
-            const index = pendingPasteFiles.indexOf(file);
-            if(index !== -1) pendingPasteFiles.splice(index,1);
+            const pasteIndex = pendingPasteFiles.indexOf(file);
+            if(pasteIndex !== -1) pendingPasteFiles.splice(pasteIndex,1);
         } catch(err){
-            if(err.message !== 'Cancelled') toast(`Upload failed: ${err.message}`,'error');
+            progressDiv.remove();
+            if(D.uploadProgressList.children.length === 0) D.uploadProgressList.classList.add('hidden');
+            if(err.message !== 'Cancelled') toast(`Upload failed: ${err.message}`, 'error');
         } finally {
-            D.progBox.classList.add('hidden');
-            ST.uploadCtrl = null;
+            ST.abortControllers.delete(abortCtrl);
             uploadingFiles.delete(fileKey);
         }
     }
-    function updateProgress(uploaded, total, speed){ const p=Math.round(uploaded/total*100); D.progFill.style.width=p+'%'; D.pctDisp.textContent=p+'%'; D.speedDisp.textContent=speed?fmtSpeed(speed):'--'; D.sizeDisp.textContent=`${fmtSz(uploaded)} / ${fmtSz(total)}`; }
     const sleep = ms => new Promise(r=>setTimeout(r,ms));
-    safeAddEvent(D.cancelBtn,'click',()=>{ if(ST.uploadCtrl){ ST.uploadCtrl.abort(); ST.uploadCtrl=null; D.progBox.classList.add('hidden'); } });
+    safeAddEvent(D.cancelBtn,'click',()=>{ /* unused now, each upload has its own cancel via X */ });
     // Drag & drop
     if(D.dropzone){ ['dragenter','dragover','dragleave','drop'].forEach(ev=>D.dropzone.addEventListener(ev,e=>e.preventDefault())); D.dropzone.addEventListener('dragover',()=>D.dropzone.classList.add('dragover')); D.dropzone.addEventListener('dragleave',()=>D.dropzone.classList.remove('dragover')); D.dropzone.addEventListener('drop',e=>{ D.dropzone.classList.remove('dragover'); const files=e.dataTransfer.files; if(files.length) handleFiles(files); }); D.dropzone.addEventListener('click',()=>D.fileInp.click()); }
     if(D.fileInp) D.fileInp.addEventListener('change',e=>handleFiles(e.target.files));
     function handleFiles(files){ for(const f of files) uploadFile(f); }
-    // Keyboard navigation
+    // Keyboard navigation & Enter submit
     function setupKeyboardNav(){ const cards=Array.from(document.querySelectorAll('.card')); if(cards.length===0) return; cards.forEach((card,idx)=>{ card.setAttribute('data-index',idx); card.addEventListener('keydown',(e)=>{ if(e.key==='Enter' || e.key===' ' || e.key==='OK'){ e.preventDefault(); const cb=card.querySelector('.card-checkbox'); if(cb) toggleSelect(cb.dataset.id, !cb.checked); } else if(e.key==='ArrowRight'){ const next=cards[idx+1]; if(next) next.focus(); } else if(e.key==='ArrowLeft'){ const prev=cards[idx-1]; if(prev) prev.focus(); } else if(e.key==='ArrowDown'){ const nextRow=cards[idx+ (Math.floor(cards.length/3)||1)]; if(nextRow) nextRow.focus(); } else if(e.key==='ArrowUp'){ const prevRow=cards[idx- (Math.floor(cards.length/3)||1)]; if(prevRow) prevRow.focus(); } }); }); if(ST.focusedCardIndex>=0 && cards[ST.focusedCardIndex]) cards[ST.focusedCardIndex].focus(); else if(cards[0]) cards[0].focus(); }
-    document.addEventListener('keydown',e=>{ if(e.ctrlKey&&e.key==='u'){ e.preventDefault(); if(D.fileInp) D.fileInp.click(); } if(e.ctrlKey&&e.key==='f'){ e.preventDefault(); if(D.search) D.search.focus(); } if(e.key==='Escape') closePreview(); });
-    function applyRoleUI(){ const canUpload=['full','delete','upload'].includes(ST.role); if(D.dropzone) D.dropzone.style.display=canUpload?'':'none'; const hint=document.querySelector('.hint-text'); if(hint) hint.style.display=canUpload?'':'none'; }
+    document.addEventListener('keydown',e=>{ if(e.ctrlKey&&e.key==='u'){ e.preventDefault(); if(D.fileInp) D.fileInp.click(); } if(e.ctrlKey&&e.key==='f'){ e.preventDefault(); if(D.search) D.search.focus(); } if(e.key==='Enter' && document.activeElement?.classList?.contains('comment-form-input')){ const input=document.activeElement; const postBtn=input?.parentElement?.querySelector('.post-comment'); if(postBtn) postBtn.click(); } if(e.key==='Escape') closePreview(); });
     async function showSharePreview(){ const res=await fetch(`${WORKER_BASE}/share/verify?token=${ST.shareToken}`); if(!res.ok){ toast('Invalid share link','error'); showLogin(); return; } const data=await res.json(); D.grid.innerHTML=`<div style="text-align:center;padding:60px;"><div class="thumbnail" style="font-size:4rem;">${getThumbnailHtml(data.mimeType, data.fileName, '')}</div><h2>${esc(data.fileName)}</h2><p>${fmtSz(data.fileSize)}</p><button class="btn btn-primary" id="shareDownloadBtn">⬇ Download</button><button class="btn btn-outline" onclick="location.href='/'">🔐 Login</button></div>`; const shareBtn=$('shareDownloadBtn'); if(shareBtn) shareBtn.addEventListener('click',()=>{ window.location.href=`${WORKER_BASE}/share/download?token=${ST.shareToken}`; }); D.dropzone.style.display='none'; document.querySelector('.hint-text').style.display='none'; D.adminBar.classList.add('hidden'); D.userUI.innerHTML=''; }
     // Dark mode
     (function(){ if(ST.dark) document.documentElement.setAttribute('data-theme','dark'); if(D.btnDark) D.btnDark.addEventListener('click',()=>{ ST.dark=!ST.dark; document.documentElement.setAttribute('data-theme',ST.dark?'dark':'light'); localStorage.setItem('darkMode',ST.dark); }); })();
