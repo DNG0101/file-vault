@@ -665,7 +665,7 @@
         }
     }
 
-    // Video player with working audio (native volume + optional Web Audio boost)
+    // Video player with working audio (fixed CORS)
     let currentVideo = null;
     let videoControlsTimeout = null;
     let audioContext = null;
@@ -720,7 +720,7 @@
         forward30.addEventListener('click', () => video.currentTime = Math.min(video.duration, video.currentTime + 30));
         seekSlider.addEventListener('input', () => { if (video.duration) video.currentTime = (seekSlider.value / 100) * video.duration; });
         
-        // Volume control (native + Web Audio boost if available)
+        // Volume: native fallback + Web Audio boost (with CORS fix)
         volumeSlider.addEventListener('input', async () => {
             let val = volumeSlider.value;
             volIcon.textContent = val == 0 ? '🔇' : val < 30 ? '🔉' : (val < 100 ? '🔊' : '🔊⬆');
@@ -730,7 +730,7 @@
                 video.volume = Math.min(val / 100, 1);
             }
         });
-        // Initialize Web Audio for boost on first play
+        // Initialize Web Audio for boost on first play (CORS already handled by crossorigin attribute)
         video.addEventListener('play', async () => {
             if (!audioContext && typeof AudioContext !== 'undefined') {
                 try {
@@ -749,7 +749,7 @@
                 await audioContext.resume();
             }
         });
-        // Resume AudioContext on first user click (required by browsers)
+        // Resume AudioContext on first user click
         document.addEventListener('click', () => {
             if (audioContext && audioContext.state === 'suspended') audioContext.resume();
         }, { once: true });
@@ -783,10 +783,13 @@
             video.style.height = '100%';
             video.style.objectFit = 'contain';
             video.style.backgroundColor = '#000';
+            // CRITICAL FIX: add crossorigin attribute to enable Web Audio API
+            video.crossOrigin = "anonymous";
             element = video;
         } else if (type === 'audio') {
             const audio = document.createElement('audio');
             audio.src = url; audio.controls = true; audio.autoplay = true; audio.style.width = '100%';
+            audio.crossOrigin = "anonymous";
             element = audio;
         } else if (type === 'image') {
             const img = document.createElement('img'); img.src = url; img.style.maxWidth = '95%'; img.style.maxHeight = '95%';
