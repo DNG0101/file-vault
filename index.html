@@ -3,8 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
-    <title>File Vault – Ultimate Gallery</title>
+    <title>File Vault – Ultimate Edition</title>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
         :root {
             --bg: #f8fafc;
             --card-bg: #ffffff;
@@ -12,14 +17,12 @@
             --text-secondary: #64748b;
             --border: #e2e8f0;
             --accent: #3b82f6;
-            --success: #10b981;
             --danger: #ef4444;
+            --success: #10b981;
             --warn: #f59e0b;
             --purple: #8b5cf6;
             --radius: 14px;
             --shadow: 0 4px 12px rgba(0,0,0,0.05);
-            --toast-bg: #1e293b;
-            --toast-text: #f1f5f9;
         }
         [data-theme="dark"] {
             --bg: #0f172a;
@@ -27,39 +30,31 @@
             --text: #e2e8f0;
             --text-secondary: #94a3b8;
             --border: #334155;
-            --shadow: 0 4px 12px rgba(0,0,0,0.3);
-            --toast-bg: #475569;
         }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: system-ui, -apple-system, 'Inter', sans-serif; background: var(--bg); color: var(--text); padding: 20px; transition: background 0.2s; }
         .container { max-width: 1400px; margin: 0 auto; }
         .hidden { display: none !important; }
         .header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 24px; }
-        .header h1 { font-size: clamp(1.5rem, 5vw, 2rem); }
-        .header-right { display: flex; gap: 12px; align-items: center; }
         .btn-icon { padding: 8px; border: 1px solid var(--border); border-radius: 10px; background: var(--card-bg); cursor: pointer; min-width: 42px; }
-        .btn, .btn-sm { padding: 8px 16px; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; background: var(--card-bg); color: var(--text); border: 1px solid var(--border); }
+        .btn { padding: 8px 16px; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; background: var(--card-bg); color: var(--text); border: 1px solid var(--border); }
         .btn-primary { background: var(--accent); color: white; border-color: var(--accent); }
-        .btn-danger { background: var(--danger); color: white; }
+        .btn-danger { background: var(--danger); color: white; border-color: var(--danger); }
         .btn-outline { background: transparent; }
         .btn-sm { padding: 4px 12px; font-size: 0.8rem; }
         .toolbar, .paste-box { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
         .search-box { flex: 1; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--card-bg); color: var(--text); }
-        .dropzone { border: 2px dashed var(--border); border-radius: 16px; padding: 40px 20px; text-align: center; background: var(--card-bg); cursor: pointer; margin-bottom: 20px; transition: 0.2s; }
+        .dropzone { border: 2px dashed var(--border); border-radius: 16px; padding: 40px 20px; text-align: center; background: var(--card-bg); cursor: pointer; margin-bottom: 20px; }
         .dropzone:hover, .dragover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 5%, var(--card-bg)); }
         .progress-box { margin-bottom: 20px; background: var(--card-bg); border-radius: 12px; padding: 12px; border: 1px solid var(--border); }
         .progress-item { margin-bottom: 12px; }
         .progress-header { display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 4px; }
         .progress-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
         .progress-fill { height: 100%; width: 0%; background: var(--accent); transition: width 0.3s; }
-        .file-section { margin-bottom: 32px; }
-        .section-title { font-size: 1.2rem; font-weight: 600; margin-bottom: 16px; border-bottom: 2px solid var(--accent); color: var(--accent); display: flex; gap: 10px; align-items: center; }
-        .section-title span { background: var(--accent); color: white; padding: 2px 8px; border-radius: 20px; font-size: 0.8rem; }
         .file-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
         .card { background: var(--card-bg); border-radius: var(--radius); padding: 12px; box-shadow: var(--shadow); border: 1px solid var(--border); position: relative; cursor: pointer; }
         .card.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
         .card-checkbox { position: absolute; top: 10px; right: 10px; width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; z-index: 2; }
-        .thumbnail { width: 100%; height: 160px; object-fit: cover; border-radius: 10px; margin-bottom: 10px; background: transparent; display: flex; align-items: center; justify-content: center; font-size: 3rem; overflow: hidden; }
+        .thumbnail { width: 100%; height: 160px; object-fit: cover; border-radius: 10px; margin-bottom: 10px; background: transparent; display: flex; align-items: center; justify-content: center; font-size: 3rem; }
         .thumbnail img, .thumbnail video { width: 100%; height: 100%; object-fit: cover; }
         .file-name { font-weight: 600; word-break: break-word; }
         .file-meta { font-size: 0.7rem; color: var(--text-secondary); margin: 6px 0; }
@@ -87,25 +82,23 @@
         .preview-overlay.hidden { display: none; }
         .preview-container { width: 90%; height: 85%; display: flex; align-items: center; justify-content: center; }
         .preview-container video, .preview-container audio, .preview-container iframe, .preview-container img { max-width: 100%; max-height: 100%; outline: none; background: #000; }
-        .custom-video-controls {
+        .video-controls {
             position: absolute; bottom: 20px; left: 20px; right: 20px;
             background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
             border-radius: 12px; padding: 12px 20px; display: flex; flex-wrap: wrap;
             align-items: center; gap: 8px; justify-content: center; z-index: 1001;
             font-size: 0.8rem;
         }
-        .custom-video-controls button, .custom-video-controls select, .custom-video-controls input {
+        .video-controls button, .video-controls select, .video-controls input {
             background: white; border: none; padding: 4px 8px; border-radius: 6px; cursor: pointer;
         }
-        .custom-video-controls input[type="range"] { width: 80px; }
         .preview-toolbar { position: absolute; top: 20px; right: 20px; display: flex; gap: 10px; z-index: 1001; }
         .preview-toolbar button { background: rgba(0,0,0,0.6); border: none; color: white; padding: 8px 16px; border-radius: 8px; cursor: pointer; }
         #toastContainer { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
-        .toast { background: var(--toast-bg); color: var(--toast-text); padding: 8px 16px; border-radius: 8px; animation: slideIn 0.3s ease; }
+        .toast { background: var(--toast-bg, #1e293b); color: white; padding: 8px 16px; border-radius: 8px; animation: slideIn 0.3s ease; }
         .toast.error { background: var(--danger); }
         .toast.success { background: var(--success); }
         @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-        @media (orientation: portrait) { .file-grid { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); } }
         @media (max-width: 600px) { body { padding: 10px; } .file-grid { grid-template-columns: 1fr; } }
         .loading { text-align: center; padding: 40px; color: var(--text-secondary); }
     </style>
@@ -135,27 +128,16 @@
     <div class="panel hidden" id="analyticsPanel"><h3>Analytics</h3><div id="analyticsContent"></div><button class="btn-sm btn-outline" id="refreshAnalyticsBtn">🔄 Refresh</button></div>
     <div class="toolbar">
         <input type="text" class="search-box" id="searchInput" placeholder="Search files... (Ctrl+F)">
-        <select id="sortSelect">
-            <option value="newest">Newest</option><option value="oldest">Oldest</option>
-            <option value="name-asc">Name A‑Z</option><option value="name-desc">Name Z‑A</option>
-            <option value="size-desc">Largest</option><option value="size-asc">Smallest</option>
-        </select>
+        <select id="sortSelect"><option value="newest">Newest</option><option value="oldest">Oldest</option><option value="name-asc">Name A‑Z</option><option value="name-desc">Name Z‑A</option><option value="size-desc">Largest</option><option value="size-asc">Smallest</option></select>
         <button class="btn-sm btn-outline" id="refreshFilesBtn">🔄 Refresh Files</button>
     </div>
     <div class="paste-box">
         <input type="text" id="pasteInput" placeholder="Paste files (Ctrl+V) then click Send...">
         <button class="btn-primary" id="sendPasteBtn">📤 Send</button>
     </div>
-    <div class="bulk-bar hidden" id="bulkBar">
-        <span id="bulkCount">0 selected</span>
-        <button id="btnBulkDelete">🗑 Delete Selected</button>
-        <button id="btnBulkCancel">✕</button>
-    </div>
-    <div class="hint-text"><kbd>Ctrl+V</kbd> paste | <kbd>Ctrl+U</kbd> upload | <kbd>Ctrl+F</kbd> search | <kbd>Esc</kbd> close | <kbd>▲▼◀▶</kbd> navigate | <kbd>Enter</kbd> select/submit</div>
-    <div class="dropzone" id="dropzone">
-        <p>📂 Drop files here or click to browse</p>
-        <input type="file" id="fileInput" multiple>
-    </div>
+    <div class="bulk-bar hidden" id="bulkBar"><span id="bulkCount">0 selected</span> <button id="btnBulkDelete">🗑 Delete Selected</button> <button id="btnBulkCancel">✕</button></div>
+    <div class="hint-text"><kbd>Ctrl+V</kbd> paste | <kbd>Ctrl+U</kbd> upload | <kbd>Ctrl+F</kbd> search | <kbd>Esc</kbd> close | <kbd>▲▼◀▶</kbd> navigate | <kbd>Enter</kbd> select</div>
+    <div class="dropzone" id="dropzone"><p>📂 Drop files here or click to browse</p><input type="file" id="fileInput" multiple></div>
     <div id="uploadProgressList" class="progress-box hidden"></div>
     <div id="fileGrid"><div class="loading">Loading files...</div></div>
 </div>
@@ -181,7 +163,8 @@
         shareToken: null,
         pendingCheckInterval: null
     };
-    let uploadingFiles = new Map(); // fileKey -> AbortController
+    let uploadingKeys = new Set(); // simple set of file keys to prevent double upload
+    let activeUploadControllers = new Map(); // key -> AbortController
     let cardData = new Map();
 
     const $ = id => document.getElementById(id);
@@ -206,30 +189,18 @@
 
     function getAuthHeaders() {
         const h = {};
-        if (ST.token) {
-            if (ST.isAdmin) h['X-Admin-Token'] = ST.token;
-            else h['X-User-Token'] = ST.token;
-        }
+        if (ST.token) h[ST.isAdmin ? 'X-Admin-Token' : 'X-User-Token'] = ST.token;
         return h;
     }
     function getDownloadUrl(pid) { return `${WORKER_BASE}/download/${pid}?utoken=${ST.token}`; }
     function getPreviewUrl(pid) { return `${WORKER_BASE}/video/${pid}?utoken=${ST.token}`; }
     function toast(msg, type = 'info') {
-        if (!D.toastBox) return;
-        const el = document.createElement('div');
-        el.className = `toast ${type}`;
-        el.textContent = msg;
+        const el = document.createElement('div'); el.className = `toast ${type}`; el.textContent = msg;
         D.toastBox.appendChild(el);
         setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 3000);
     }
     const esc = s => { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
-    const fmtSz = b => {
-        if (!b) return '0 B';
-        const u = ['B', 'KB', 'MB', 'GB'];
-        let i = 0, s = b;
-        while (s >= 1024 && i < 3) { s /= 1024; i++; }
-        return s.toFixed(1) + ' ' + u[i];
-    };
+    const fmtSz = b => { if (!b) return '0 B'; const u = ['B','KB','MB','GB']; let i=0,s=b; while(s>=1024 && i<3) { s/=1024; i++; } return s.toFixed(1)+' '+u[i]; };
     const prevType = m => {
         if (!m) return '';
         if (m.startsWith('video')) return 'video';
@@ -242,10 +213,11 @@
         if (m.startsWith('text')) return 'text';
         return 'other';
     };
-    function getThumbnailHtml(mime, name, pid) {
+    function getThumbnailHtml(mime, pid) {
         const pt = prevType(mime);
-        if (pt === 'image') return `<img src="${getPreviewUrl(pid)}" style="width:100%;height:100%;object-fit:cover;border-radius:10px;" loading="lazy">`;
-        if (pt === 'video') return `<video src="${getPreviewUrl(pid)}" style="width:100%;height:100%;object-fit:cover;border-radius:10px;" muted preload="metadata"></video>`;
+        const url = getPreviewUrl(pid);
+        if (pt === 'image') return `<img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:10px;" loading="lazy">`;
+        if (pt === 'video') return `<video src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:10px;" muted preload="metadata"></video>`;
         if (pt === 'audio') return '<div style="font-size:3rem;">🎵</div>';
         if (pt === 'pdf') return '<div style="font-size:3rem;">📕</div>';
         if (pt === 'text') return '<div style="font-size:3rem;">📝</div>';
@@ -262,10 +234,7 @@
         read:   { upload: false, delete: false, download: false, preview: true, play: true, copy: false, tick: true, comment: true },
         none:   { upload: false, delete: false, download: false, preview: false, play: false, copy: false, tick: false, comment: false }
     };
-    function can(action) {
-        if (ST.isAdmin) return true;
-        return roleRights[ST.role]?.[action] === true;
-    }
+    function can(action) { return ST.isAdmin ? true : (roleRights[ST.role]?.[action] === true); }
 
     // Auth
     async function fetchUserInfo() {
@@ -275,24 +244,19 @@
             if (!r.ok) throw new Error();
             const i = await r.json();
             const wasApproved = ST.approved;
-            ST.email = i.email;
-            ST.isAdmin = i.isAdmin === true;
-            ST.approved = i.approved;
-            ST.role = i.role;
+            ST.email = i.email; ST.isAdmin = i.isAdmin === true; ST.approved = i.approved; ST.role = i.role;
             if (!wasApproved && ST.approved) {
                 if (ST.pendingCheckInterval) clearInterval(ST.pendingCheckInterval);
                 render();
                 toast('You have been approved! Access granted.', 'success');
             }
             return true;
-        } catch (e) { console.warn(e); return false; }
+        } catch (e) { return false; }
     }
-
     function startPendingCheck() {
         if (ST.pendingCheckInterval) clearInterval(ST.pendingCheckInterval);
-        ST.pendingCheckInterval = setInterval(async () => { await fetchUserInfo(); }, 30000);
+        ST.pendingCheckInterval = setInterval(() => fetchUserInfo(), 30000);
     }
-
     function showLogin() {
         if (ST.pendingCheckInterval) clearInterval(ST.pendingCheckInterval);
         D.adminBar?.classList.add('hidden');
@@ -305,11 +269,8 @@
             else toast('Login failed', 'error');
         };
     }
-
     function showPending() {
-        D.adminBar?.classList.add('hidden');
-        D.userUI.innerHTML = '';
-        D.dropzone.style.display = 'none';
+        D.adminBar?.classList.add('hidden'); D.userUI.innerHTML = ''; D.dropzone.style.display = 'none';
         document.querySelector('.hint-text').style.display = 'none';
         D.grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;"><h2>🔐 Waiting for Approval</h2><p>Email: <strong>${ST.email}</strong></p><p>After admin approves you, this page will automatically refresh. You can also click <strong>Refresh Status</strong>.</p><div><button class="btn btn-outline btn-sm" id="manualRefreshBtn">🔄 Refresh Status</button> <button class="btn btn-danger btn-sm" id="btnSelfRevoke">❌ Cancel Request</button></div></div>`;
         const refreshBtn = $('manualRefreshBtn');
@@ -317,39 +278,29 @@
         const selfRevokeBtn = $('btnSelfRevoke');
         if (selfRevokeBtn) selfRevokeBtn.onclick = async () => {
             if (!confirm('Cancel request?')) return;
-            await fetch(`${WORKER_BASE}/user-revoke-self`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ utoken: ST.token }) });
-            ST.token = null;
-            localStorage.removeItem('vtoken');
-            showLogin();
-            toast('Request cancelled.');
+            await fetch(`${WORKER_BASE}/user-revoke-self`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({utoken:ST.token}) });
+            ST.token = null; localStorage.removeItem('vtoken'); showLogin(); toast('Request cancelled.');
         };
         startPendingCheck();
     }
-
     function showMain() {
         if (ST.pendingCheckInterval) clearInterval(ST.pendingCheckInterval);
         document.querySelector('.hint-text').style.display = '';
         if (ST.isAdmin) {
-            D.adminBar?.classList.remove('hidden');
-            D.userUI.innerHTML = '';
-            D.dropzone.style.display = can('upload') ? '' : 'none';
+            D.adminBar?.classList.remove('hidden'); D.userUI.innerHTML = ''; D.dropzone.style.display = can('upload') ? '' : 'none';
             loadPendingCount();
         } else {
             D.adminBar?.classList.add('hidden');
             D.userUI.innerHTML = `<span>👤 ${ST.email} (${ST.role}) <button class="btn btn-sm btn-outline" id="btnUserLogout">🔒 Logout</button></span>`;
             const logoutBtn = $('btnUserLogout');
             if (logoutBtn) logoutBtn.onclick = () => {
-                uploadingFiles.forEach(ctrl => ctrl.abort());
-                uploadingFiles.clear();
-                ST.token = null;
-                localStorage.removeItem('vtoken');
-                showLogin();
-                toast('Logged out.');
+                for (const ctrl of activeUploadControllers.values()) ctrl.abort();
+                activeUploadControllers.clear(); uploadingKeys.clear();
+                ST.token = null; localStorage.removeItem('vtoken'); showLogin(); toast('Logged out.');
             };
             D.dropzone.style.display = can('upload') ? '' : 'none';
         }
     }
-
     function render() {
         if (!ST.email) { showLogin(); return; }
         if (ST.isAdmin || ST.approved) { showMain(); fetchFiles(); }
@@ -361,324 +312,175 @@
     // Reset token
     if (D.btnResetToken) D.btnResetToken.addEventListener('click', async () => {
         if (confirm('Reset admin token? You will need to login again.')) {
-            await fetch(`${WORKER_BASE}/admin/reset-token`, { method: 'POST', headers: getAuthHeaders() });
-            ST.token = null;
-            localStorage.removeItem('vtoken');
-            showLogin();
-            toast('Token reset. Please login again.', 'success');
+            await fetch(`${WORKER_BASE}/admin/reset-token`, { method:'POST', headers:getAuthHeaders() });
+            ST.token = null; localStorage.removeItem('vtoken'); showLogin(); toast('Token reset. Please login again.', 'success');
         }
     });
 
-    // Admin actions
-    safeAddEvent(D.btnSync, 'click', async () => {
-        toast('Syncing...', 'info');
-        try {
-            await fetch(`${WORKER_BASE}/sync`, { method: 'POST', headers: getAuthHeaders() });
-            await fetchFiles();
-            toast('Sync done', 'success');
-        } catch { toast('Sync failed', 'error'); }
-    });
+    // Admin panels (all actions)
+    safeAddEvent(D.btnSync, 'click', async () => { toast('Syncing...','info'); try { await fetch(`${WORKER_BASE}/sync`,{method:'POST',headers:getAuthHeaders()}); await fetchFiles(); toast('Sync done','success'); } catch { toast('Sync failed','error'); } });
     safeAddEvent(D.btnAppr, 'click', () => togglePanel(D.pnlAppr, loadPending));
     safeAddEvent(D.btnAllUsers, 'click', () => togglePanel(D.pnlUsers, loadAllUsers));
     safeAddEvent(D.btnLogs, 'click', () => togglePanel(D.pnlLogs, loadLogs));
     safeAddEvent(D.btnAnalytics, 'click', () => togglePanel(D.pnlAnalytics, loadAnalytics));
     safeAddEvent(D.btnUnAuth, 'click', adminLogout);
-    safeAddEvent(D.btnClearLogs, 'click', async () => {
-        if (!confirm('Delete all logs?')) return;
-        await fetch(`${WORKER_BASE}/admin/logs/clear`, { method: 'POST', headers: getAuthHeaders() });
-        loadLogs();
-        toast('Logs cleared');
-    });
+    safeAddEvent(D.btnClearLogs, 'click', async () => { if(!confirm('Delete all logs?')) return; await fetch(`${WORKER_BASE}/admin/logs/clear`,{method:'POST',headers:getAuthHeaders()}); loadLogs(); toast('Logs cleared'); });
     safeAddEvent(D.btnBulkCancel, 'click', () => { ST.selected.clear(); renderFiles(); updateBulkBar(); });
-    safeAddEvent(D.btnBulkDelete, 'click', async () => {
-        if (!confirm(`Delete ${ST.selected.size} files?`)) return;
-        const ids = Array.from(ST.selected);
-        const r = await fetch(`${WORKER_BASE}/bulk-delete`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }, body: JSON.stringify({ publicIds: ids }) });
-        const d = await r.json();
-        ST.selected.clear();
-        updateBulkBar();
-        await fetchFiles();
-        toast(`${d.deleted} deleted, ${d.failed} failed`);
-    });
+    safeAddEvent(D.btnBulkDelete, 'click', async () => { if(!confirm(`Delete ${ST.selected.size} files?`)) return; const ids=Array.from(ST.selected); const r=await fetch(`${WORKER_BASE}/bulk-delete`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({publicIds:ids})}); const d=await r.json(); ST.selected.clear(); updateBulkBar(); await fetchFiles(); toast(`${d.deleted} deleted, ${d.failed} failed`); });
     safeAddEvent(D.refreshFilesBtn, 'click', () => fetchFiles());
     safeAddEvent(D.refreshPendingBtn, 'click', () => loadPending());
     safeAddEvent(D.refreshUsersBtn, 'click', () => loadAllUsers());
     safeAddEvent(D.refreshLogsBtn, 'click', () => loadLogs());
     safeAddEvent(D.refreshAnalyticsBtn, 'click', () => loadAnalytics());
-    safeAddEvent(D.addUserBtn, 'click', async () => {
-        const email = D.newUserEmail.value.trim();
-        if (!email) { toast('Enter email', 'error'); return; }
-        await fetch(`${WORKER_BASE}/admin/add-user`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }, body: JSON.stringify({ email, role: 'full' }) });
-        toast(`User ${email} added`, 'success');
-        D.newUserEmail.value = '';
-        loadAllUsers();
-        loadPendingCount();
-    });
+    safeAddEvent(D.addUserBtn, 'click', async () => { const email=D.newUserEmail.value.trim(); if(!email) { toast('Enter email','error'); return; } await fetch(`${WORKER_BASE}/admin/add-user`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({email,role:'full'})}); toast(`User ${email} added`,'success'); D.newUserEmail.value=''; loadAllUsers(); loadPendingCount(); });
 
-    function togglePanel(panel, loadFn) {
-        if (panel) {
-            panel.classList.toggle('hidden');
-            if (!panel.classList.contains('hidden')) loadFn();
-        }
-    }
-    async function adminLogout() {
-        if (confirm('Logout as admin?')) {
-            uploadingFiles.forEach(ctrl => ctrl.abort());
-            uploadingFiles.clear();
-            ST.token = null;
-            localStorage.removeItem('vtoken');
-            showLogin();
-            toast('Admin logged out');
-        }
-    }
-    async function loadPendingCount() {
-        if (!ST.isAdmin || !D.pendingBadge) return;
-        const r = await fetch(`${WORKER_BASE}/admin/pending`, { headers: getAuthHeaders() });
-        const p = await r.json();
-        D.pendingBadge.textContent = p.length;
-        D.pendingBadge.classList.toggle('hidden', p.length === 0);
-    }
+    function togglePanel(panel, loadFn) { if(panel) { panel.classList.toggle('hidden'); if(!panel.classList.contains('hidden')) loadFn(); } }
+    async function adminLogout() { if(confirm('Logout as admin?')) { for (const ctrl of activeUploadControllers.values()) ctrl.abort(); activeUploadControllers.clear(); uploadingKeys.clear(); ST.token = null; localStorage.removeItem('vtoken'); showLogin(); toast('Admin logged out'); } }
+    async function loadPendingCount() { if(!ST.isAdmin || !D.pendingBadge) return; const r=await fetch(`${WORKER_BASE}/admin/pending`,{headers:getAuthHeaders()}); const p=await r.json(); D.pendingBadge.textContent=p.length; D.pendingBadge.classList.toggle('hidden',p.length===0); }
     function loadPending() {
-        fetch(`${WORKER_BASE}/admin/pending`, { headers: getAuthHeaders() })
-            .then(r => r.json())
-            .then(users => {
-                D.listAppr.innerHTML = users.length ? users.map(u => `<div class="approval-item"><span>${u.email}</span><div><select class="role-sel"><option value="full">Full</option><option value="delete">Delete</option><option value="upload">Upload Only</option><option value="download">Download Only</option><option value="read">Read Only</option><option value="none">None</option></select><button class="btn btn-sm btn-success" data-email="${u.email}">Approve</button><button class="btn btn-sm btn-danger" data-email="${u.email}">Deny</button></div></div>`).join('') : '<p>No pending users.</p>';
-                attachApproveEvents();
-            });
+        fetch(`${WORKER_BASE}/admin/pending`,{headers:getAuthHeaders()}).then(r=>r.json()).then(users=>{
+            D.listAppr.innerHTML = users.length ? users.map(u=>`<div class="approval-item"><span>${u.email}</span><div><select class="role-sel"><option value="full">Full</option><option value="delete">Delete</option><option value="upload">Upload Only</option><option value="download">Download Only</option><option value="read">Read Only</option><option value="none">None</option></select><button class="btn btn-sm btn-success" data-email="${u.email}">Approve</button><button class="btn btn-sm btn-danger" data-email="${u.email}">Deny</button></div></div>`).join('') : '<p>No pending users.</p>';
+            attachApproveEvents();
+        });
     }
     function attachApproveEvents() {
-        D.listAppr.querySelectorAll('button').forEach(btn => {
-            btn.addEventListener('click', async () => {
-                const email = btn.dataset.email;
-                const role = btn.parentElement.querySelector('.role-sel')?.value || 'full';
-                const isApprove = btn.classList.contains('btn-success');
-                const endpoint = isApprove ? 'approve' : 'deny';
-                await fetch(`${WORKER_BASE}/admin/${endpoint}`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }, body: JSON.stringify({ email, role }) });
-                toast(`${email} ${isApprove ? 'approved' : 'denied'}`);
-                loadPending();
-                loadPendingCount();
-                loadAllUsers();
+        D.listAppr.querySelectorAll('button').forEach(btn=>{
+            btn.addEventListener('click',async()=>{
+                const email=btn.dataset.email; const role=btn.parentElement.querySelector('.role-sel')?.value||'full'; const isApprove=btn.classList.contains('btn-success'); const endpoint=isApprove?'approve':'deny';
+                await fetch(`${WORKER_BASE}/admin/${endpoint}`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({email,role})});
+                toast(`${email} ${isApprove?'approved':'denied'}`); loadPending(); loadPendingCount(); loadAllUsers();
             });
         });
     }
     function loadAllUsers() {
-        fetch(`${WORKER_BASE}/admin/all-users`, { headers: getAuthHeaders() })
-            .then(r => r.json())
-            .then(users => {
-                D.listUsers.innerHTML = (users || []).map(u => {
-                    const isSubAdmin = u.is_admin === 1 && u.email !== ST.email;
-                    const isSelf = u.email === ST.email;
-                    return `<div class="approval-item">
-                        <span>${u.email} <span class="status-badge status-${u.status}">${u.status}</span> ${u.role ? `(${u.role})` : ''} ${isSubAdmin ? ' <span style="background:#f97316; padding:2px 6px; border-radius:10px;">Sub‑Admin</span>' : ''}</span>
-                        <div>
-                            ${u.status === 'pending' ? `<select class="role-sel-${u.email}"><option value="full">Full</option><option value="delete">Delete</option><option value="upload">Upload Only</option><option value="download">Download</option><option value="read">Read</option><option value="none">None</option></select><button class="btn-sm btn-success" data-action="approve" data-email="${u.email}">Approve</button>` : ''}
-                            ${u.status === 'approved' && !isSelf ? `
-                                <select class="role-sel-${u.email}">
-                                    <option value="full" ${u.role === 'full' ? 'selected' : ''}>Full</option>
-                                    <option value="delete" ${u.role === 'delete' ? 'selected' : ''}>Delete</option>
-                                    <option value="upload" ${u.role === 'upload' ? 'selected' : ''}>Upload Only</option>
-                                    <option value="download" ${u.role === 'download' ? 'selected' : ''}>Download</option>
-                                    <option value="read" ${u.role === 'read' ? 'selected' : ''}>Read</option>
-                                    <option value="none" ${u.role === 'none' ? 'selected' : ''}>None</option>
-                                </select>
-                                <button class="btn-sm btn-primary" data-action="update" data-email="${u.email}">Update Role</button>
-                                <button class="btn-sm btn-danger" data-action="revoke" data-email="${u.email}">Revoke Access</button>
-                                ${!isSubAdmin ? `<button class="btn-sm btn-warning" data-action="makeadmin" data-email="${u.email}">Make Sub‑Admin</button>` : `<button class="btn-sm btn-warning" data-action="revokeadmin" data-email="${u.email}" style="background:#e11d48;">Revoke Sub‑Admin</button>`}
-                            ` : ''}
-                        </div>
-                    </div>`;
-                }).join('');
-                attachUserEvents();
-            });
+        fetch(`${WORKER_BASE}/admin/all-users`,{headers:getAuthHeaders()}).then(r=>r.json()).then(users=>{
+            D.listUsers.innerHTML = (users||[]).map(u=>{
+                const isSubAdmin = u.is_admin===1 && u.email!==ST.email; const isSelf = u.email===ST.email;
+                return `<div class="approval-item">
+                    <span>${u.email} <span class="status-badge status-${u.status}">${u.status}</span> ${u.role?`(${u.role})`:''} ${isSubAdmin?' <span style="background:#f97316; padding:2px 6px; border-radius:10px;">Sub‑Admin</span>':''}</span>
+                    <div>
+                        ${u.status==='pending' ? `<select class="role-sel-${u.email}"><option value="full">Full</option><option value="delete">Delete</option><option value="upload">Upload Only</option><option value="download">Download</option><option value="read">Read</option><option value="none">None</option></select><button class="btn-sm btn-success" data-action="approve" data-email="${u.email}">Approve</button>` : ''}
+                        ${u.status==='approved' && !isSelf ? `
+                            <select class="role-sel-${u.email}">
+                                ${['full','delete','upload','download','read','none'].map(r=>`<option value="${r}" ${u.role===r?'selected':''}>${r.charAt(0).toUpperCase()+r.slice(1)}</option>`).join('')}
+                            </select>
+                            <button class="btn-sm btn-primary" data-action="update" data-email="${u.email}">Update Role</button>
+                            <button class="btn-sm btn-danger" data-action="revoke" data-email="${u.email}">Revoke Access</button>
+                            ${!isSubAdmin ? `<button class="btn-sm btn-warning" data-action="makeadmin" data-email="${u.email}">Make Sub‑Admin</button>` : `<button class="btn-sm btn-warning" data-action="revokeadmin" data-email="${u.email}" style="background:#e11d48;">Revoke Sub‑Admin</button>`}
+                        ` : ''}
+                    </div>
+                </div>`;
+            }).join('');
+            attachUserEvents();
+        });
     }
     function attachUserEvents() {
-        D.listUsers.querySelectorAll('button').forEach(btn => {
-            btn.addEventListener('click', async () => {
-                const action = btn.dataset.action;
-                const email = btn.dataset.email;
-                if (action === 'makeadmin') {
-                    await fetch(`${WORKER_BASE}/admin/make-subadmin`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }, body: JSON.stringify({ email, makeAdmin: true }) });
-                    toast(`${email} promoted to sub‑admin.`, 'success');
-                    loadAllUsers();
-                    await fetchUserInfo();
-                    return;
-                }
-                if (action === 'revokeadmin') {
-                    await fetch(`${WORKER_BASE}/admin/make-subadmin`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }, body: JSON.stringify({ email, makeAdmin: false }) });
-                    toast(`${email} sub‑admin rights revoked.`, 'success');
-                    loadAllUsers();
-                    await fetchUserInfo();
-                    return;
-                }
-                let role = 'full';
-                const sel = btn.parentElement.querySelector(`.role-sel-${email}`);
-                if (sel) role = sel.value;
+        D.listUsers.querySelectorAll('button').forEach(btn=>{
+            btn.addEventListener('click',async()=>{
+                const action=btn.dataset.action; const email=btn.dataset.email;
+                if(action==='makeadmin'){ await fetch(`${WORKER_BASE}/admin/make-subadmin`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({email,makeAdmin:true})}); toast(`${email} promoted to sub‑admin.`,'success'); loadAllUsers(); await fetchUserInfo(); return; }
+                if(action==='revokeadmin'){ await fetch(`${WORKER_BASE}/admin/make-subadmin`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({email,makeAdmin:false})}); toast(`${email} sub‑admin rights revoked.`,'success'); loadAllUsers(); await fetchUserInfo(); return; }
+                const role = btn.parentElement.querySelector(`.role-sel-${email}`)?.value || 'full';
                 let endpoint = '';
-                if (action === 'approve') endpoint = 'approve';
-                else if (action === 'update') endpoint = 'update-role';
-                else if (action === 'revoke') endpoint = 'revoke';
-                if (endpoint === 'update-role') {
-                    await fetch(`${WORKER_BASE}/admin/update-role`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }, body: JSON.stringify({ email, role }) });
-                    toast(`${email} role updated to ${role}`);
-                    await fetchUserInfo();
-                    await fetchFiles();
-                } else if (endpoint === 'revoke') {
-                    await fetch(`${WORKER_BASE}/admin/revoke`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }, body: JSON.stringify({ email }) });
-                    toast(`${email} revoked`);
-                    loadAllUsers();
-                    loadPending();
-                    loadPendingCount();
-                    await fetchUserInfo();
-                } else if (endpoint === 'approve') {
-                    await fetch(`${WORKER_BASE}/admin/approve`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }, body: JSON.stringify({ email, role }) });
-                    toast(`${email} approved`);
-                    loadAllUsers();
-                    loadPending();
-                    loadPendingCount();
-                    await fetchUserInfo();
-                }
+                if(action==='approve') endpoint='approve';
+                else if(action==='update') endpoint='update-role';
+                else if(action==='revoke') endpoint='revoke';
+                if(endpoint==='update-role'){ await fetch(`${WORKER_BASE}/admin/update-role`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({email,role})}); toast(`${email} role updated to ${role}`); await fetchUserInfo(); await fetchFiles(); }
+                else if(endpoint==='revoke'){ await fetch(`${WORKER_BASE}/admin/revoke`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({email})}); toast(`${email} revoked`); loadAllUsers(); loadPending(); loadPendingCount(); await fetchUserInfo(); }
+                else if(endpoint==='approve'){ await fetch(`${WORKER_BASE}/admin/approve`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({email,role})}); toast(`${email} approved`); loadAllUsers(); loadPending(); loadPendingCount(); await fetchUserInfo(); }
                 loadAllUsers();
             });
         });
     }
-    function loadLogs() {
-        fetch(`${WORKER_BASE}/admin/logs?limit=200`, { headers: getAuthHeaders() })
-            .then(r => r.json())
-            .then(d => { D.logsCt.innerHTML = d.logs.length ? d.logs.map(l => `<div><strong>${new Date(l.ts).toLocaleString()}</strong> ${l.actor} ${l.action} <strong>${l.meta?.fileName || l.target}</strong></div>`).join('') : '<p>No logs.</p>'; });
-    }
-    function loadAnalytics() {
-        fetch(`${WORKER_BASE}/admin/analytics`, { headers: getAuthHeaders() })
-            .then(r => r.json())
-            .then(d => { D.analyticsCt.innerHTML = `<p>Files: ${d.files.total} (${fmtSz(d.files.totalSize)}) | Users: ${d.users.total}</p>`; });
-    }
+    function loadLogs() { fetch(`${WORKER_BASE}/admin/logs?limit=200`,{headers:getAuthHeaders()}).then(r=>r.json()).then(d=>{ D.logsCt.innerHTML = d.logs.length ? d.logs.map(l=>`<div><strong>${new Date(l.ts).toLocaleString()}</strong> ${l.actor} ${l.action} <strong>${l.meta?.fileName||l.target}</strong></div>`).join('') : '<p>No logs.</p>'; }); }
+    function loadAnalytics() { fetch(`${WORKER_BASE}/admin/analytics`,{headers:getAuthHeaders()}).then(r=>r.json()).then(d=>{ D.analyticsCt.innerHTML = `<p>Files: ${d.files.total} (${fmtSz(d.files.totalSize)}) | Users: ${d.users.total}</p>`; }); }
 
-    // File operations
+    // File core
     async function fetchFiles() {
         D.grid.innerHTML = '<div class="loading">Loading files...</div>';
-        const r = await fetch(`${WORKER_BASE}/list`, { headers: getAuthHeaders() });
-        if (!r.ok) throw new Error();
+        const r = await fetch(`${WORKER_BASE}/list`,{headers:getAuthHeaders()});
+        if(!r.ok) throw new Error();
         const data = await r.json();
         ST.files = data.files;
         renderFiles();
     }
-
     async function loadCardData(pid) {
         const [commentsRes, tickRes] = await Promise.all([
-            fetch(`${WORKER_BASE}/comment/list?fileId=${pid}`, { headers: getAuthHeaders() }),
-            fetch(`${WORKER_BASE}/tick/get?fileId=${pid}`, { headers: getAuthHeaders() })
+            fetch(`${WORKER_BASE}/comment/list?fileId=${pid}`,{headers:getAuthHeaders()}),
+            fetch(`${WORKER_BASE}/tick/get?fileId=${pid}`,{headers:getAuthHeaders()})
         ]);
         const comments = await commentsRes.json();
         const tickData = await tickRes.json();
         return { comments: comments.comments, ticked: tickData.ticked, count: tickData.count, users: tickData.users };
     }
-
     async function refreshCard(pid) {
         const card = document.querySelector(`.card[data-public-id="${pid}"]`);
-        if (!card) return;
+        if(!card) return;
         const newData = await loadCardData(pid);
-        cardData.set(pid, newData);
+        cardData.set(pid,newData);
         const tickBtn = card.querySelector('.tick-btn');
-        if (tickBtn) {
+        if(tickBtn){
             tickBtn.innerHTML = newData.ticked ? '✅' : '☑️';
             let tooltipSpan = tickBtn.querySelector('.tooltip');
-            if (!tooltipSpan) {
-                tooltipSpan = document.createElement('span');
-                tooltipSpan.className = 'tooltip';
-                tickBtn.appendChild(tooltipSpan);
-            }
+            if(!tooltipSpan){ tooltipSpan=document.createElement('span'); tooltipSpan.className='tooltip'; tickBtn.appendChild(tooltipSpan); }
             tooltipSpan.textContent = newData.users.length ? `Ticked by: ${newData.users.join(', ')}` : 'No ticks yet';
         }
         card.querySelector('.tick-count').textContent = newData.count;
         card.querySelector('.comment-count').textContent = newData.comments.length;
         const commentList = card.querySelector('.comment-list');
-        if (commentList) {
-            commentList.innerHTML = newData.comments.map(c => `<div class="comment" data-comment-id="${c.id}"><span class="comment-text"><strong>${esc(c.user_email)}</strong> ${esc(c.text)}</span><div class="comment-actions">${c.user_email === ST.email || ST.isAdmin ? `<button class="delete-comment" data-id="${c.id}">🗑</button>` : ''}${c.user_email === ST.email || ST.isAdmin ? `<button class="edit-comment" data-id="${c.id}" data-text="${esc(c.text)}">✏️</button>` : ''}</div></div>`).join('');
-            attachCommentEvents(pid, commentList);
+        if(commentList){
+            commentList.innerHTML = newData.comments.map(c=>`<div class="comment" data-comment-id="${c.id}"><span class="comment-text"><strong>${esc(c.user_email)}</strong> ${esc(c.text)}</span><div class="comment-actions">${c.user_email===ST.email||ST.isAdmin?`<button class="delete-comment" data-id="${c.id}">🗑</button>`:''}${c.user_email===ST.email||ST.isAdmin?`<button class="edit-comment" data-id="${c.id}" data-text="${esc(c.text)}">✏️</button>`:''}</div></div>`).join('');
+            attachCommentEvents(pid,commentList);
         }
     }
-
-    function attachCommentEvents(pid, container) {
-        container.querySelectorAll('.delete-comment').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                if (!confirm('Delete comment?')) return;
-                await fetch(`${WORKER_BASE}/comment/delete`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }, body: JSON.stringify({ commentId: btn.dataset.id }) });
-                await refreshCard(pid);
-            });
-        });
-        container.querySelectorAll('.edit-comment').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                const newText = prompt('Edit comment:', btn.dataset.text);
-                if (newText && newText !== btn.dataset.text) {
-                    await fetch(`${WORKER_BASE}/comment/edit`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }, body: JSON.stringify({ commentId: btn.dataset.id, text: newText }) });
-                    await refreshCard(pid);
-                }
-            });
-        });
+    function attachCommentEvents(pid,container){
+        container.querySelectorAll('.delete-comment').forEach(btn=>{ btn.addEventListener('click',async(e)=>{ e.stopPropagation(); if(!confirm('Delete comment?')) return; await fetch(`${WORKER_BASE}/comment/delete`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({commentId:btn.dataset.id})}); await refreshCard(pid); }); });
+        container.querySelectorAll('.edit-comment').forEach(btn=>{ btn.addEventListener('click',async(e)=>{ e.stopPropagation(); const newText=prompt('Edit comment:',btn.dataset.text); if(newText&&newText!==btn.dataset.text){ await fetch(`${WORKER_BASE}/comment/edit`,{method:'PATCH',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({commentId:btn.dataset.id,text:newText})}); await refreshCard(pid); } }); });
     }
-
-    async function addComment(pid, text) {
-        if (!text.trim()) return;
-        await fetch(`${WORKER_BASE}/comment/add`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }, body: JSON.stringify({ fileId: pid, text }) });
-        await refreshCard(pid);
-    }
-
-    async function toggleTick(pid) {
+    async function addComment(pid,text){ if(!text.trim()) return; await fetch(`${WORKER_BASE}/comment/add`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({fileId:pid,text})}); await refreshCard(pid); }
+    async function toggleTick(pid){
         const data = cardData.get(pid);
-        if (!data) return;
-        const r = await fetch(`${WORKER_BASE}/tick/set`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }, body: JSON.stringify({ fileId: pid, ticked: !data.ticked }) });
+        if(!data) return;
+        const r = await fetch(`${WORKER_BASE}/tick/set`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({fileId:pid,ticked:!data.ticked})});
         const res = await r.json();
-        if (res.success) {
-            const newData = { ...data, ticked: !data.ticked, count: res.count, users: res.users };
-            cardData.set(pid, newData);
+        if(res.success){
+            const newData = {...data, ticked:!data.ticked, count:res.count, users:res.users};
+            cardData.set(pid,newData);
             const card = document.querySelector(`.card[data-public-id="${pid}"]`);
-            if (card) {
+            if(card){
                 const tickBtn = card.querySelector('.tick-btn');
                 tickBtn.innerHTML = newData.ticked ? '✅' : '☑️';
                 let tooltipSpan = tickBtn.querySelector('.tooltip');
-                if (!tooltipSpan) {
-                    tooltipSpan = document.createElement('span');
-                    tooltipSpan.className = 'tooltip';
-                    tickBtn.appendChild(tooltipSpan);
-                }
+                if(!tooltipSpan){ tooltipSpan=document.createElement('span'); tooltipSpan.className='tooltip'; tickBtn.appendChild(tooltipSpan); }
                 tooltipSpan.textContent = newData.users.length ? `Ticked by: ${newData.users.join(', ')}` : 'No ticks yet';
                 card.querySelector('.tick-count').textContent = newData.count;
             }
         }
     }
-
-    async function copyFile(pid, name, mime) {
-        try {
-            const response = await fetch(getDownloadUrl(pid), { headers: getAuthHeaders() });
-            if (!response.ok) throw new Error('Fetch failed');
-            const blob = await response.blob();
-            if (mime && mime.startsWith('image/')) {
-                await navigator.clipboard.write([ new ClipboardItem({ [blob.type]: blob }) ]);
-                toast('Image copied to clipboard!', 'success');
+    async function copyFile(pid, name, mime){
+        try{
+            const resp = await fetch(getDownloadUrl(pid),{headers:getAuthHeaders()});
+            if(!resp.ok) throw new Error();
+            const blob = await resp.blob();
+            if(mime && mime.startsWith('image/')){
+                await navigator.clipboard.write([new ClipboardItem({[blob.type]: blob})]);
+                toast('Image copied to clipboard!','success');
             } else {
                 await navigator.clipboard.writeText(getDownloadUrl(pid));
-                toast('Download link copied (file copy not supported for this type)', 'info');
+                toast('Download link copied','info');
             }
-        } catch (err) {
-            toast('Copy failed: ' + err.message, 'error');
-        }
+        } catch(err){ toast('Copy failed: '+err.message,'error'); }
     }
 
-    // Video player with working audio (fixed CORS)
-    let currentVideo = null;
-    let videoControlsTimeout = null;
-    let audioContext = null;
-    let gainNode = null;
-    let sourceNode = null;
-
+    // Enhanced video player with working volume boost (Web Audio API, CORS fixed)
+    let currentVideo = null, controlsTimeout = null, audioCtx = null, gainNode = null, sourceNode = null;
     function setupVideoControls(video) {
-        if (!video) return;
+        if(!video) return;
         currentVideo = video;
-        const existing = document.querySelector('.custom-video-controls');
-        if (existing) existing.remove();
+        const existing = document.querySelector('.video-controls');
+        if(existing) existing.remove();
         const controlsDiv = document.createElement('div');
-        controlsDiv.className = 'custom-video-controls';
+        controlsDiv.className = 'video-controls';
         controlsDiv.innerHTML = `
             <button id="vidPlayPause">⏯️</button>
             <button id="vidBack30">←30s</button>
@@ -689,92 +491,73 @@
             <span id="vidVolIcon">🔊</span>
             <input type="range" id="vidBrightness" min="0" max="200" value="100" style="width:80px">
             <span>☀️</span>
-            <select id="vidAspect">
-                <option value="auto">Auto</option>
-                <option value="16:9">16:9</option>
-                <option value="4:3">4:3</option>
-                <option value="1:1">1:1</option>
-            </select>
+            <select id="vidAspect"><option value="auto">Auto</option><option value="16:9">16:9</option><option value="4:3">4:3</option><option value="1:1">1:1</option></select>
             <button id="vidFullscreen">⛶</button>
         `;
         D.prevOv.appendChild(controlsDiv);
-        const playPause = document.getElementById('vidPlayPause');
-        const back30 = document.getElementById('vidBack30');
-        const forward30 = document.getElementById('vidForward30');
-        const timeSpan = document.getElementById('vidTime');
-        const seekSlider = document.getElementById('vidSeek');
-        const volumeSlider = document.getElementById('vidVolume');
-        const volIcon = document.getElementById('vidVolIcon');
-        const brightnessSlider = document.getElementById('vidBrightness');
-        const aspectSelect = document.getElementById('vidAspect');
-        const fullscreenBtn = document.getElementById('vidFullscreen');
+        const playPause = $('#vidPlayPause'), back30 = $('#vidBack30'), forward30 = $('#vidForward30'), timeSpan = $('#vidTime'), seekSlider = $('#vidSeek');
+        const volumeSlider = $('#vidVolume'), volIcon = $('#vidVolIcon'), brightnessSlider = $('#vidBrightness'), aspectSelect = $('#vidAspect'), fullscreenBtn = $('#vidFullscreen');
         
-        function formatTime(sec) { if (isNaN(sec)) return '0:00'; const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = Math.floor(sec % 60); return h > 0 ? `${h}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}` : `${m}:${s.toString().padStart(2,'0')}`; }
-        function updateTime() { if (!video) return; const cur = video.currentTime, dur = video.duration || 0; seekSlider.value = (cur / dur) * 100 || 0; timeSpan.textContent = `${formatTime(cur)} / ${formatTime(dur)}`; }
+        function formatTime(sec){ if(isNaN(sec)) return '0:00'; const h=Math.floor(sec/3600), m=Math.floor((sec%3600)/60), s=Math.floor(sec%60); return h>0?`${h}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`:`${m}:${s.toString().padStart(2,'0')}`; }
+        function updateTime(){ if(!video) return; const cur=video.currentTime, dur=video.duration||0; seekSlider.value = (cur/dur)*100||0; timeSpan.textContent = `${formatTime(cur)} / ${formatTime(dur)}`; }
         video.addEventListener('timeupdate', updateTime);
         video.addEventListener('loadedmetadata', updateTime);
-        video.addEventListener('play', () => playPause.textContent = '⏸️');
-        video.addEventListener('pause', () => playPause.textContent = '⏯️');
-        playPause.addEventListener('click', () => video.paused ? video.play() : video.pause());
-        back30.addEventListener('click', () => video.currentTime = Math.max(0, video.currentTime - 30));
-        forward30.addEventListener('click', () => video.currentTime = Math.min(video.duration, video.currentTime + 30));
-        seekSlider.addEventListener('input', () => { if (video.duration) video.currentTime = (seekSlider.value / 100) * video.duration; });
+        video.addEventListener('play', ()=>playPause.textContent='⏸️');
+        video.addEventListener('pause', ()=>playPause.textContent='⏯️');
+        playPause.addEventListener('click', ()=>video.paused?video.play():video.pause());
+        back30.addEventListener('click', ()=>video.currentTime = Math.max(0, video.currentTime-30));
+        forward30.addEventListener('click', ()=>video.currentTime = Math.min(video.duration, video.currentTime+30));
+        seekSlider.addEventListener('input', ()=>{ if(video.duration) video.currentTime = (seekSlider.value/100)*video.duration; });
         
-        // Volume: native fallback + Web Audio boost (with CORS fix)
+        // Volume boost using Web Audio API (requires user interaction)
+        let webAudioEnabled = false;
         volumeSlider.addEventListener('input', async () => {
             let val = volumeSlider.value;
-            volIcon.textContent = val == 0 ? '🔇' : val < 30 ? '🔉' : (val < 100 ? '🔊' : '🔊⬆');
-            if (audioContext && gainNode && sourceNode) {
-                gainNode.gain.value = Math.min(val / 100, 3);
+            volIcon.textContent = val==0?'🔇':val<30?'🔉':val<100?'🔊':'🔊⬆';
+            if(webAudioEnabled && gainNode) {
+                gainNode.gain.value = Math.min(val/100, 3);
             } else {
-                video.volume = Math.min(val / 100, 1);
+                video.volume = Math.min(val/100, 1);
             }
         });
-        // Initialize Web Audio for boost on first play (CORS already handled by crossorigin attribute)
+        // Initialize Web Audio on first play (user gesture)
         video.addEventListener('play', async () => {
-            if (!audioContext && typeof AudioContext !== 'undefined') {
+            if(!webAudioEnabled && typeof AudioContext !== 'undefined') {
                 try {
-                    audioContext = new AudioContext();
-                    gainNode = audioContext.createGain();
-                    gainNode.connect(audioContext.destination);
-                    sourceNode = audioContext.createMediaElementSource(video);
+                    audioCtx = new AudioContext();
+                    gainNode = audioCtx.createGain();
+                    gainNode.connect(audioCtx.destination);
+                    sourceNode = audioCtx.createMediaElementSource(video);
                     sourceNode.connect(gainNode);
-                    gainNode.gain.value = Math.min(volumeSlider.value / 100, 3);
-                    if (audioContext.state === 'suspended') await audioContext.resume();
-                } catch (e) {
-                    console.warn('Web Audio failed, using native volume', e);
-                    audioContext = null;
-                }
-            } else if (audioContext && audioContext.state === 'suspended') {
-                await audioContext.resume();
-            }
+                    gainNode.gain.value = Math.min(volumeSlider.value/100, 3);
+                    if(audioCtx.state === 'suspended') await audioCtx.resume();
+                    webAudioEnabled = true;
+                } catch(e) { console.warn('Web Audio failed', e); }
+            } else if(audioCtx && audioCtx.state === 'suspended') { await audioCtx.resume(); webAudioEnabled = true; }
         });
-        // Resume AudioContext on first user click
-        document.addEventListener('click', () => {
-            if (audioContext && audioContext.state === 'suspended') audioContext.resume();
-        }, { once: true });
+        // Auto-resume on any click
+        document.addEventListener('click', ()=>{
+            if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+        }, {once: true});
         
-        brightnessSlider.addEventListener('input', () => { video.style.filter = `brightness(${brightnessSlider.value / 100})`; });
-        aspectSelect.addEventListener('change', () => { const asp = aspectSelect.value; video.style.aspectRatio = asp === '16:9' ? '16/9' : asp === '4:3' ? '4/3' : asp === '1:1' ? '1/1' : 'auto'; });
-        fullscreenBtn.addEventListener('click', () => { if (document.fullscreenElement) document.exitFullscreen(); else video.parentElement?.requestFullscreen(); });
+        brightnessSlider.addEventListener('input', () => { video.style.filter = `brightness(${brightnessSlider.value/100})`; });
+        aspectSelect.addEventListener('change', () => { const asp = aspectSelect.value; video.style.aspectRatio = asp==='16:9'?'16/9':asp==='4:3'?'4/3':asp==='1:1'?'1/1':'auto'; });
+        fullscreenBtn.addEventListener('click', () => { if(document.fullscreenElement) document.exitFullscreen(); else video.parentElement?.requestFullscreen(); });
         
-        function hideControls() { controlsDiv.style.opacity = '0'; controlsDiv.style.pointerEvents = 'none'; }
-        function showControls() { controlsDiv.style.opacity = '1'; controlsDiv.style.pointerEvents = 'auto'; if (videoControlsTimeout) clearTimeout(videoControlsTimeout); videoControlsTimeout = setTimeout(hideControls, 3000); }
+        function hideControls(){ controlsDiv.style.opacity='0'; controlsDiv.style.pointerEvents='none'; }
+        function showControls(){ controlsDiv.style.opacity='1'; controlsDiv.style.pointerEvents='auto'; if(controlsTimeout) clearTimeout(controlsTimeout); controlsTimeout = setTimeout(hideControls, 3000); }
         video.addEventListener('mousemove', showControls);
         video.addEventListener('click', showControls);
         controlsDiv.addEventListener('mouseenter', showControls);
         controlsDiv.addEventListener('mouseleave', showControls);
         showControls();
-        
-        // Set initial volume (native)
-        video.volume = Math.min(volumeSlider.value / 100, 1);
+        video.volume = Math.min(volumeSlider.value/100, 1);
     }
-
     function openPreview(pid, type, mime) {
         D.prevCont.innerHTML = '';
         const url = getPreviewUrl(pid);
         let element;
-        if (type === 'video') {
+        if(type === 'video'){
             const video = document.createElement('video');
             video.src = url;
             video.autoplay = true;
@@ -782,356 +565,277 @@
             video.style.width = '100%';
             video.style.height = '100%';
             video.style.objectFit = 'contain';
-            video.style.backgroundColor = '#000';
-            // CRITICAL FIX: add crossorigin attribute to enable Web Audio API
-            video.crossOrigin = "anonymous";
+            video.backgroundColor = '#000';
+            video.crossOrigin = "anonymous";  // CRITICAL: allows Web Audio API to access media
             element = video;
-        } else if (type === 'audio') {
+        } else if(type === 'audio'){
             const audio = document.createElement('audio');
             audio.src = url; audio.controls = true; audio.autoplay = true; audio.style.width = '100%';
             audio.crossOrigin = "anonymous";
             element = audio;
-        } else if (type === 'image') {
+        } else if(type === 'image'){
             const img = document.createElement('img'); img.src = url; img.style.maxWidth = '95%'; img.style.maxHeight = '95%';
             element = img;
-        } else if (type === 'pdf') {
+        } else if(type === 'pdf'){
             const ifr = document.createElement('iframe'); ifr.src = url; ifr.style.width = '90%'; ifr.style.height = '90%';
             element = ifr;
-        } else if (type === 'text') {
+        } else if(type === 'text'){
             const pre = document.createElement('pre');
-            fetch(url, { headers: getAuthHeaders() }).then(r => r.text()).then(t => { pre.textContent = t; D.prevCont.appendChild(pre); });
+            fetch(url,{headers:getAuthHeaders()}).then(r=>r.text()).then(t=>{ pre.textContent=t; D.prevCont.appendChild(pre); });
             element = null;
         } else {
             const embed = document.createElement('embed'); embed.src = url; embed.style.width = '90%'; embed.style.height = '90%';
             element = embed;
         }
-        if (element) D.prevCont.appendChild(element);
-        if (type === 'video') setupVideoControls(element);
+        if(element) D.prevCont.appendChild(element);
+        if(type === 'video') setupVideoControls(element);
         D.prevOv.classList.remove('hidden');
     }
-
-    function closePreview() {
+    function closePreview(){
         D.prevCont.innerHTML = '';
         D.prevOv.classList.add('hidden');
-        if (document.fullscreenElement) document.exitFullscreen();
-        const controls = document.querySelector('.custom-video-controls');
-        if (controls) controls.remove();
-        if (videoControlsTimeout) clearTimeout(videoControlsTimeout);
-        if (audioContext) { audioContext.close(); audioContext = null; gainNode = null; sourceNode = null; }
+        if(document.fullscreenElement) document.exitFullscreen();
+        const controls = document.querySelector('.video-controls');
+        if(controls) controls.remove();
+        if(controlsTimeout) clearTimeout(controlsTimeout);
+        if(audioCtx) { audioCtx.close(); audioCtx = null; gainNode = null; sourceNode = null; }
         currentVideo = null;
     }
     safeAddEvent(D.btnCloseP, 'click', closePreview);
-    safeAddEvent(D.btnFull, 'click', () => { if (document.fullscreenElement) document.exitFullscreen(); else if (D.prevOv) D.prevOv.requestFullscreen(); });
+    safeAddEvent(D.btnFull, 'click', () => { if(document.fullscreenElement) document.exitFullscreen(); else if(D.prevOv) D.prevOv.requestFullscreen(); });
 
     // Render files with RBAC
-    function renderFiles() {
-        if (!D.grid) return;
+    function renderFiles(){
+        if(!D.grid) return;
         let list = [...ST.files];
-        if (ST.query) list = list.filter(f => f.name.toLowerCase().includes(ST.query));
+        if(ST.query) list = list.filter(f=>f.name.toLowerCase().includes(ST.query));
         const s = ST.sort;
-        list.sort((a,b) => {
-            switch(s) {
-                case 'newest': return b.createdAt - a.createdAt;
-                case 'oldest': return a.createdAt - b.createdAt;
-                case 'name-asc': return a.name.localeCompare(b.name);
-                case 'name-desc': return b.name.localeCompare(a.name);
-                case 'size-desc': return b.size - a.size;
-                case 'size-asc': return a.size - b.size;
-                default: return 0;
-            }
-        });
+        list.sort((a,b)=>{ switch(s){
+            case 'newest': return b.createdAt - a.createdAt;
+            case 'oldest': return a.createdAt - b.createdAt;
+            case 'name-asc': return a.name.localeCompare(b.name);
+            case 'name-desc': return b.name.localeCompare(a.name);
+            case 'size-desc': return b.size - a.size;
+            case 'size-asc': return a.size - b.size;
+            default: return 0;
+        }});
         const groups = {};
-        list.forEach(f => { const key = f.uploadedBy || 'unknown'; if (!groups[key]) groups[key] = []; groups[key].push(f); });
+        list.forEach(f=>{ const key=f.uploadedBy||'unknown'; if(!groups[key]) groups[key]=[]; groups[key].push(f); });
         D.grid.innerHTML = '';
-        if (Object.keys(groups).length === 0) { D.grid.innerHTML = '<p style="text-align:center;padding:30px;">No files yet.</p>'; return; }
-        for (const [uploader, files] of Object.entries(groups)) {
+        if(Object.keys(groups).length===0){ D.grid.innerHTML='<p style="text-align:center;padding:30px;">No files yet.</p>'; return; }
+        for(const [uploader, files] of Object.entries(groups)){
             const section = document.createElement('div'); section.className = 'file-section';
             section.innerHTML = `<div class="section-title">📤 ${esc(uploader)} <span>${files.length}</span></div><div class="file-grid"></div>`;
             const gridDiv = section.querySelector('.file-grid');
-            files.forEach(f => {
+            files.forEach(f=>{
                 const pt = prevType(f.mimeType);
                 const actions = [];
-                if (can('play') && (pt === 'video' || pt === 'audio')) actions.push(`<button class="btn-xs btn-xs-play" data-action="play" data-id="${f.publicId}" data-mime="${f.mimeType}">▶ Play</button>`);
-                if (can('preview')) actions.push(`<button class="btn-xs btn-xs-preview" data-action="preview" data-id="${f.publicId}" data-mime="${f.mimeType}">🔍 Preview</button>`);
-                if (can('download')) actions.push(`<button class="btn-xs btn-xs-download" data-action="download" data-id="${f.publicId}">⬇ Download</button>`);
-                if (can('delete')) actions.push(`<button class="btn-xs btn-xs-delete" data-action="delete" data-id="${f.publicId}">🗑 Delete</button>`);
-                if (can('copy')) actions.push(`<button class="btn-xs btn-xs-copy" data-action="copy" data-id="${f.publicId}" data-name="${esc(f.name)}" data-mime="${f.mimeType}">📋 Copy File</button>`);
+                if(can('play') && (pt==='video'||pt==='audio')) actions.push(`<button class="btn-xs btn-xs-play" data-action="play" data-id="${f.publicId}" data-mime="${f.mimeType}">▶ Play</button>`);
+                if(can('preview')) actions.push(`<button class="btn-xs btn-xs-preview" data-action="preview" data-id="${f.publicId}" data-mime="${f.mimeType}">🔍 Preview</button>`);
+                if(can('download')) actions.push(`<button class="btn-xs btn-xs-download" data-action="download" data-id="${f.publicId}">⬇ Download</button>`);
+                if(can('delete')) actions.push(`<button class="btn-xs btn-xs-delete" data-action="delete" data-id="${f.publicId}">🗑 Delete</button>`);
+                if(can('copy')) actions.push(`<button class="btn-xs btn-xs-copy" data-action="copy" data-id="${f.publicId}" data-name="${esc(f.name)}" data-mime="${f.mimeType}">📋 Copy File</button>`);
                 const upBy = f.uploadedBy ? `<div style="font-size:0.7rem; color:var(--text-secondary); margin-bottom:4px;">📤 ${f.uploadedBy}</div>` : '';
-                const thumbnail = getThumbnailHtml(f.mimeType, f.name, f.publicId);
+                const thumbnail = getThumbnailHtml(f.mimeType, f.publicId);
                 const card = document.createElement('div');
-                card.className = `card${ST.selected.has(f.publicId) ? ' selected' : ''}`;
+                card.className = `card${ST.selected.has(f.publicId)?' selected':''}`;
                 card.dataset.publicId = f.publicId;
-                card.innerHTML = `<input type="checkbox" class="card-checkbox" data-id="${f.publicId}" ${ST.selected.has(f.publicId) ? 'checked' : ''}><div class="thumbnail">${thumbnail}</div><div class="file-name">${esc(f.name)}</div><div class="file-meta">${fmtSz(f.size)} · ${new Date(f.createdAt).toLocaleString()}</div>${upBy}<div class="actions">${actions.join('')}<button class="tick-btn" data-action="tick" data-id="${f.publicId}"><span class="tooltip"></span></button><span class="tick-count"></span><div class="comment-section"><div class="comment-header"><span class="comment-icon">💬</span><span class="comment-count"></span></div><div class="comment-list"></div><div class="comment-form"><input type="text" placeholder="Add a comment..."><button class="btn-xs btn-outline post-comment">Post</button></div></div></div>`;
+                card.innerHTML = `<input type="checkbox" class="card-checkbox" data-id="${f.publicId}" ${ST.selected.has(f.publicId)?'checked':''}><div class="thumbnail">${thumbnail}</div><div class="file-name">${esc(f.name)}</div><div class="file-meta">${fmtSz(f.size)} · ${new Date(f.createdAt).toLocaleString()}</div>${upBy}<div class="actions">${actions.join('')}<button class="tick-btn" data-action="tick" data-id="${f.publicId}"><span class="tooltip"></span></button><span class="tick-count"></span><div class="comment-section"><div class="comment-header"><span class="comment-icon">💬</span><span class="comment-count"></span></div><div class="comment-list"></div><div class="comment-form"><input type="text" placeholder="Add a comment..."><button class="btn-xs btn-outline post-comment">Post</button></div></div></div>`;
                 gridDiv.appendChild(card);
-                (async () => {
+                (async()=>{
                     const data = await loadCardData(f.publicId);
                     cardData.set(f.publicId, data);
                     const tickBtn = card.querySelector('.tick-btn');
                     tickBtn.innerHTML = data.ticked ? '✅' : '☑️';
                     let tooltipSpan = tickBtn.querySelector('.tooltip');
-                    if (!tooltipSpan) { tooltipSpan = document.createElement('span'); tooltipSpan.className = 'tooltip'; tickBtn.appendChild(tooltipSpan); }
+                    if(!tooltipSpan){ tooltipSpan=document.createElement('span'); tooltipSpan.className='tooltip'; tickBtn.appendChild(tooltipSpan); }
                     tooltipSpan.textContent = data.users.length ? `Ticked by: ${data.users.join(', ')}` : 'No ticks yet';
                     card.querySelector('.tick-count').textContent = data.count;
                     card.querySelector('.comment-count').textContent = data.comments.length;
                     const commentList = card.querySelector('.comment-list');
-                    if (commentList) {
-                        commentList.innerHTML = data.comments.map(c => `<div class="comment" data-comment-id="${c.id}"><span class="comment-text"><strong>${esc(c.user_email)}</strong> ${esc(c.text)}</span><div class="comment-actions">${c.user_email === ST.email || ST.isAdmin ? `<button class="delete-comment" data-id="${c.id}">🗑</button>` : ''}${c.user_email === ST.email || ST.isAdmin ? `<button class="edit-comment" data-id="${c.id}" data-text="${esc(c.text)}">✏️</button>` : ''}</div></div>`).join('');
+                    if(commentList){
+                        commentList.innerHTML = data.comments.map(c=>`<div class="comment" data-comment-id="${c.id}"><span class="comment-text"><strong>${esc(c.user_email)}</strong> ${esc(c.text)}</span><div class="comment-actions">${c.user_email===ST.email||ST.isAdmin?`<button class="delete-comment" data-id="${c.id}">🗑</button>`:''}${c.user_email===ST.email||ST.isAdmin?`<button class="edit-comment" data-id="${c.id}" data-text="${esc(c.text)}">✏️</button>`:''}</div></div>`).join('');
                         attachCommentEvents(f.publicId, commentList);
                     }
                     const commentInput = card.querySelector('.comment-form input');
                     const postBtn = card.querySelector('.post-comment');
-                    if (postBtn) {
-                        commentInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); postBtn.click(); } });
-                        postBtn.addEventListener('click', async () => { const text = commentInput.value; if (text.trim()) { await addComment(f.publicId, text); commentInput.value = ''; } });
+                    if(postBtn){
+                        commentInput.addEventListener('keypress', e=>{ if(e.key==='Enter'){ e.preventDefault(); postBtn.click(); } });
+                        postBtn.addEventListener('click', async()=>{ const text=commentInput.value; if(text.trim()){ await addComment(f.publicId, text); commentInput.value=''; } });
                     }
                     const commentHeader = card.querySelector('.comment-header');
-                    if (commentHeader) commentHeader.addEventListener('click', () => card.querySelector('.comment-list')?.classList.toggle('show'));
+                    if(commentHeader) commentHeader.addEventListener('click', ()=>card.querySelector('.comment-list')?.classList.toggle('show'));
                 })();
             });
             D.grid.appendChild(section);
         }
-        attachEvents();
-        updateBulkBar();
-        setupKeyboardNav();
+        attachEvents(); updateBulkBar(); setupKeyboardNav();
     }
-
-    function attachEvents() {
-        if (!D.grid) return;
-        D.grid.querySelectorAll('.card-checkbox').forEach(cb => {
-            cb.removeEventListener('change', checkboxHandler);
-            cb.addEventListener('change', checkboxHandler);
+    function attachEvents(){
+        if(!D.grid) return;
+        D.grid.querySelectorAll('.card-checkbox').forEach(cb=>{ cb.removeEventListener('change', checkboxHandler); cb.addEventListener('change', checkboxHandler); });
+        D.grid.querySelectorAll('.actions button').forEach(btn=>{
+            if(btn.classList.contains('tick-btn')){ btn.removeEventListener('click', tickHandler); btn.addEventListener('click', tickHandler); }
+            else { btn.removeEventListener('click', actionHandler); btn.addEventListener('click', actionHandler); }
         });
-        D.grid.querySelectorAll('.actions button').forEach(btn => {
-            if (btn.classList.contains('tick-btn')) {
-                btn.removeEventListener('click', tickHandler);
-                btn.addEventListener('click', tickHandler);
-            } else {
-                btn.removeEventListener('click', actionHandler);
-                btn.addEventListener('click', actionHandler);
-            }
-        });
-        D.grid.querySelectorAll('.card').forEach(card => {
-            card.removeEventListener('click', cardClickHandler);
-            card.addEventListener('click', cardClickHandler);
-        });
+        D.grid.querySelectorAll('.card').forEach(card=>{ card.removeEventListener('click', cardClickHandler); card.addEventListener('click', cardClickHandler); });
     }
-
-    function checkboxHandler(e) { e.stopPropagation(); toggleSelect(e.target.dataset.id, e.target.checked); }
-    async function tickHandler(e) { e.stopPropagation(); await toggleTick(e.currentTarget.dataset.id); }
-    function actionHandler(e) { e.stopPropagation(); const action = e.currentTarget.dataset.action, id = e.currentTarget.dataset.id, mime = e.currentTarget.dataset.mime, name = e.currentTarget.dataset.name; if (action === 'copy') copyFile(id, name, mime); else fileAction(action, id, mime); }
-    function cardClickHandler(e) {
-        if (e.target.classList.contains('card-checkbox') || e.target.closest('.actions')) return;
+    function checkboxHandler(e){ e.stopPropagation(); toggleSelect(e.target.dataset.id, e.target.checked); }
+    async function tickHandler(e){ e.stopPropagation(); await toggleTick(e.currentTarget.dataset.id); }
+    function actionHandler(e){ e.stopPropagation(); const action=e.currentTarget.dataset.action, id=e.currentTarget.dataset.id, mime=e.currentTarget.dataset.mime, name=e.currentTarget.dataset.name; if(action==='copy') copyFile(id,name,mime); else fileAction(action, id, mime); }
+    function cardClickHandler(e){
+        if(e.target.classList.contains('card-checkbox')||e.target.closest('.actions')) return;
         const pid = this.dataset.publicId;
-        const file = ST.files.find(f => f.publicId === pid);
-        if (!file) return;
+        const file = ST.files.find(f=>f.publicId===pid);
+        if(!file) return;
         const type = prevType(file.mimeType);
-        if (type === 'video') openPreview(pid, 'video', file.mimeType);
-        else if (type === 'audio') openPreview(pid, 'audio', file.mimeType);
-        else if (type === 'image') openPreview(pid, 'image', file.mimeType);
-        else if (type === 'pdf') openPreview(pid, 'pdf', file.mimeType);
-        else if (type === 'text') openPreview(pid, 'text', file.mimeType);
-        else openPreview(pid, 'other', file.mimeType);
+        if(type==='video') openPreview(pid,'video',file.mimeType);
+        else if(type==='audio') openPreview(pid,'audio',file.mimeType);
+        else if(type==='image') openPreview(pid,'image',file.mimeType);
+        else if(type==='pdf') openPreview(pid,'pdf',file.mimeType);
+        else if(type==='text') openPreview(pid,'text',file.mimeType);
+        else openPreview(pid,'other',file.mimeType);
     }
-    function toggleSelect(id, checked) { if (checked) ST.selected.add(id); else ST.selected.delete(id); updateBulkBar(); const card = document.querySelector(`.card[data-public-id="${id}"]`); if (card) card.classList.toggle('selected', checked); }
-    function updateBulkBar() { if (D.bulkBar) { if (ST.selected.size) { D.bulkBar.classList.remove('hidden'); D.bulkCnt.textContent = `${ST.selected.size} selected`; } else D.bulkBar.classList.add('hidden'); } }
-    function fileAction(action, id, mime) {
-        const file = ST.files.find(f => f.publicId === id);
+    function toggleSelect(id, checked){ if(checked) ST.selected.add(id); else ST.selected.delete(id); updateBulkBar(); const card=document.querySelector(`.card[data-public-id="${id}"]`); if(card) card.classList.toggle('selected', checked); }
+    function updateBulkBar(){ if(D.bulkBar){ if(ST.selected.size){ D.bulkBar.classList.remove('hidden'); D.bulkCnt.textContent=`${ST.selected.size} selected`; } else D.bulkBar.classList.add('hidden'); } }
+    function fileAction(action, id, mime){
+        const file = ST.files.find(f=>f.publicId===id);
         const type = prevType(file?.mimeType);
-        if (action === 'play') openPreview(id, 'video', mime);
-        else if (action === 'preview') openPreview(id, type, mime);
-        else if (action === 'download') window.open(getDownloadUrl(id), '_blank');
-        else if (action === 'delete') deleteFile(id);
+        if(action==='play') openPreview(id,'video',mime);
+        else if(action==='preview') openPreview(id,type,mime);
+        else if(action==='download') window.open(getDownloadUrl(id),'_blank');
+        else if(action==='delete') deleteFile(id);
     }
+    async function deleteFile(pid){ if(!confirm('Delete?')) return; await fetch(`${WORKER_BASE}/delete`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({publicId:pid})}); await fetchFiles(); toast('Deleted'); }
 
-    async function deleteFile(pid) {
-        if (!confirm('Delete?')) return;
-        await fetch(`${WORKER_BASE}/delete`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }, body: JSON.stringify({ publicId: pid }) });
-        await fetchFiles();
-        toast('Deleted');
-    }
-
-    // Upload with double prevention
-    let pendingPasteFiles = [];
-    document.addEventListener('paste', (e) => {
+    // Upload – SINGLE REQUEST PER FILE
+    let pendingPaste = [];
+    document.addEventListener('paste',(e)=>{
         const items = e.clipboardData.items;
-        for (let i = 0; i < items.length; i++) {
-            if (items[i].kind === 'file') {
-                const file = items[i].getAsFile();
-                if (file) pendingPasteFiles.push(file);
-            }
-        }
-        if (pendingPasteFiles.length > 0) {
-            toast(`${pendingPasteFiles.length} file(s) pasted. Click Send.`, 'success');
-            D.pasteInput.value = `${pendingPasteFiles.length} file(s) ready`;
-        }
+        for(let i=0;i<items.length;i++) if(items[i].kind==='file') pendingPaste.push(items[i].getAsFile());
+        if(pendingPaste.length) toast(`${pendingPaste.length} file(s) pasted. Click Send.`,'success');
     });
-    safeAddEvent(D.sendPasteBtn, 'click', async () => {
-        if (pendingPasteFiles.length === 0) { toast('No pasted files.', 'info'); return; }
-        toast(`Uploading ${pendingPasteFiles.length} files...`, 'info');
-        for (const file of pendingPasteFiles) await uploadFile(file);
-        pendingPasteFiles = [];
-        D.pasteInput.value = '';
-        toast('All uploaded.', 'success');
+    safeAddEvent(D.sendPasteBtn,'click',async()=>{
+        if(!pendingPaste.length){ toast('No pasted files.','info'); return; }
+        toast(`Uploading ${pendingPaste.length} files...`,'info');
+        for(const file of pendingPaste) await uploadFile(file);
+        pendingPaste = []; D.pasteInput.value = ''; toast('All uploaded.','success');
     });
-
-    async function uploadFile(file, existingPid = null) {
-        const fileKey = existingPid || file.name + file.size + file.lastModified;
-        if (uploadingFiles.has(fileKey)) { toast(`${file.name} already uploading.`, 'info'); return; }
+    async function uploadFile(file, existingPid = null){
+        const key = existingPid || `${file.name}_${file.size}_${file.lastModified}`;
+        if(uploadingKeys.has(key)){ toast(`${file.name} already uploading.`,'info'); return; }
+        uploadingKeys.add(key);
         const abortCtrl = new AbortController();
-        uploadingFiles.set(fileKey, abortCtrl);
-        const progressDiv = document.createElement('div');
-        progressDiv.className = 'progress-item';
-        progressDiv.id = `upload-${Date.now()}`;
+        activeUploadControllers.set(key, abortCtrl);
+        const progressDiv = document.createElement('div'); progressDiv.className = 'progress-item';
+        progressDiv.id = `up-${Date.now()}`;
         progressDiv.innerHTML = `<div class="progress-header"><span>${esc(file.name)}</span><span class="progress-percent">0%</span></div><div class="progress-bar"><div class="progress-fill" style="width:0%"></div></div>`;
         D.uploadProgressList.classList.remove('hidden');
         D.uploadProgressList.appendChild(progressDiv);
         try {
             let pid = existingPid;
-            if (!pid) {
-                const initRes = await fetch(`${WORKER_BASE}/upload-init`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-                    body: JSON.stringify({ fileName: file.name, fileSize: file.size, fileType: file.type || 'application/octet-stream' }),
-                    signal: abortCtrl.signal
+            if(!pid){
+                const init = await fetch(`${WORKER_BASE}/upload-init`,{
+                    method:'POST', headers:{'Content-Type':'application/json',...getAuthHeaders()},
+                    body:JSON.stringify({fileName:file.name, fileSize:file.size, fileType:file.type||'application/octet-stream'}),
+                    signal:abortCtrl.signal
                 });
-                if (!initRes.ok) throw new Error(await initRes.text());
-                const initData = await initRes.json();
+                if(!init.ok) throw new Error(await init.text());
+                const initData = await init.json();
                 pid = initData.publicId;
             }
-            const CHUNK = 2 * 1024 * 1024;
+            const CHUNK = 2*1024*1024;
             let uploaded = 0;
-            const updateProgress = (percent) => {
-                const fill = progressDiv.querySelector('.progress-fill');
-                const pSpan = progressDiv.querySelector('.progress-percent');
-                if (fill) fill.style.width = percent + '%';
-                if (pSpan) pSpan.textContent = percent + '%';
-            };
-            while (uploaded < file.size) {
-                if (abortCtrl.signal.aborted) throw new Error('Cancelled');
-                const end = Math.min(uploaded + CHUNK - 1, file.size - 1);
-                const chunk = file.slice(uploaded, end + 1);
-                let retries = 3, done = false;
-                while (retries-- && !done) {
-                    const chunkRes = await fetch(`${WORKER_BASE}/upload-chunk/${pid}`, {
-                        method: 'PUT',
-                        headers: { 'Content-Range': `bytes ${uploaded}-${end}/${file.size}`, ...getAuthHeaders() },
-                        body: chunk,
-                        signal: abortCtrl.signal
+            const updatePercent = (p)=>{ const fill=progressDiv.querySelector('.progress-fill'); const span=progressDiv.querySelector('.progress-percent'); if(fill) fill.style.width=p+'%'; if(span) span.textContent=p+'%'; };
+            while(uploaded < file.size){
+                if(abortCtrl.signal.aborted) throw new Error('Cancelled');
+                const end = Math.min(uploaded+CHUNK-1, file.size-1);
+                const chunk = file.slice(uploaded, end+1);
+                let retries=3, done=false;
+                while(retries-- && !done){
+                    const chunkRes = await fetch(`${WORKER_BASE}/upload-chunk/${pid}`,{
+                        method:'PUT', headers:{'Content-Range':`bytes ${uploaded}-${end}/${file.size}`, ...getAuthHeaders()},
+                        body:chunk, signal:abortCtrl.signal
                     });
                     const data = await chunkRes.json();
-                    if (chunkRes.ok) {
-                        if (data.complete === true || data.status === 'complete') { done = true; break; }
-                        if (typeof data.uploadedBytes === 'number') { uploaded = data.uploadedBytes; updateProgress(Math.round(uploaded / file.size * 100)); }
-                        done = true;
-                    } else {
-                        if (retries <= 0) throw new Error(data.error || 'Chunk error');
-                        await new Promise(r => setTimeout(r, 1000));
-                    }
+                    if(chunkRes.ok){
+                        if(data.complete===true || data.status==='complete'){ done=true; break; }
+                        if(typeof data.uploadedBytes === 'number'){ uploaded = data.uploadedBytes; updatePercent(Math.round(uploaded/file.size*100)); }
+                        done=true;
+                    } else { if(retries<=0) throw new Error(data.error||'Chunk error'); await new Promise(r=>setTimeout(r,1000)); }
                 }
-                if (done && uploaded >= file.size) break;
-                if (!done) {
-                    const statusRes = await fetch(`${WORKER_BASE}/upload-status/${pid}`, { headers: getAuthHeaders(), signal: abortCtrl.signal });
-                    if (statusRes.ok) { const s = await statusRes.json(); uploaded = s.uploadedBytes || uploaded; updateProgress(Math.round(uploaded / file.size * 100)); }
+                if(done && uploaded>=file.size) break;
+                if(!done){
+                    const stat = await fetch(`${WORKER_BASE}/upload-status/${pid}`,{headers:getAuthHeaders(), signal:abortCtrl.signal});
+                    if(stat.ok){ const s=await stat.json(); uploaded=s.uploadedBytes||uploaded; updatePercent(Math.round(uploaded/file.size*100)); }
                 }
             }
             progressDiv.remove();
-            if (D.uploadProgressList.children.length === 0) D.uploadProgressList.classList.add('hidden');
-            toast(`${file.name} uploaded successfully!`, 'success');
+            if(D.uploadProgressList.children.length===0) D.uploadProgressList.classList.add('hidden');
+            toast(`${file.name} uploaded successfully!`,'success');
             await fetchFiles();
-            // Clear file input to prevent double upload
-            if (D.fileInp) D.fileInp.value = '';
-            const idx = pendingPasteFiles.indexOf(file);
-            if (idx !== -1) pendingPasteFiles.splice(idx, 1);
-        } catch (err) {
+            if(D.fileInp) D.fileInp.value = '';
+            const idx = pendingPaste.indexOf(file);
+            if(idx !== -1) pendingPaste.splice(idx,1);
+        } catch(err){
             progressDiv.remove();
-            if (D.uploadProgressList.children.length === 0) D.uploadProgressList.classList.add('hidden');
-            if (err.message !== 'Cancelled') toast(`Upload failed: ${err.message}`, 'error');
+            if(D.uploadProgressList.children.length===0) D.uploadProgressList.classList.add('hidden');
+            if(err.message !== 'Cancelled') toast(`Upload failed: ${err.message}`,'error');
         } finally {
-            uploadingFiles.delete(fileKey);
+            activeUploadControllers.delete(key);
+            uploadingKeys.delete(key);
         }
     }
+    function handleFiles(files){ for(const f of files) uploadFile(f); }
 
     // Drag & drop
-    if (D.dropzone) {
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(ev => D.dropzone.addEventListener(ev, e => e.preventDefault()));
-        D.dropzone.addEventListener('dragover', () => D.dropzone.classList.add('dragover'));
-        D.dropzone.addEventListener('dragleave', () => D.dropzone.classList.remove('dragover'));
-        D.dropzone.addEventListener('drop', e => {
-            D.dropzone.classList.remove('dragover');
-            const files = e.dataTransfer.files;
-            if (files.length) handleFiles(files);
-        });
-        D.dropzone.addEventListener('click', () => D.fileInp.click());
+    if(D.dropzone){
+        ['dragenter','dragover','dragleave','drop'].forEach(ev=>D.dropzone.addEventListener(ev,e=>e.preventDefault()));
+        D.dropzone.addEventListener('dragover',()=>D.dropzone.classList.add('dragover'));
+        D.dropzone.addEventListener('dragleave',()=>D.dropzone.classList.remove('dragover'));
+        D.dropzone.addEventListener('drop',e=>{ D.dropzone.classList.remove('dragover'); const files=e.dataTransfer.files; if(files.length) handleFiles(files); });
+        D.dropzone.addEventListener('click',()=>D.fileInp.click());
     }
-    if (D.fileInp) D.fileInp.addEventListener('change', e => handleFiles(e.target.files));
-    function handleFiles(files) { for (const f of files) uploadFile(f); }
+    if(D.fileInp) D.fileInp.addEventListener('change',e=>handleFiles(e.target.files));
 
-    // Keyboard navigation & Enter
-    function setupKeyboardNav() {
+    // Keyboard navigation
+    function setupKeyboardNav(){
         const cards = Array.from(document.querySelectorAll('.card'));
-        if (cards.length === 0) return;
-        cards.forEach((card, idx) => {
-            card.setAttribute('data-index', idx);
-            card.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' || e.key === ' ' || e.key === 'OK') {
-                    e.preventDefault();
-                    const cb = card.querySelector('.card-checkbox');
-                    if (cb) toggleSelect(cb.dataset.id, !cb.checked);
-                } else if (e.key === 'ArrowRight') { const next = cards[idx + 1]; if (next) next.focus(); }
-                else if (e.key === 'ArrowLeft') { const prev = cards[idx - 1]; if (prev) prev.focus(); }
-                else if (e.key === 'ArrowDown') { const nextRow = cards[idx + (Math.floor(cards.length / 3) || 1)]; if (nextRow) nextRow.focus(); }
-                else if (e.key === 'ArrowUp') { const prevRow = cards[idx - (Math.floor(cards.length / 3) || 1)]; if (prevRow) prevRow.focus(); }
+        if(!cards.length) return;
+        cards.forEach((card,idx)=>{
+            card.setAttribute('data-index',idx);
+            card.addEventListener('keydown',(e)=>{
+                if(e.key==='Enter'||e.key===' '||e.key==='OK'){ e.preventDefault(); const cb=card.querySelector('.card-checkbox'); if(cb) toggleSelect(cb.dataset.id,!cb.checked); }
+                else if(e.key==='ArrowRight'){ const nxt=cards[idx+1]; if(nxt) nxt.focus(); }
+                else if(e.key==='ArrowLeft'){ const prv=cards[idx-1]; if(prv) prv.focus(); }
+                else if(e.key==='ArrowDown'){ const nextRow=cards[idx+(Math.floor(cards.length/3)||1)]; if(nextRow) nextRow.focus(); }
+                else if(e.key==='ArrowUp'){ const prevRow=cards[idx-(Math.floor(cards.length/3)||1)]; if(prevRow) prevRow.focus(); }
             });
         });
-        if (cards[0]) cards[0].focus();
+        if(cards[0]) cards[0].focus();
     }
-
-    // Search & sort
-    if (D.search) D.search.addEventListener('input', () => { ST.query = D.search.value.toLowerCase(); renderFiles(); });
-    if (D.sortSel) D.sortSel.addEventListener('change', () => { ST.sort = D.sortSel.value; localStorage.setItem('sort', ST.sort); renderFiles(); D.sortSel.value = ST.sort; });
+    if(D.search) D.search.addEventListener('input',()=>{ ST.query=D.search.value.toLowerCase(); renderFiles(); });
+    if(D.sortSel) D.sortSel.addEventListener('change',()=>{ ST.sort=D.sortSel.value; localStorage.setItem('sort',ST.sort); renderFiles(); D.sortSel.value=ST.sort; });
 
     // Dark mode
-    (function () {
-        if (ST.dark) document.documentElement.setAttribute('data-theme', 'dark');
-        if (D.btnDark) D.btnDark.addEventListener('click', () => {
-            ST.dark = !ST.dark;
-            document.documentElement.setAttribute('data-theme', ST.dark ? 'dark' : 'light');
-            localStorage.setItem('darkMode', ST.dark);
-        });
-    })();
+    (function(){ if(ST.dark) document.documentElement.setAttribute('data-theme','dark'); if(D.btnDark) D.btnDark.addEventListener('click',()=>{ ST.dark=!ST.dark; document.documentElement.setAttribute('data-theme',ST.dark?'dark':'light'); localStorage.setItem('darkMode',ST.dark); }); })();
 
-    async function showSharePreview() {
+    async function showSharePreview(){
         const res = await fetch(`${WORKER_BASE}/share/verify?token=${ST.shareToken}`);
-        if (!res.ok) { toast('Invalid share link', 'error'); showLogin(); return; }
+        if(!res.ok){ toast('Invalid share link','error'); showLogin(); return; }
         const data = await res.json();
-        D.grid.innerHTML = `<div style="text-align:center;padding:60px;"><div class="thumbnail" style="font-size:4rem;">${getThumbnailHtml(data.mimeType, data.fileName, '')}</div><h2>${esc(data.fileName)}</h2><p>${fmtSz(data.fileSize)}</p><button class="btn btn-primary" id="shareDownloadBtn">⬇ Download</button><button class="btn btn-outline" onclick="location.href='/'">🔐 Login</button></div>`;
+        D.grid.innerHTML = `<div style="text-align:center;padding:60px;"><div class="thumbnail" style="font-size:4rem;">${getThumbnailHtml(data.mimeType, '')}</div><h2>${esc(data.fileName)}</h2><p>${fmtSz(data.fileSize)}</p><button class="btn btn-primary" id="shareDownloadBtn">⬇ Download</button><button class="btn btn-outline" onclick="location.href='/'">🔐 Login</button></div>`;
         const shareBtn = $('shareDownloadBtn');
-        if (shareBtn) shareBtn.addEventListener('click', () => { window.location.href = `${WORKER_BASE}/share/download?token=${ST.shareToken}`; });
-        D.dropzone.style.display = 'none';
-        document.querySelector('.hint-text').style.display = 'none';
-        D.adminBar.classList.add('hidden');
-        D.userUI.innerHTML = '';
+        if(shareBtn) shareBtn.addEventListener('click',()=>{ window.location.href = `${WORKER_BASE}/share/download?token=${ST.shareToken}`; });
+        D.dropzone.style.display='none'; document.querySelector('.hint-text').style.display='none'; D.adminBar.classList.add('hidden'); D.userUI.innerHTML='';
     }
-
-    async function init() {
+    async function init(){
         const p = new URLSearchParams(location.search);
-        const utoken = p.get('utoken');
-        const share = p.get('share');
-        const err = p.get('auth_error');
-        if (share) {
-            ST.shareToken = share;
-            history.replaceState({}, '', location.pathname);
-            await showSharePreview();
-            return;
-        }
-        if (err) { toast('Auth error: ' + err.replace(/_/g, ' '), 'error'); history.replaceState({}, '', location.pathname); }
-        if (utoken) {
-            ST.token = utoken;
-            localStorage.setItem('vtoken', utoken);
-            history.replaceState({}, '', location.pathname);
-        }
-        if (ST.token && await fetchUserInfo()) { render(); }
-        else { showLogin(); }
+        const utoken = p.get('utoken'), share = p.get('share'), err = p.get('auth_error');
+        if(share){ ST.shareToken=share; history.replaceState({},'',location.pathname); await showSharePreview(); return; }
+        if(err){ toast('Auth error: '+err.replace(/_/g,' '),'error'); history.replaceState({},'',location.pathname); }
+        if(utoken){ ST.token=utoken; localStorage.setItem('vtoken',utoken); history.replaceState({},'',location.pathname); }
+        if(ST.token && await fetchUserInfo()) render(); else showLogin();
     }
     init();
 </script>
