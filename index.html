@@ -377,7 +377,7 @@
         }
     });
 
-    // Admin actions (sync, users, logs, etc.)
+    // Admin actions
     safeAddEvent(D.btnSync, 'click', async () => {
         toast('Syncing...', 'info');
         try {
@@ -511,12 +511,15 @@
                     loadAllUsers();
                     loadPending();
                     loadPendingCount();
+                    await fetchUserInfo();
+                    await fetchFiles();
                 } else if (endpoint === 'approve') {
                     await fetch(`${WORKER_BASE}/admin/approve`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }, body: JSON.stringify({ email, role }) });
                     toast(`${email} approved`);
                     loadAllUsers();
                     loadPending();
                     loadPendingCount();
+                    await fetchUserInfo();
                 }
             });
         });
@@ -646,7 +649,7 @@
         }
     }
 
-    // Advanced video player
+    // Advanced video player with working volume boost (0-300%)
     let currentVideo = null;
     let videoControlsTimeout = null;
     function setupVideoControls(video) {
@@ -739,7 +742,6 @@
         aspectSelect.addEventListener('change', () => { const asp = aspectSelect.value; video.style.aspectRatio = asp === '16:9' ? '16/9' : asp === '4:3' ? '4/3' : asp === '1:1' ? '1/1' : 'auto'; });
         fullscreenBtn.addEventListener('click', () => { if (document.fullscreenElement) document.exitFullscreen(); else video.parentElement?.requestFullscreen(); });
         
-        // Auto-hide controls after 3 seconds of inactivity (but show on hover)
         function hideControls() { controlsDiv.style.opacity = '0'; controlsDiv.style.pointerEvents = 'none'; }
         function showControls() { controlsDiv.style.opacity = '1'; controlsDiv.style.pointerEvents = 'auto'; if (videoControlsTimeout) clearTimeout(videoControlsTimeout); videoControlsTimeout = setTimeout(hideControls, 3000); }
         video.addEventListener('mousemove', showControls);
