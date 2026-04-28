@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>File Vault – Gallery</title>
     <style>
+        /* ========== MODERN GALLERY STYLES ========== */
         :root {
             --bg: #f8fafc;
             --card-bg: #ffffff;
@@ -12,10 +13,12 @@
             --text-secondary: #64748b;
             --border: #e2e8f0;
             --accent: #3b82f6;
+            --accent-hover: #2563eb;
             --success: #10b981;
             --danger: #ef4444;
             --warn: #f59e0b;
-            --radius: 14px;
+            --purple: #8b5cf6;
+            --radius: 16px;
             --shadow: 0 4px 12px rgba(0,0,0,0.05);
             --toast-bg: #1e293b;
             --toast-text: #f1f5f9;
@@ -56,23 +59,26 @@
         .file-section { margin-bottom: 32px; }
         .section-title { font-size: 1.2rem; font-weight: 600; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid var(--accent); color: var(--accent); display: flex; align-items: center; gap: 10px; }
         .section-title span { background: var(--accent); color: white; padding: 2px 8px; border-radius: 20px; font-size: 0.8rem; }
-        .file-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+        .file-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
         .card { background: var(--card-bg); border-radius: var(--radius); padding: 12px; box-shadow: var(--shadow); border: 1px solid var(--border); position: relative; transition: all 0.2s; display: flex; flex-direction: column; }
         .card.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
         .card-checkbox { position: absolute; top: 10px; right: 10px; width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; z-index: 2; }
-        .thumbnail { width: 100%; height: 160px; border-radius: 10px; margin-bottom: 10px; background: transparent; display: flex; align-items: center; justify-content: center; font-size: 3rem; overflow: hidden; }
-        .thumbnail img, .thumbnail video { width: 100%; height: 100%; object-fit: cover; }
+        .thumbnail { width: 100%; height: 160px; object-fit: cover; border-radius: 12px; margin-bottom: 10px; background: var(--card-bg); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        .thumbnail img, .thumbnail video { width: 100%; height: 100%; object-fit: cover; border-radius: 12px; }
+        .file-icon-large { font-size: 3rem; }
         .file-name { font-weight: 600; word-break: break-word; margin-bottom: 6px; font-size: 0.9rem; }
         .file-meta { font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 10px; }
         .actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
         .btn-xs { padding: 4px 8px; border: none; border-radius: 6px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
         .btn-xs-play { background: var(--accent); color: white; }
-        .btn-xs-preview { background: #8b5cf6; color: white; }
+        .btn-xs-preview { background: var(--purple); color: white; }
         .btn-xs-download { background: var(--success); color: white; }
         .btn-xs-delete { background: var(--danger); color: white; }
+        .btn-xs-replace { background: var(--warn); color: #222; display: none; } /* hidden by default, shown for full role */
+        .btn-xs-rename { background: #6c757d; color: white; display: none; }
         .btn-xs-copy { background: #0d6efd; color: white; }
-        .tick-btn { background: none; border: none; cursor: pointer; font-size: 1.2rem; margin-right: 8px; padding: 0; }
-        .tick-count { font-size: 0.7rem; color: var(--text-secondary); margin-right: 8px; }
+        .tick-btn { background: none; border: none; cursor: pointer; font-size: 1.2rem; margin-right: 4px; padding: 0; }
+        .tick-count { font-size: 0.7rem; color: var(--text-secondary); }
         .comment-section { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 8px; font-size: 0.75rem; }
         .comment-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-weight: 600; cursor: pointer; }
         .comment-icon { font-size: 1rem; }
@@ -80,7 +86,8 @@
         .comment-list { max-height: 150px; overflow-y: auto; margin-bottom: 6px; display: none; }
         .comment-list.show { display: block; }
         .comment { padding: 4px 0; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-        .comment-text { flex: 1; margin-right: 8px; }
+        .comment strong { color: var(--accent); }
+        .comment-text { word-break: break-word; flex: 1; margin-right: 8px; }
         .comment-actions button { background: none; border: none; cursor: pointer; font-size: 0.7rem; color: var(--text-secondary); }
         .comment-form { display: flex; gap: 6px; margin-top: 6px; }
         .comment-form input { flex: 1; padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--card-bg); color: var(--text); }
@@ -93,9 +100,10 @@
         .bulk-bar { background: var(--accent); color: white; padding: 8px 16px; border-radius: 8px; margin-bottom: 12px; display: flex; align-items: center; gap: 12px; }
         .preview-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 1000; display: flex; justify-content: center; align-items: center; flex-direction: column; }
         .preview-overlay.hidden { display: none; }
-        .preview-container { width: 90%; height: 90%; display: flex; align-items: center; justify-content: center; }
+        .preview-container { width: 90%; height: 90%; display: flex; align-items: center; justify-content: center; position: relative; }
         .preview-container video, .preview-container audio { max-width: 100%; max-height: 100%; outline: none; }
         .video-controls { position: absolute; bottom: 20px; left: 20px; background: rgba(0,0,0,0.6); padding: 8px 12px; border-radius: 8px; display: flex; gap: 10px; z-index: 1001; }
+        .video-controls button, .video-controls input { background: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; }
         .preview-toolbar { position: absolute; top: 20px; right: 20px; display: flex; gap: 10px; z-index: 1001; }
         .preview-toolbar button { background: rgba(0,0,0,0.6); border: none; color: white; padding: 8px 16px; border-radius: 8px; cursor: pointer; }
         #toastContainer { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
@@ -144,7 +152,6 @@
             <button class="btn-sm btn-outline" id="refreshFilesBtn">🔄 Refresh Files</button>
         </div>
 
-        <!-- Paste & Send Box -->
         <div class="paste-box">
             <input type="text" id="pasteInput" placeholder="Paste files (Ctrl+V) then click Send...">
             <button class="btn btn-primary" id="sendPasteBtn">📤 Send</button>
@@ -186,6 +193,7 @@
         <div class="video-controls" id="videoControls" style="display:none;">
             <button id="back30">← 30s</button>
             <button id="forward30">30s →</button>
+            <span>Volume Boost %</span>
             <input type="range" id="volumeBoost" min="0" max="200" value="100" step="5"> <span id="volPercent">100%</span>
         </div>
         <div class="preview-toolbar">
@@ -200,6 +208,7 @@
         // ==================== CONFIG ====================
         const WORKER_BASE = 'https://gdrive-files-api.donthulanithish53.workers.dev';
 
+        // Global lock
         let globalLock = false;
         async function withLock(fn) {
             while (globalLock) await new Promise(r => setTimeout(r, 50));
@@ -207,7 +216,7 @@
             try { return await fn(); } finally { globalLock = false; }
         }
 
-        // ==================== STATE ====================
+        // State
         let ST = {
             token: localStorage.getItem('vtoken'),
             email: null,
@@ -274,14 +283,13 @@
         const fmtSz = b => { if(!b) return '0 B'; const u=['B','KB','MB','GB']; let i=0,s=b; while(s>=1024 && i<3) { s/=1024; i++; } return s.toFixed(1)+' '+u[i]; };
         const fmtSpeed = bytesPerSec => { if(bytesPerSec<1024) return bytesPerSec.toFixed(0)+' B/s'; if(bytesPerSec<1048576) return (bytesPerSec/1024).toFixed(1)+' KB/s'; return (bytesPerSec/1048576).toFixed(1)+' MB/s'; };
         const getThumbnailHtml = (mime, name, publicId) => {
-            if (mime.startsWith('image')) {
-                return `<img src="${WORKER_BASE}/video/${publicId}?utoken=${ST.token}" style="width:100%; height:100%; object-fit:cover; border-radius:10px;">`;
-            } else if (mime.startsWith('video')) {
-                return `<video src="${WORKER_BASE}/video/${publicId}?utoken=${ST.token}" style="width:100%; height:100%; object-fit:cover; border-radius:10px;" muted preload="metadata"></video>`;
-            } else if (mime.startsWith('audio')) return '🎵';
-            else if (mime === 'application/pdf') return '📕';
-            else if (mime.startsWith('text')) return '📝';
-            else return '📄';
+            const url = `${WORKER_BASE}/video/${publicId}?utoken=${ST.token}`;
+            if (mime.startsWith('image')) return `<img src="${url}" style="width:100%; height:100%; object-fit:cover; border-radius:12px;">`;
+            if (mime.startsWith('video')) return `<video src="${url}" style="width:100%; height:100%; object-fit:cover; border-radius:12px;" muted preload="metadata"></video>`;
+            if (mime.startsWith('audio')) return '<div class="file-icon-large">🎵</div>';
+            if (mime === 'application/pdf') return '<div class="file-icon-large">📕</div>';
+            if (mime.startsWith('text')) return '<div class="file-icon-large">📝</div>';
+            return '<div class="file-icon-large">📄</div>';
         };
         const prevType = m => {
             if (!m) return '';
@@ -310,7 +318,7 @@
             });
         })();
 
-        // Auth & UI
+        // Authentication
         async function fetchUserInfo() {
             if (!ST.token) return false;
             return withLock(async () => {
@@ -320,7 +328,7 @@
                 const wasApproved = ST.approved;
                 ST.email = i.email; ST.isAdmin = i.isAdmin === true; ST.approved = i.approved; ST.role = i.role;
                 if (!wasApproved && ST.approved) {
-                    toast('Access granted!', 'success');
+                    toast('Access granted! You have been approved.', 'success');
                     render();
                 }
                 return true;
@@ -384,7 +392,7 @@
             showMain(); applyRoleUI(); fetchFiles();
         }
 
-        // Admin panels (simple, working)
+        // ---------- Admin panels ----------
         function safeAddEvent(element, event, handler) { if(element) element.addEventListener(event, handler); }
 
         safeAddEvent(D.btnSync, 'click', async () => {
@@ -430,7 +438,7 @@
             const email = D.newUserEmail.value.trim();
             if (!email) { toast('Enter email', 'error'); return; }
             await withLock(async () => {
-                const r = await fetch(`${WORKER_BASE}/admin/add-user`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({ email, role: 'full' }) });
+                const r = await fetch(`${WORKER_BASE}/admin/add-user`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({ email, role:'full' }) });
                 if (!r.ok) throw new Error();
                 toast(`User ${email} added`, 'success');
                 D.newUserEmail.value = '';
@@ -534,7 +542,7 @@
                 .then(d => { D.analyticsCt.innerHTML = `<p>Files: ${d.files.total} (${fmtSz(d.files.totalSize)}) | Users: ${d.users.total}</p>`; });
         }
 
-        // ==================== FILE LOGIC ====================
+        // ==================== CORE FILE LOGIC ====================
         async function fetchFiles() {
             await withLock(async () => {
                 const r = await fetch(`${WORKER_BASE}/list`, { headers:getAuthHeaders() });
@@ -564,12 +572,12 @@
             if (tickBtn) tickBtn.innerHTML = newData.ticked ? '✅' : '☑️';
             const tickCountSpan = card.querySelector('.tick-count');
             if (tickCountSpan) tickCountSpan.textContent = newData.count;
-            const commentCountSpan = card.querySelector('.comment-count');
-            if (commentCountSpan) commentCountSpan.textContent = newData.comments.length;
+            const commentIcon = card.querySelector('.comment-header .comment-count');
+            if (commentIcon) commentIcon.textContent = newData.comments.length;
             const commentList = card.querySelector('.comment-list');
             if (commentList) {
                 commentList.innerHTML = newData.comments.map(c => `
-                    <div class="comment">
+                    <div class="comment" data-comment-id="${c.id}">
                         <span class="comment-text"><strong>${esc(c.user_email)}</strong> ${esc(c.text)}</span>
                         <div class="comment-actions">
                             ${c.user_email === ST.email || ST.isAdmin ? `<button class="delete-comment" data-id="${c.id}">🗑</button>` : ''}
@@ -659,24 +667,27 @@
                             ${actions.includes('play') ? `<button class="btn-xs btn-xs-play" data-action="play" data-id="${f.publicId}">▶ Play</button>` : ''}
                             ${actions.includes('preview') ? `<button class="btn-xs btn-xs-preview" data-action="preview" data-id="${f.publicId}">🔍 Preview</button>` : ''}
                             ${actions.includes('download') ? `<button class="btn-xs btn-xs-download" data-action="download" data-id="${f.publicId}">⬇ Download</button>` : ''}
+                            ${actions.includes('rename') ? `<button class="btn-xs btn-xs-rename" data-action="rename" data-id="${f.publicId}">✏️ Rename</button>` : ''}
+                            ${actions.includes('replace') ? `<button class="btn-xs btn-xs-replace" data-action="replace" data-id="${f.publicId}">🔄 Replace</button>` : ''}
                             ${actions.includes('delete') ? `<button class="btn-xs btn-xs-delete" data-action="delete" data-id="${f.publicId}">🗑 Delete</button>` : ''}
-                            <button class="btn-xs btn-xs-copy" data-action="copy" data-id="${f.publicId}" data-name="${esc(f.name)}">📋 Copy</button>
+                            <button class="btn-xs btn-xs-copy" data-action="copy" data-id="${f.publicId}" data-name="${esc(f.name)}">📋 Copy Info</button>
                             <button class="tick-btn" data-action="tick" data-id="${f.publicId}"></button>
                             <span class="tick-count"></span>
-                            <div class="comment-section">
-                                <div class="comment-header">
-                                    <span class="comment-icon">💬</span>
-                                    <span class="comment-count"></span>
-                                </div>
-                                <div class="comment-list"></div>
-                                <div class="comment-form">
-                                    <input type="text" placeholder="Add a comment...">
-                                    <button class="btn-xs btn-outline post-comment">Post</button>
-                                </div>
+                        </div>
+                        <div class="comment-section">
+                            <div class="comment-header">
+                                <span class="comment-icon">💬</span>
+                                <span class="comment-count"></span>
+                            </div>
+                            <div class="comment-list"></div>
+                            <div class="comment-form">
+                                <input type="text" placeholder="Add a comment...">
+                                <button class="btn-xs btn-outline post-comment">Post</button>
                             </div>
                         </div>
                     `;
                     gridDiv.appendChild(card);
+                    // Load data asynchronously
                     (async () => {
                         const data = await loadCardData(f.publicId);
                         cardData.set(f.publicId, data);
@@ -689,7 +700,7 @@
                         const commentList = card.querySelector('.comment-list');
                         if (commentList) {
                             commentList.innerHTML = data.comments.map(c => `
-                                <div class="comment">
+                                <div class="comment" data-comment-id="${c.id}">
                                     <span class="comment-text"><strong>${esc(c.user_email)}</strong> ${esc(c.text)}</span>
                                     <div class="comment-actions">
                                         ${c.user_email === ST.email || ST.isAdmin ? `<button class="delete-comment" data-id="${c.id}">🗑</button>` : ''}
@@ -722,9 +733,9 @@
                                 }
                             });
                         }
-                        const commentHeader = card.querySelector('.comment-header');
-                        if (commentHeader) {
-                            commentHeader.addEventListener('click', () => {
+                        const header = card.querySelector('.comment-header');
+                        if (header) {
+                            header.addEventListener('click', () => {
                                 const list = card.querySelector('.comment-list');
                                 if (list) list.classList.toggle('show');
                             });
@@ -738,7 +749,7 @@
         }
 
         function getFileActions(pid) {
-            if (ST.isAdmin) return ['play','preview','download','delete'];
+            if (ST.isAdmin) return ['play','preview','download','rename','replace','delete'];
             if (!ST.role) return [];
             const f = ST.files.find(f => f.publicId === pid);
             if (!f) return [];
@@ -748,6 +759,7 @@
             if (['image','pdf','text'].includes(pt) && ['full','delete','upload','download','read'].includes(ST.role)) a.push('preview');
             if (['full','delete','upload','download'].includes(ST.role)) a.push('download');
             if (['full','delete'].includes(ST.role)) a.push('delete');
+            if (ST.role === 'full') { a.push('rename'); a.push('replace'); }
             return a;
         }
 
@@ -787,13 +799,15 @@
         function actionHandler(e) { e.stopPropagation(); const action = e.currentTarget.dataset.action, id = e.currentTarget.dataset.id; if (action && action !== 'tick') fileAction(action, id); }
         function cardClickHandler(e) { if (e.target.classList.contains('card-checkbox') || e.target.closest('.actions')) return; const cb = this.querySelector('.card-checkbox'); if (cb) toggleSelect(cb.dataset.id, !cb.checked); }
         function toggleSelect(id, checked) { if (checked) ST.selected.add(id); else ST.selected.delete(id); updateBulkBar(); const card = document.querySelector(`.card[data-public-id="${id}"]`); if (card) card.classList.toggle('selected', checked); }
-        function updateBulkBar() { if (D.bulkBar) { if (ST.selected.size) { D.bulkBar.classList.remove('hidden'); D.bulkCnt.textContent = `${ST.selected.size} selected`; } else D.bulkBar.classList.add('hidden'); } }
+        function updateBulkBar() { if (D.bulkBar) { if (ST.selected.size) { D.bulkBar.classList.remove('hidden'); if (D.bulkCnt) D.bulkCnt.textContent = `${ST.selected.size} selected`; } else D.bulkBar.classList.add('hidden'); } }
         function fileAction(action, id) {
             switch(action) {
                 case 'play': openPreview(id, 'video'); break;
                 case 'preview': openPreview(id, prevType(ST.files.find(f=>f.publicId===id)?.mimeType)); break;
                 case 'download': window.open(getDownloadUrl(id), '_blank'); break;
                 case 'delete': deleteFile(id); break;
+                case 'replace': replaceFile(id); break;
+                case 'rename': renameFile(id); break;
             }
         }
         async function deleteFile(pid) {
@@ -804,8 +818,35 @@
                 else throw new Error();
             }).catch(() => toast('Delete failed', 'error'));
         }
+        function replaceFile(pid) {
+            const inp = document.createElement('input'); inp.type = 'file';
+            inp.onchange = async () => {
+                const file = inp.files[0];
+                if (!file) return;
+                await withLock(async () => {
+                    const init = await fetch(`${WORKER_BASE}/update`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({publicId:pid,fileName:file.name,fileSize:file.size,fileType:file.type||'application/octet-stream'}) });
+                    if (!init.ok) { toast('Replace init failed','error'); return; }
+                    const data = await init.json();
+                    const replacePublicId = data.publicId;
+                    await uploadFile(file, replacePublicId);
+                    await fetchFiles();
+                });
+            };
+            inp.click();
+        }
+        async function renameFile(pid) {
+            const f = ST.files.find(f => f.publicId === pid);
+            if (!f) return;
+            const newName = prompt('New name:', f.name);
+            if (!newName || newName === f.name) return;
+            await withLock(async () => {
+                const r = await fetch(`${WORKER_BASE}/rename`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({publicId:pid,newName}) });
+                if (r.ok) { await fetchFiles(); toast('Renamed'); }
+                else throw new Error();
+            }).catch(() => toast('Rename failed', 'error'));
+        }
 
-        // Upload (with progress)
+        // ---------- Upload (supports paste & send) ----------
         async function uploadFile(file, existingPid = null) {
             const fileKey = existingPid || file.name + file.size + file.lastModified;
             if (uploadingFiles.has(fileKey)) { toast(`${file.name} already uploading.`, 'info'); return; }
@@ -822,10 +863,7 @@
                         body: JSON.stringify({ fileName: file.name, fileSize: file.size, fileType: file.type || 'application/octet-stream' }),
                         signal: ST.uploadCtrl.signal
                     });
-                    if (!initRes.ok) {
-                        const errText = await initRes.text();
-                        throw new Error(`Init failed: ${errText}`);
-                    }
+                    if (!initRes.ok) throw new Error('Init failed');
                     const initData = await initRes.json();
                     pid = initData.publicId;
                 }
@@ -849,7 +887,8 @@
                             if (typeof data.uploadedBytes === 'number') {
                                 uploaded = data.uploadedBytes;
                                 const now = Date.now();
-                                const speed = ((uploaded - lastBytes) / Math.max(1, now - lastTime)) * 1000;
+                                const timeDiff = Math.max(1, now - lastTime);
+                                const speed = ((uploaded - lastBytes) / timeDiff) * 1000;
                                 updateProgress(uploaded, file.size, speed);
                                 lastBytes = uploaded; lastTime = now;
                             }
@@ -885,7 +924,7 @@
         const sleep = ms => new Promise(r => setTimeout(r, ms));
         safeAddEvent(D.cancelBtn, 'click', () => { if (ST.uploadCtrl) { ST.uploadCtrl.abort(); ST.uploadCtrl = null; if (D.progBox) D.progBox.classList.add('hidden'); } });
 
-        // Paste & Send
+        // Paste & Send Box
         document.addEventListener('paste', (e) => {
             const items = e.clipboardData.items;
             for (let i = 0; i < items.length; i++) {
@@ -912,7 +951,7 @@
             toast('All pasted files uploaded.', 'success');
         });
 
-        // Preview with custom video controls
+        // ---------- Preview with custom video skip + volume boost ----------
         let currentVideo = null;
         function openPreview(pid, type) {
             if (!D.prevCont) return;
@@ -920,25 +959,17 @@
             const url = getPreviewUrl(pid);
             if (type === 'video') {
                 const video = document.createElement('video');
-                video.src = url; video.controls = false; video.autoplay = true; video.style.width = '100%'; video.style.height = '100%'; video.style.objectFit = 'contain';
+                video.src = url; video.controls = true; video.autoplay = true; video.style.width = '100%'; video.style.height = '100%'; video.style.objectFit = 'contain';
                 D.prevCont.appendChild(video);
                 currentVideo = video;
                 D.videoControls.style.display = 'flex';
                 D.back30.onclick = () => { if (video) video.currentTime -= 30; };
                 D.forward30.onclick = () => { if (video) video.currentTime += 30; };
                 D.volumeBoost.oninput = () => {
-                    if (video) {
-                        const val = parseInt(D.volumeBoost.value,10);
-                        D.volPercent.textContent = val+'%';
-                        video.volume = Math.min(val / 100, 1);
-                        if (val > 100) toast('Volume boost above 100% may not work', 'info');
-                    }
+                    const val = parseInt(D.volumeBoost.value,10);
+                    D.volPercent.textContent = val+'%';
+                    if (video) video.volume = Math.min(val / 100, 1);
                 };
-                // Optional: add subtitle/language support if available in video
-                if (video.textTracks && video.textTracks.length) {
-                    const track = video.textTracks[0];
-                    if (track) track.mode = 'showing';
-                }
             } else if (type === 'audio') {
                 const audio = document.createElement('audio');
                 audio.src = url; audio.controls = true; audio.autoplay = true; audio.style.width = '100%';
@@ -973,13 +1004,14 @@
             if (hint) hint.style.display = canUpload ? '' : 'none';
         }
 
+        // Share preview
         async function showSharePreview() {
             const res = await fetch(`${WORKER_BASE}/share/verify?token=${ST.shareToken}`);
             if (!res.ok) { toast('Invalid or expired share link', 'error'); showLogin(); return; }
             const data = await res.json();
             if (D.grid) D.grid.innerHTML = `
                 <div style="grid-column:1/-1;text-align:center;padding:60px;">
-                    <div class="thumbnail" style="font-size:4rem;">${getThumbnailHtml(data.mimeType, data.fileName, '')}</div>
+                    <div style="font-size: 4rem;">${getThumbnailHtml(data.mimeType, data.fileName, '')}</div>
                     <h2>${esc(data.fileName)}</h2>
                     <p>${fmtSz(data.fileSize)}</p>
                     <button class="btn btn-primary" id="shareDownloadBtn">⬇ Download</button>
