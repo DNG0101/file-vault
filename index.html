@@ -131,7 +131,7 @@
         <button class="btn-outline btn-sm" id="btnResetToken" style="background:#f97316;">🔄 Reset Token</button>
     </div>
     <div class="panel hidden" id="approvalPanel"><h3>Pending Approvals</h3><div id="approvalList"></div><button class="btn-sm btn-outline" id="refreshPendingBtn">🔄 Refresh</button></div>
-    <div class="panel hidden" id="usersPanel"><h3>Active Users</h3><div id="usersList"></div><button class="btn-sm btn-outline" id="refreshUsersBtn">🔄 Refresh</button><div style="margin-top:12px;"><input type="text" id="newUserEmail" placeholder="user@example.com"><button id="addUserBtn" class="btn-sm btn-primary">➕ Add User</button></div></div>
+    <div class="panel hidden" id="usersPanel"><h3>Users Management</h3><div id="usersList"></div><button class="btn-sm btn-outline" id="refreshUsersBtn">🔄 Refresh</button><div style="margin-top:12px;"><input type="text" id="newUserEmail" placeholder="user@example.com"><button id="addUserBtn" class="btn-sm btn-primary">➕ Add User</button></div></div>
     <div class="panel hidden" id="logsPanel"><h3>Audit Logs</h3><div id="logsContent"></div><button class="btn-danger btn-sm" id="btnClearLogs">🗑 Clear All Logs</button><button class="btn-sm btn-outline" id="refreshLogsBtn">🔄 Refresh</button></div>
     <div class="panel hidden" id="analyticsPanel"><h3>Analytics</h3><div id="analyticsContent"></div><button class="btn-sm btn-outline" id="refreshAnalyticsBtn">🔄 Refresh</button></div>
     <div class="toolbar">
@@ -477,8 +477,31 @@
         fetch(`${WORKER_BASE}/admin/all-users`, { headers: getAuthHeaders() })
             .then(r => r.json())
             .then(users => {
-                const active = users.filter(u => u.status !== 'revoked' && u.is_admin !== 1);
-                D.listUsers.innerHTML = active.map(u => `<div class="approval-item"><span>${u.email} <span class="status-badge status-${u.status}">${u.status}</span> ${u.role ? `(${u.role})` : ''}</span><div>${u.status === 'pending' ? `<select class="role-sel-${u.email}"><option value="full">Full</option><option value="delete">Delete</option><option value="upload">Upload Only</option><option value="download">Download</option><option value="read">Read</option><option value="none">None</option></select><button class="btn-sm btn-success" data-action="approve" data-email="${u.email}">Approve</button>` : ''}${u.status === 'approved' ? `<select class="role-sel-${u.email}"><option value="full" ${u.role === 'full' ? 'selected' : ''}>Full</option><option value="delete" ${u.role === 'delete' ? 'selected' : ''}>Delete</option><option value="upload" ${u.role === 'upload' ? 'selected' : ''}>Upload Only</option><option value="download" ${u.role === 'download' ? 'selected' : ''}>Download</option><option value="read" ${u.role === 'read' ? 'selected' : ''}>Read</option><option value="none" ${u.role === 'none' ? 'selected' : ''}>None</option></select><button class="btn-sm btn-primary" data-action="update" data-email="${u.email}">Update Role</button><button class="btn-sm btn-danger" data-action="revoke" data-email="${u.email}">Revoke</button><button class="btn-sm btn-warning" data-action="makeadmin" data-email="${u.email}">Make Sub‑Admin</button>` : ''}</div></div>`).join('');
+                // Show all users (including sub-admins), exclude only the main admin? We'll show all.
+                // For each user, show appropriate actions.
+                D.listUsers.innerHTML = (users || []).map(u => {
+                    const isSubAdmin = u.is_admin === 1 && u.email !== ST.email; // ST.email is current admin
+                    const isSelf = u.email === ST.email;
+                    return `<div class="approval-item">
+                        <span>${u.email} <span class="status-badge status-${u.status}">${u.status}</span> ${u.role ? `(${u.role})` : ''} ${isSubAdmin ? ' <span style="background:#f97316; padding:2px 6px; border-radius:10px;">Sub‑Admin</span>' : ''}</span>
+                        <div>
+                            ${u.status === 'pending' ? `<select class="role-sel-${u.email}"><option value="full">Full</option><option value="delete">Delete</option><option value="upload">Upload Only</option><option value="download">Download</option><option value="read">Read</option><option value="none">None</option></select><button class="btn-sm btn-success" data-action="approve" data-email="${u.email}">Approve</button>` : ''}
+                            ${u.status === 'approved' && !isSelf ? `
+                                <select class="role-sel-${u.email}">
+                                    <option value="full" ${u.role === 'full' ? 'selected' : ''}>Full</option>
+                                    <option value="delete" ${u.role === 'delete' ? 'selected' : ''}>Delete</option>
+                                    <option value="upload" ${u.role === 'upload' ? 'selected' : ''}>Upload Only</option>
+                                    <option value="download" ${u.role === 'download' ? 'selected' : ''}>Download</option>
+                                    <option value="read" ${u.role === 'read' ? 'selected' : ''}>Read</option>
+                                    <option value="none" ${u.role === 'none' ? 'selected' : ''}>None</option>
+                                </select>
+                                <button class="btn-sm btn-primary" data-action="update" data-email="${u.email}">Update Role</button>
+                                <button class="btn-sm btn-danger" data-action="revoke" data-email="${u.email}">Revoke Access</button>
+                                ${!isSubAdmin ? `<button class="btn-sm btn-warning" data-action="makeadmin" data-email="${u.email}">Make Sub‑Admin</button>` : `<button class="btn-sm btn-warning" data-action="revokeadmin" data-email="${u.email}" style="background:#e11d48;">Revoke Sub‑Admin</button>`}
+                            ` : ''}
+                        </div>
+                    </div>`;
+                }).join('');
                 attachUserEvents();
             });
     }
@@ -490,6 +513,12 @@
                 if (action === 'makeadmin') {
                     await fetch(`${WORKER_BASE}/admin/make-subadmin`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }, body: JSON.stringify({ email, makeAdmin: true }) });
                     toast(`${email} promoted to sub‑admin.`, 'success');
+                    loadAllUsers();
+                    return;
+                }
+                if (action === 'revokeadmin') {
+                    await fetch(`${WORKER_BASE}/admin/make-subadmin`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }, body: JSON.stringify({ email, makeAdmin: false }) });
+                    toast(`${email} sub‑admin rights revoked.`, 'success');
                     loadAllUsers();
                     return;
                 }
@@ -512,7 +541,6 @@
                     loadPending();
                     loadPendingCount();
                     await fetchUserInfo();
-                    await fetchFiles();
                 } else if (endpoint === 'approve') {
                     await fetch(`${WORKER_BASE}/admin/approve`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }, body: JSON.stringify({ email, role }) });
                     toast(`${email} approved`);
@@ -521,6 +549,7 @@
                     loadPendingCount();
                     await fetchUserInfo();
                 }
+                loadAllUsers(); // refresh list
             });
         });
     }
@@ -649,9 +678,14 @@
         }
     }
 
-    // Advanced video player with working volume boost (0-300%)
+    // Advanced video player with Web Audio API for real volume boost (up to 300%)
     let currentVideo = null;
     let videoControlsTimeout = null;
+    let audioContext = null;
+    let gainNode = null;
+    let sourceNode = null;
+    let isUsingAudioContext = false;
+
     function setupVideoControls(video) {
         if (!video) return;
         currentVideo = video;
@@ -692,7 +726,6 @@
         const languageSelect = document.getElementById('vidLanguage');
         const aspectSelect = document.getElementById('vidAspect');
         const fullscreenBtn = document.getElementById('vidFullscreen');
-        if (!playPause || !back30 || !forward30 || !timeSpan || !seekSlider || !volumeSlider || !volIcon || !brightnessSlider || !audioTrackSelect || !languageSelect || !aspectSelect || !fullscreenBtn) return;
         
         function formatTime(sec) { if (isNaN(sec)) return '0:00'; const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = Math.floor(sec % 60); return h > 0 ? `${h}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}` : `${m}:${s.toString().padStart(2,'0')}`; }
         function updateTime() { if (!video) return; const cur = video.currentTime, dur = video.duration || 0; seekSlider.value = (cur / dur) * 100 || 0; timeSpan.textContent = `${formatTime(cur)} / ${formatTime(dur)}`; }
@@ -704,7 +737,46 @@
         back30.addEventListener('click', () => video.currentTime = Math.max(0, video.currentTime - 30));
         forward30.addEventListener('click', () => video.currentTime = Math.min(video.duration, video.currentTime + 30));
         seekSlider.addEventListener('input', () => { if (video.duration) video.currentTime = (seekSlider.value / 100) * video.duration; });
-        volumeSlider.addEventListener('input', () => { let val = volumeSlider.value; video.volume = Math.min(val / 100, 1); volIcon.textContent = val == 0 ? '🔇' : val < 30 ? '🔉' : '🔊'; });
+        
+        // Volume boost using Web Audio API
+        async function initAudioContext() {
+            if (audioContext) return;
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            gainNode = audioContext.createGain();
+            gainNode.connect(audioContext.destination);
+            sourceNode = audioContext.createMediaElementSource(video);
+            sourceNode.connect(gainNode);
+            isUsingAudioContext = true;
+            // set initial gain based on volumeSlider
+            let gain = volumeSlider.value / 100;
+            gainNode.gain.value = Math.min(gain, 3); // max 300%
+        }
+        volumeSlider.addEventListener('input', async () => {
+            let val = volumeSlider.value;
+            volIcon.textContent = val == 0 ? '🔇' : val < 30 ? '🔉' : '🔊';
+            let gain = val / 100;
+            if (!isUsingAudioContext) {
+                // Fallback to native volume (max 1.0)
+                video.volume = Math.min(gain, 1);
+            } else {
+                gainNode.gain.value = Math.min(gain, 3);
+            }
+        });
+        // When video starts, try to initialize AudioContext (icon)
+        video.addEventListener('play', async () => {
+            if (!isUsingAudioContext && audioContext === undefined) {
+                try {
+                    await initAudioContext();
+                    // set gain
+                    let gain = volumeSlider.value / 100;
+                    gainNode.gain.value = Math.min(gain, 3);
+                } catch(e) { console.warn("AudioContext failed", e); }
+            }
+            if (audioContext && audioContext.state === 'suspended') {
+                await audioContext.resume();
+            }
+        });
+        
         brightnessSlider.addEventListener('input', () => { let val = brightnessSlider.value / 100; video.style.filter = `brightness(${val})`; });
         
         function updateTracks() {
@@ -749,6 +821,10 @@
         controlsDiv.addEventListener('mouseenter', showControls);
         controlsDiv.addEventListener('mouseleave', showControls);
         showControls();
+        
+        // Set initial volume
+        let initialGain = volumeSlider.value / 100;
+        video.volume = Math.min(initialGain, 1);
     }
 
     function openPreview(pid, type, mime) {
@@ -795,6 +871,11 @@
         const controls = document.querySelector('.custom-video-controls');
         if (controls) controls.remove();
         if (videoControlsTimeout) clearTimeout(videoControlsTimeout);
+        if (audioContext) {
+            audioContext.close();
+            audioContext = null;
+        }
+        isUsingAudioContext = false;
         currentVideo = null;
     }
     safeAddEvent(D.btnCloseP, 'click', closePreview);
@@ -1016,6 +1097,7 @@
             if (D.uploadProgressList.children.length === 0) D.uploadProgressList.classList.add('hidden');
             toast(`${file.name} uploaded successfully!`, 'success');
             await fetchFiles();
+            // Clear file input to prevent double upload
             if (D.fileInp) D.fileInp.value = '';
             const idx = pendingPasteFiles.indexOf(file);
             if (idx !== -1) pendingPasteFiles.splice(idx, 1);
