@@ -183,7 +183,7 @@
         dark: localStorage.getItem('darkMode') === 'true',
         shareToken: null
     };
-    let uploadingFiles = new Set(); // track active uploads by file key
+    let uploadingFiles = new Map(); // FIXED: changed from Set to Map
     let activeAbortControllers = new Set();
     let cardData = new Map();
 
@@ -612,7 +612,7 @@
         }
     }
 
-    // Copy file (copy URL to clipboard)
+    // Copy file URL to clipboard
     async function copyFileUrl(pid, name) {
         const url = getDownloadUrl(pid);
         try {
@@ -787,7 +787,6 @@
                     const commentInput = card.querySelector('.comment-form input');
                     const postBtn = card.querySelector('.post-comment');
                     if (postBtn) {
-                        // Enter key in comment input
                         commentInput.addEventListener('keypress', (e) => {
                             if (e.key === 'Enter') {
                                 e.preventDefault();
