@@ -159,8 +159,8 @@
         shareToken: null,
         pendingCheckInterval: null
     };
-    let activeUploads = new Map(); // key -> AbortController
-    let uploadingKeys = new Set();  // prevents double upload
+    let activeUploadKeys = new Set();      // prevent double upload of same file
+    let activeUploadControllers = new Map(); // key -> AbortController
     let cardData = new Map();
 
     const $ = id => document.getElementById(id);
@@ -228,7 +228,7 @@
     };
     function can(action) { return ST.isAdmin ? true : (roleRights[ST.role]?.[action] === true); }
 
-    // Auth
+    // Authentication
     async function fetchUserInfo() {
         if (!ST.token) return false;
         try {
@@ -290,8 +290,8 @@
             D.userUI.innerHTML = `<span>👤 ${ST.email} (${ST.role}) <button class="btn btn-sm btn-outline" id="btnUserLogout">🔒 Logout</button></span>`;
             const logoutBtn = $('btnUserLogout');
             if (logoutBtn) logoutBtn.onclick = () => {
-                for (const ctrl of activeUploads.values()) ctrl.abort();
-                activeUploads.clear(); uploadingKeys.clear();
+                for (const ctrl of activeUploadControllers.values()) ctrl.abort();
+                activeUploadControllers.clear(); activeUploadKeys.clear();
                 ST.token = null; localStorage.removeItem('vtoken'); showLogin(); toast('Logged out.');
             };
             D.dropzone.style.display = can('upload') ? '' : 'none';
@@ -331,7 +331,7 @@
     safeAddEvent(D.addUserBtn, 'click', async () => { const email=D.newUserEmail.value.trim(); if(!email) { toast('Enter email','error'); return; } await fetch(`${WORKER_BASE}/admin/add-user`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({email,role:'full'})}); toast(`User ${email} added`,'success'); D.newUserEmail.value=''; loadAllUsers(); loadPendingCount(); });
 
     function togglePanel(panel, loadFn) { if(panel) { panel.classList.toggle('hidden'); if(!panel.classList.contains('hidden')) loadFn(); } }
-    async function adminLogout() { if(confirm('Logout as admin?')) { for (const ctrl of activeUploads.values()) ctrl.abort(); activeUploads.clear(); uploadingKeys.clear(); ST.token = null; localStorage.removeItem('vtoken'); showLogin(); toast('Admin logged out'); } }
+    async function adminLogout() { if(confirm('Logout as admin?')) { for (const ctrl of activeUploadControllers.values()) ctrl.abort(); activeUploadControllers.clear(); activeUploadKeys.clear(); ST.token = null; localStorage.removeItem('vtoken'); showLogin(); toast('Admin logged out'); } }
     async function loadPendingCount() { if(!ST.isAdmin || !D.pendingBadge) return; const r=await fetch(`${WORKER_BASE}/admin/pending`,{headers:getAuthHeaders()}); const p=await r.json(); D.pendingBadge.textContent=p.length; D.pendingBadge.classList.toggle('hidden',p.length===0); }
     function loadPending() {
         fetch(`${WORKER_BASE}/admin/pending`,{headers:getAuthHeaders()}).then(r=>r.json()).then(users=>{
@@ -464,7 +464,7 @@
         } catch(err){ toast('Copy failed: '+err.message,'error'); }
     }
 
-    // Video player with proper null checks
+    // Video player with proper null checks and working audio boost
     let currentVideo = null, controlsTimeout = null, audioCtx = null, gainNode = null, sourceNode = null;
     function setupVideoControls(video) {
         if(!video) return;
@@ -717,10 +717,10 @@
     });
     async function uploadFile(file, existingPid = null){
         const key = existingPid || `${file.name}_${file.size}_${file.lastModified}`;
-        if(uploadingKeys.has(key)){ toast(`${file.name} already uploading.`,'info'); return; }
-        uploadingKeys.add(key);
+        if(activeUploadKeys.has(key)){ toast(`${file.name} already uploading.`,'info'); return; }
+        activeUploadKeys.add(key);
         const abortCtrl = new AbortController();
-        activeUploads.set(key, abortCtrl);
+        activeUploadControllers.set(key, abortCtrl);
         const progressDiv = document.createElement('div'); progressDiv.className = 'progress-item';
         progressDiv.id = `up-${Date.now()}`;
         progressDiv.innerHTML = `<div class="progress-header"><span>${esc(file.name)}</span><span class="progress-percent">0%</span></div><div class="progress-bar"><div class="progress-fill" style="width:0%"></div></div>`;
@@ -776,8 +776,8 @@
             if(D.uploadProgressList.children.length===0) D.uploadProgressList.classList.add('hidden');
             if(err.message !== 'Cancelled') toast(`Upload failed: ${err.message}`,'error');
         } finally {
-            activeUploads.delete(key);
-            uploadingKeys.delete(key);
+            activeUploadControllers.delete(key);
+            activeUploadKeys.delete(key);
         }
     }
     function handleFiles(files){ for(const f of files) uploadFile(f); }
