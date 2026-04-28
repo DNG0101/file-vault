@@ -648,6 +648,7 @@
 
     // Advanced video player
     let currentVideo = null;
+    let videoControlsTimeout = null;
     function setupVideoControls(video) {
         if (!video) return;
         currentVideo = video;
@@ -737,6 +738,15 @@
         });
         aspectSelect.addEventListener('change', () => { const asp = aspectSelect.value; video.style.aspectRatio = asp === '16:9' ? '16/9' : asp === '4:3' ? '4/3' : asp === '1:1' ? '1/1' : 'auto'; });
         fullscreenBtn.addEventListener('click', () => { if (document.fullscreenElement) document.exitFullscreen(); else video.parentElement?.requestFullscreen(); });
+        
+        // Auto-hide controls after 3 seconds of inactivity (but show on hover)
+        function hideControls() { controlsDiv.style.opacity = '0'; controlsDiv.style.pointerEvents = 'none'; }
+        function showControls() { controlsDiv.style.opacity = '1'; controlsDiv.style.pointerEvents = 'auto'; if (videoControlsTimeout) clearTimeout(videoControlsTimeout); videoControlsTimeout = setTimeout(hideControls, 3000); }
+        video.addEventListener('mousemove', showControls);
+        video.addEventListener('click', showControls);
+        controlsDiv.addEventListener('mouseenter', showControls);
+        controlsDiv.addEventListener('mouseleave', showControls);
+        showControls();
     }
 
     function openPreview(pid, type, mime) {
@@ -782,6 +792,7 @@
         if (document.fullscreenElement) document.exitFullscreen();
         const controls = document.querySelector('.custom-video-controls');
         if (controls) controls.remove();
+        if (videoControlsTimeout) clearTimeout(videoControlsTimeout);
         currentVideo = null;
     }
     safeAddEvent(D.btnCloseP, 'click', closePreview);
