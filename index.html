@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>File Vault – Ultimate Gallery</title>
     <style>
-        /* ========== MODERN GALLERY STYLE ========== */
+        /* ========== CSS (modern gallery style, transparent thumbnails) ========== */
         :root {
             --bg: #f8fafc;
             --card-bg: #ffffff;
@@ -64,7 +64,7 @@
         .card.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
         .card-checkbox { position: absolute; top: 10px; right: 10px; width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; z-index: 2; }
         .thumbnail { width: 100%; height: 160px; object-fit: cover; border-radius: 10px; margin-bottom: 10px; background: transparent; display: flex; align-items: center; justify-content: center; font-size: 3rem; overflow: hidden; }
-        .thumbnail img, .thumbnail video { width: 100%; height: 100%; object-fit: cover; }
+        .thumbnail img, .thumbnail video { width: 100%; height: 100%; object-fit: cover; background: transparent; }
         .file-name { font-weight: 600; word-break: break-word; margin-bottom: 6px; font-size: 0.9rem; }
         .file-meta { font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 10px; }
         .actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
@@ -73,6 +73,8 @@
         .btn-xs-preview { background: var(--purple); color: white; }
         .btn-xs-download { background: var(--success); color: white; }
         .btn-xs-delete { background: var(--danger); color: white; }
+        .btn-xs-replace { background: var(--warn); color: #222; }
+        .btn-xs-rename { background: #6c757d; color: white; }
         .btn-xs-copy { background: #0d6efd; color: white; }
         .comment-section { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 8px; font-size: 0.75rem; }
         .comment-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-weight: 600; cursor: pointer; }
@@ -82,7 +84,7 @@
         .comment-list.show { display: block; }
         .comment { padding: 4px 0; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
         .comment strong { color: var(--accent); }
-        .comment-text { word-break: break-word; flex: 1; }
+        .comment-text { word-break: break-word; flex: 1; margin-right: 8px; }
         .comment-actions button { background: none; border: none; cursor: pointer; font-size: 0.7rem; margin-left: 4px; color: var(--text-secondary); }
         .comment-form { display: flex; gap: 6px; margin-top: 6px; }
         .comment-form input { flex: 1; padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--card-bg); color: var(--text); }
@@ -98,7 +100,7 @@
         .preview-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 1000; display: flex; justify-content: center; align-items: center; flex-direction: column; }
         .preview-overlay.hidden { display: none; }
         .preview-container { width: 90%; height: 90%; display: flex; align-items: center; justify-content: center; }
-        .preview-container video, .preview-container audio { max-width: 100%; max-height: 100%; outline: none; }
+        .preview-container video, .preview-container audio { max-width: 100%; max-height: 100%; outline: none; background: #000; }
         .video-controls { position: absolute; bottom: 20px; left: 20px; background: rgba(0,0,0,0.6); padding: 8px 12px; border-radius: 8px; display: flex; gap: 10px; z-index: 1001; }
         .video-controls button { background: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; }
         .preview-toolbar { position: absolute; top: 20px; right: 20px; display: flex; gap: 10px; z-index: 1001; }
@@ -192,7 +194,6 @@
             <button id="back30">← 30s</button>
             <button id="forward30">30s →</button>
             <input type="range" id="volumeBoost" min="0" max="200" value="100" step="5"> <span id="volPercent">100%</span>
-            <select id="playbackSpeed"><option value="0.5">0.5x</option><option value="1" selected>1x</option><option value="1.5">1.5x</option><option value="2">2x</option></select>
         </div>
         <div class="preview-toolbar">
             <button id="btnFullscreen">⛶ Fullscreen</button>
@@ -205,9 +206,16 @@
     <script>
         // ==================== CONFIG ====================
         const WORKER_BASE = 'https://gdrive-files-api.donthulanithish53.workers.dev';
-        let globalLock = false;
-        async function withLock(fn) { while (globalLock) await new Promise(r => setTimeout(r, 50)); globalLock = true; try { return await fn(); } finally { globalLock = false; } }
 
+        // Global lock
+        let globalLock = false;
+        async function withLock(fn) {
+            while (globalLock) await new Promise(r => setTimeout(r, 50));
+            globalLock = true;
+            try { return await fn(); } finally { globalLock = false; }
+        }
+
+        // State
         let ST = {
             token: localStorage.getItem('vtoken'),
             email: null,
@@ -225,6 +233,7 @@
         let uploadingFiles = new Set();
         let cardData = new Map(); // publicId -> { comments, ticked, count }
 
+        // DOM helpers
         const $ = id => document.getElementById(id);
         const D = {
             stats: $('storageStats'), userUI: $('userUI'), adminBar: $('adminBar'),
@@ -247,7 +256,7 @@
             refreshFilesBtn: $('refreshFilesBtn'), refreshPendingBtn: $('refreshPendingBtn'),
             refreshUsersBtn: $('refreshUsersBtn'), refreshLogsBtn: $('refreshLogsBtn'), refreshAnalyticsBtn: $('refreshAnalyticsBtn'),
             pasteInput: $('pasteInput'), sendPasteBtn: $('sendPasteBtn'), addUserBtn: $('addUserBtn'), newUserEmail: $('newUserEmail'),
-            videoControls: $('videoControls'), back30: $('back30'), forward30: $('forward30'), volumeBoost: $('volumeBoost'), volPercent: $('volPercent'), playbackSpeed: $('playbackSpeed'),
+            videoControls: $('videoControls'), back30: $('back30'), forward30: $('forward30'), volumeBoost: $('volumeBoost'), volPercent: $('volPercent'),
         };
 
         function getAuthHeaders() {
@@ -273,13 +282,13 @@
         const fmtSpeed = bytesPerSec => { if(bytesPerSec<1024) return bytesPerSec.toFixed(0)+' B/s'; if(bytesPerSec<1048576) return (bytesPerSec/1024).toFixed(1)+' KB/s'; return (bytesPerSec/1048576).toFixed(1)+' MB/s'; };
         const getThumbnailHtml = (mime, name, publicId) => {
             if (mime.startsWith('image')) {
-                return `<img src="${WORKER_BASE}/video/${publicId}?utoken=${ST.token}" style="width:100%; height:100%; object-fit:cover; border-radius:10px;">`;
+                return `<img src="${WORKER_BASE}/video/${publicId}?utoken=${ST.token}" style="width:100%; height:100%; object-fit:cover; border-radius:10px; background:transparent;">`;
             } else if (mime.startsWith('video')) {
                 return `<video src="${WORKER_BASE}/video/${publicId}?utoken=${ST.token}" style="width:100%; height:100%; object-fit:cover; border-radius:10px;" muted preload="metadata"></video>`;
-            } else if (mime.startsWith('audio')) return '🎵';
-            else if (mime === 'application/pdf') return '📕';
-            else if (mime.startsWith('text')) return '📝';
-            else return '📄';
+            } else if (mime.startsWith('audio')) return '<div style="font-size:3rem;">🎵</div>';
+            else if (mime === 'application/pdf') return '<div style="font-size:3rem;">📕</div>';
+            else if (mime.startsWith('text')) return '<div style="font-size:3rem;">📝</div>';
+            else return '<div style="font-size:3rem;">📄</div>';
         };
         const prevType = m => {
             if (!m) return '';
@@ -427,12 +436,14 @@
         safeAddEvent(D.addUserBtn, 'click', async () => {
             const email = D.newUserEmail.value.trim();
             if (!email) { toast('Enter email', 'error'); return; }
+            const role = 'full';
             await withLock(async () => {
-                const r = await fetch(`${WORKER_BASE}/admin/add-user`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({ email, role:'full' }) });
+                const r = await fetch(`${WORKER_BASE}/admin/add-user`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({ email, role }) });
                 if (!r.ok) throw new Error();
                 toast(`User ${email} added`, 'success');
                 D.newUserEmail.value = '';
-                loadAllUsers(); loadPendingCount();
+                loadAllUsers();
+                loadPendingCount();
             }).catch(e => toast('Failed to add user', 'error'));
         });
 
@@ -531,7 +542,7 @@
                 .then(d => { D.analyticsCt.innerHTML = `<p>Files: ${d.files.total} (${fmtSz(d.files.totalSize)}) | Users: ${d.users.total}</p>`; });
         }
 
-        // Core file logic
+        // ==================== CORE FILE LOGIC ====================
         async function fetchFiles() {
             await withLock(async () => {
                 const r = await fetch(`${WORKER_BASE}/list`, { headers:getAuthHeaders() });
@@ -615,6 +626,14 @@
             }).catch(e => toast('Tick failed', 'error'));
         }
 
+        async function copyFileToClipboard(publicId, name) {
+            // Copy file info (not actual file binary) because browser cannot copy binary to clipboard.
+            // We copy a message with download link and public ID.
+            const textToCopy = `File: ${name}\nPublic ID: ${publicId}\nDownload: ${getDownloadUrl(publicId)}`;
+            await navigator.clipboard.writeText(textToCopy);
+            toast('File info copied to clipboard', 'success');
+        }
+
         function renderFiles() {
             if (!D.grid) return;
             let list = [...ST.files];
@@ -656,8 +675,10 @@
                             ${actions.includes('play') ? `<button class="btn-xs btn-xs-play" data-action="play" data-id="${f.publicId}">▶ Play</button>` : ''}
                             ${actions.includes('preview') ? `<button class="btn-xs btn-xs-preview" data-action="preview" data-id="${f.publicId}">🔍 Preview</button>` : ''}
                             ${actions.includes('download') ? `<button class="btn-xs btn-xs-download" data-action="download" data-id="${f.publicId}">⬇ Download</button>` : ''}
+                            ${actions.includes('rename') ? `<button class="btn-xs btn-xs-rename" data-action="rename" data-id="${f.publicId}">✏️ Rename</button>` : ''}
+                            ${actions.includes('replace') ? `<button class="btn-xs btn-xs-replace" data-action="replace" data-id="${f.publicId}">🔄 Replace</button>` : ''}
                             ${actions.includes('delete') ? `<button class="btn-xs btn-xs-delete" data-action="delete" data-id="${f.publicId}">🗑 Delete</button>` : ''}
-                            <button class="btn-xs btn-xs-copy" data-action="copy" data-id="${f.publicId}" data-name="${esc(f.name)}">📋 Copy Link</button>
+                            <button class="btn-xs btn-xs-copy" data-action="copy" data-id="${f.publicId}" data-name="${esc(f.name)}">📋 Copy</button>
                             <button class="tick-btn" data-action="tick" data-id="${f.publicId}"></button>
                             <span class="tick-count"></span>
                             <div class="comment-section">
@@ -674,6 +695,7 @@
                         </div>
                     `;
                     gridDiv.appendChild(card);
+                    // load data async
                     (async () => {
                         const data = await loadCardData(f.publicId);
                         cardData.set(f.publicId, data);
@@ -719,11 +741,13 @@
                                 }
                             });
                         }
-                        const header = card.querySelector('.comment-header');
-                        if (header) header.addEventListener('click', () => {
-                            const list = card.querySelector('.comment-list');
-                            if (list) list.classList.toggle('show');
-                        });
+                        const commentHeader = card.querySelector('.comment-header');
+                        if (commentHeader) {
+                            commentHeader.addEventListener('click', () => {
+                                const list = card.querySelector('.comment-list');
+                                if (list) list.classList.toggle('show');
+                            });
+                        }
                     })();
                 });
                 D.grid.appendChild(section);
@@ -733,7 +757,7 @@
         }
 
         function getFileActions(pid) {
-            if (ST.isAdmin) return ['play','preview','download','delete'];
+            if (ST.isAdmin) return ['play','preview','download','rename','replace','delete'];
             if (!ST.role) return [];
             const f = ST.files.find(f => f.publicId === pid);
             if (!f) return [];
@@ -771,12 +795,12 @@
         }
         function checkboxHandler(e) { e.stopPropagation(); toggleSelect(e.target.dataset.id, e.target.checked); }
         async function tickHandler(e) { e.stopPropagation(); const pid = e.currentTarget.dataset.id; await toggleTick(pid); }
-        function copyHandler(e) {
+        async function copyHandler(e) {
             e.stopPropagation();
             const btn = e.currentTarget;
+            const name = btn.dataset.name;
             const id = btn.dataset.id;
-            const url = getDownloadUrl(id);
-            navigator.clipboard.writeText(url).then(() => toast('Download link copied to clipboard', 'success')).catch(() => toast('Copy failed', 'error'));
+            await copyFileToClipboard(id, name);
         }
         function actionHandler(e) { e.stopPropagation(); const action = e.currentTarget.dataset.action, id = e.currentTarget.dataset.id; if (action && action !== 'tick') fileAction(action, id); }
         function cardClickHandler(e) { if (e.target.classList.contains('card-checkbox') || e.target.closest('.actions')) return; const cb = this.querySelector('.card-checkbox'); if (cb) toggleSelect(cb.dataset.id, !cb.checked); }
@@ -788,6 +812,8 @@
                 case 'preview': openPreview(id, prevType(ST.files.find(f=>f.publicId===id)?.mimeType)); break;
                 case 'download': window.open(getDownloadUrl(id), '_blank'); break;
                 case 'delete': deleteFile(id); break;
+                case 'replace': replaceFile(id); break;
+                case 'rename': renameFile(id); break;
             }
         }
         async function deleteFile(pid) {
@@ -797,6 +823,33 @@
                 if (r.ok) { await fetchFiles(); toast('Deleted'); }
                 else throw new Error();
             }).catch(() => toast('Delete failed', 'error'));
+        }
+        function replaceFile(pid) {
+            const inp = document.createElement('input'); inp.type = 'file';
+            inp.onchange = async () => {
+                const file = inp.files[0];
+                if (!file) return;
+                await withLock(async () => {
+                    const init = await fetch(`${WORKER_BASE}/update`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({publicId:pid,fileName:file.name,fileSize:file.size,fileType:file.type||'application/octet-stream'}) });
+                    if (!init.ok) { toast('Replace init failed','error'); return; }
+                    const data = await init.json();
+                    const replacePublicId = data.publicId;
+                    await uploadFile(file, replacePublicId);
+                    await fetchFiles();
+                });
+            };
+            inp.click();
+        }
+        async function renameFile(pid) {
+            const f = ST.files.find(f => f.publicId === pid);
+            if (!f) return;
+            const newName = prompt('New name:', f.name);
+            if (!newName || newName === f.name) return;
+            await withLock(async () => {
+                const r = await fetch(`${WORKER_BASE}/rename`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({publicId:pid,newName}) });
+                if (r.ok) { await fetchFiles(); toast('Renamed'); }
+                else throw new Error();
+            }).catch(() => toast('Rename failed', 'error'));
         }
 
         // Upload (with paste & send)
@@ -819,7 +872,9 @@
         safeAddEvent(D.sendPasteBtn, 'click', async () => {
             if (pendingPasteFiles.length === 0) { toast('No pasted files. Use Ctrl+V first.', 'info'); return; }
             toast(`Uploading ${pendingPasteFiles.length} files...`, 'info');
-            for (const file of pendingPasteFiles) await uploadFile(file);
+            for (const file of pendingPasteFiles) {
+                await uploadFile(file);
+            }
             pendingPasteFiles = [];
             D.pasteInput.value = '';
             toast('All pasted files uploaded.', 'success');
@@ -865,7 +920,8 @@
                             if (typeof data.uploadedBytes === 'number') {
                                 uploaded = data.uploadedBytes;
                                 const now = Date.now();
-                                const speed = ((uploaded - lastBytes) / Math.max(1, now - lastTime)) * 1000;
+                                const timeDiff = Math.max(1, now - lastTime);
+                                const speed = ((uploaded - lastBytes) / timeDiff) * 1000;
                                 updateProgress(uploaded, file.size, speed);
                                 lastBytes = uploaded; lastTime = now;
                             }
@@ -901,7 +957,7 @@
         const sleep = ms => new Promise(r => setTimeout(r, ms));
         safeAddEvent(D.cancelBtn, 'click', () => { if (ST.uploadCtrl) { ST.uploadCtrl.abort(); ST.uploadCtrl = null; if (D.progBox) D.progBox.classList.add('hidden'); } });
 
-        // Preview with full video controls
+        // Preview with video controls
         let currentVideo = null;
         function openPreview(pid, type) {
             if (!D.prevCont) return;
@@ -916,19 +972,13 @@
                 D.back30.onclick = () => { if (video) video.currentTime -= 30; };
                 D.forward30.onclick = () => { if (video) video.currentTime += 30; };
                 D.volumeBoost.oninput = () => {
-                    const val = parseInt(D.volumeBoost.value,10);
-                    D.volPercent.textContent = val+'%';
-                    if (video) video.volume = Math.min(val / 100, 1);
+                    if (video) {
+                        let val = parseInt(D.volumeBoost.value,10);
+                        D.volPercent.textContent = val+'%';
+                        video.volume = Math.min(val / 100, 1);
+                        if (val > 100) toast('Volume boost beyond 100% not supported', 'info');
+                    }
                 };
-                D.playbackSpeed.onchange = () => { if (video) video.playbackRate = parseFloat(D.playbackSpeed.value); };
-                video.addEventListener('loadedmetadata', () => {
-                    if (video.textTracks && video.textTracks.length) {
-                        // add subtitle selector if needed
-                    }
-                    if (video.audioTracks && video.audioTracks.length) {
-                        // could add audio track selector
-                    }
-                });
             } else if (type === 'audio') {
                 const audio = document.createElement('audio');
                 audio.src = url; audio.controls = true; audio.autoplay = true; audio.style.width = '100%';
@@ -963,11 +1013,19 @@
             if (hint) hint.style.display = canUpload ? '' : 'none';
         }
 
+        // Share preview
         async function showSharePreview() {
             const res = await fetch(`${WORKER_BASE}/share/verify?token=${ST.shareToken}`);
             if (!res.ok) { toast('Invalid or expired share link', 'error'); showLogin(); return; }
             const data = await res.json();
-            if (D.grid) D.grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;"><div style="font-size:4rem;">${getThumbnailHtml(data.mimeType, data.fileName, '')}</div><h2>${esc(data.fileName)}</h2><p>${fmtSz(data.fileSize)}</p><button class="btn btn-primary" id="shareDownloadBtn">⬇ Download</button><button class="btn btn-outline" onclick="location.href='/'">🔐 Login to Vault</button></div>`;
+            if (D.grid) D.grid.innerHTML = `
+                <div style="grid-column:1/-1;text-align:center;padding:60px;">
+                    <div class="thumbnail" style="font-size:4rem;">${getThumbnailHtml(data.mimeType, data.fileName, '')}</div>
+                    <h2>${esc(data.fileName)}</h2>
+                    <p>${fmtSz(data.fileSize)}</p>
+                    <button class="btn btn-primary" id="shareDownloadBtn">⬇ Download</button>
+                    <button class="btn btn-outline" onclick="location.href='/'">🔐 Login to Vault</button>
+                </div>`;
             const shareBtn = $('shareDownloadBtn');
             if (shareBtn) shareBtn.addEventListener('click', () => {
                 window.location.href = `${WORKER_BASE}/share/download?token=${ST.shareToken}`;
