@@ -165,7 +165,7 @@
 </div>
 <div id="toastContainer"></div>
 <script>
-    // ========================= CONFIG =========================
+    // ==================== CONFIG ====================
     const WORKER_BASE = 'https://gdrive-files-api.donthulanithish53.workers.dev';
     let ST = {
         token: localStorage.getItem('vtoken'),
@@ -184,7 +184,6 @@
     let uploadingFiles = new Map(); // fileKey -> AbortController
     let cardData = new Map();
 
-    // DOM shortcuts
     const $ = id => document.getElementById(id);
     const D = {
         stats: $('storageStats'), userUI: $('userUI'), adminBar: $('adminBar'),
@@ -205,7 +204,6 @@
         btnResetToken: $('btnResetToken')
     };
 
-    // Helper functions
     function getAuthHeaders() {
         const h = {};
         if (ST.token) {
@@ -254,7 +252,7 @@
         return '<div style="font-size:3rem;">📄</div>';
     }
 
-    // RBAC permission lookup
+    // RBAC
     const roleRights = {
         admin: { upload: true, delete: true, download: true, preview: true, play: true, copy: true, tick: true, comment: true },
         full:   { upload: true, delete: true, download: true, preview: true, play: true, copy: true, tick: true, comment: true },
@@ -341,7 +339,7 @@
             D.userUI.innerHTML = `<span>👤 ${ST.email} (${ST.role}) <button class="btn btn-sm btn-outline" id="btnUserLogout">🔒 Logout</button></span>`;
             const logoutBtn = $('btnUserLogout');
             if (logoutBtn) logoutBtn.onclick = () => {
-                uploadFiles.forEach((_, key) => { uploadFiles.get(key)?.abort(); });
+                uploadingFiles.forEach(ctrl => ctrl.abort());
                 uploadingFiles.clear();
                 ST.token = null;
                 localStorage.removeItem('vtoken');
@@ -358,9 +356,9 @@
         else { showPending(); }
     }
 
-    // Admin panels
     function safeAddEvent(el, ev, fn) { if (el) el.addEventListener(ev, fn); }
 
+    // Reset token
     if (D.btnResetToken) D.btnResetToken.addEventListener('click', async () => {
         if (confirm('Reset admin token? You will need to login again.')) {
             await fetch(`${WORKER_BASE}/admin/reset-token`, { method: 'POST', headers: getAuthHeaders() });
@@ -371,6 +369,7 @@
         }
     });
 
+    // Admin actions
     safeAddEvent(D.btnSync, 'click', async () => {
         toast('Syncing...', 'info');
         try {
@@ -424,7 +423,7 @@
     }
     async function adminLogout() {
         if (confirm('Logout as admin?')) {
-            uploadingFiles.forEach((ctrl) => ctrl.abort());
+            uploadingFiles.forEach(ctrl => ctrl.abort());
             uploadingFiles.clear();
             ST.token = null;
             localStorage.removeItem('vtoken');
@@ -501,12 +500,15 @@
                     await fetch(`${WORKER_BASE}/admin/make-subadmin`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }, body: JSON.stringify({ email, makeAdmin: true }) });
                     toast(`${email} promoted to sub‑admin.`, 'success');
                     loadAllUsers();
+                    // After role change, re‑fetch user info to update UI instantly
+                    await fetchUserInfo();
                     return;
                 }
                 if (action === 'revokeadmin') {
                     await fetch(`${WORKER_BASE}/admin/make-subadmin`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }, body: JSON.stringify({ email, makeAdmin: false }) });
                     toast(`${email} sub‑admin rights revoked.`, 'success');
                     loadAllUsers();
+                    await fetchUserInfo();
                     return;
                 }
                 let role = 'full';
@@ -536,7 +538,7 @@
                     loadPendingCount();
                     await fetchUserInfo();
                 }
-                loadAllUsers();
+                loadAllUsers(); // refresh list
             });
         });
     }
@@ -664,11 +666,12 @@
         }
     }
 
-    // Video player with working controls (no dummy buttons)
+    // Video player with guaranteed audio (fallback to native volume)
     let currentVideo = null;
     let videoControlsTimeout = null;
     let audioContext = null;
     let gainNode = null;
+    let sourceConnected = false;
 
     function setupVideoControls(video) {
         if (!video) return;
@@ -718,32 +721,40 @@
         forward30.addEventListener('click', () => video.currentTime = Math.min(video.duration, video.currentTime + 30));
         seekSlider.addEventListener('input', () => { if (video.duration) video.currentTime = (seekSlider.value / 100) * video.duration; });
         
-        // Volume boost using Web Audio API (3x)
+        // Volume: use Web Audio for boost, fallback to native
         volumeSlider.addEventListener('input', async () => {
             let val = volumeSlider.value;
             volIcon.textContent = val == 0 ? '🔇' : val < 30 ? '🔉' : (val < 100 ? '🔊' : '🔊⬆');
-            if (!audioContext) {
+            if (audioContext && gainNode && sourceConnected) {
+                gainNode.gain.value = Math.min(val / 100, 3);
+            } else {
                 // Fallback: native volume (max 1.0)
                 video.volume = Math.min(val / 100, 1);
-            } else {
-                gainNode.gain.value = Math.min(val / 100, 3);
+                if (val > 100) toast('Volume boost limited to 100% because audio context not available', 'info');
             }
         });
-        // Initialize Web Audio on first play
+        // Initialize Web Audio on first play (user interaction required)
         video.addEventListener('play', async () => {
-            if (!audioContext) {
+            if (!audioContext && typeof AudioContext !== 'undefined') {
                 try {
-                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    audioContext = new AudioContext();
                     gainNode = audioContext.createGain();
                     gainNode.connect(audioContext.destination);
                     const source = audioContext.createMediaElementSource(video);
                     source.connect(gainNode);
-                    // set initial gain
+                    sourceConnected = true;
                     gainNode.gain.value = Math.min(volumeSlider.value / 100, 3);
                     if (audioContext.state === 'suspended') await audioContext.resume();
-                } catch(e) { console.warn("AudioContext error, falling back to native volume", e); }
+                } catch (e) {
+                    console.warn('AudioContext failed, using native volume', e);
+                    audioContext = null;
+                }
             }
         });
+        // Ensure audio context resumes on user click (required by browsers)
+        document.addEventListener('click', async () => {
+            if (audioContext && audioContext.state === 'suspended') await audioContext.resume();
+        }, { once: true });
         
         brightnessSlider.addEventListener('input', () => { video.style.filter = `brightness(${brightnessSlider.value / 100})`; });
         aspectSelect.addEventListener('change', () => {
@@ -763,7 +774,7 @@
         controlsDiv.addEventListener('mouseleave', showControls);
         showControls();
         
-        // initial volume fallback
+        // Set initial volume (native fallback)
         video.volume = Math.min(volumeSlider.value / 100, 1);
     }
 
@@ -811,7 +822,7 @@
         const controls = document.querySelector('.custom-video-controls');
         if (controls) controls.remove();
         if (videoControlsTimeout) clearTimeout(videoControlsTimeout);
-        if (audioContext) { audioContext.close(); audioContext = null; gainNode = null; }
+        if (audioContext) { audioContext.close(); audioContext = null; gainNode = null; sourceConnected = false; }
         currentVideo = null;
     }
     safeAddEvent(D.btnCloseP, 'click', closePreview);
@@ -944,7 +955,7 @@
         toast('Deleted');
     }
 
-    // Upload (single request, no double)
+    // Upload with double prevention
     let pendingPasteFiles = [];
     document.addEventListener('paste', (e) => {
         const items = e.clipboardData.items;
