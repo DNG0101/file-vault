@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>File Vault – Gallery</title>
     <style>
-        /* ========== CSS (modern gallery style) ========== */
         :root {
             --bg: #f8fafc;
             --card-bg: #ffffff;
@@ -63,8 +62,8 @@
         .card { background: var(--card-bg); border-radius: var(--radius); padding: 12px; box-shadow: var(--shadow); border: 1px solid var(--border); position: relative; transition: all 0.2s; display: flex; flex-direction: column; }
         .card.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
         .card-checkbox { position: absolute; top: 10px; right: 10px; width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; z-index: 2; }
-        .thumbnail { width: 100%; height: 160px; object-fit: cover; border-radius: 10px; margin-bottom: 10px; background: transparent; display: flex; align-items: center; justify-content: center; font-size: 3rem; overflow: hidden; }
-        .thumbnail img, .thumbnail video { width: 100%; height: 100%; object-fit: cover; }
+        .thumbnail { width: 100%; height: 160px; background: transparent; border-radius: 10px; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; font-size: 3rem; overflow: hidden; }
+        .thumbnail img, .thumbnail video { width: 100%; height: 100%; object-fit: cover; border-radius: 10px; background: transparent; }
         .file-name { font-weight: 600; word-break: break-word; margin-bottom: 6px; font-size: 0.9rem; }
         .file-meta { font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 10px; }
         .actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
@@ -73,8 +72,6 @@
         .btn-xs-preview { background: var(--purple); color: white; }
         .btn-xs-download { background: var(--success); color: white; }
         .btn-xs-delete { background: var(--danger); color: white; }
-        .btn-xs-replace { background: var(--warn); color: #222; }
-        .btn-xs-rename { background: #6c757d; color: white; }
         .btn-xs-copy { background: #0d6efd; color: white; }
         .comment-section { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 8px; font-size: 0.75rem; }
         .comment-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-weight: 600; cursor: pointer; }
@@ -88,7 +85,7 @@
         .comment-actions button { background: none; border: none; cursor: pointer; font-size: 0.7rem; margin-left: 4px; color: var(--text-secondary); }
         .comment-form { display: flex; gap: 6px; margin-top: 6px; }
         .comment-form input { flex: 1; padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--card-bg); color: var(--text); }
-        .tick-btn { background: none; border: none; cursor: pointer; font-size: 1.2rem; margin-right: 8px; padding: 0; }
+        .tick-btn { background: none; border: none; cursor: pointer; font-size: 1.2rem; margin-right: 4px; padding: 0; }
         .tick-count { font-size: 0.7rem; color: var(--text-secondary); margin-right: 8px; }
         .admin-bar, .panel { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; margin-bottom: 16px; }
         .panel { max-height: 500px; overflow-y: auto; }
@@ -100,7 +97,7 @@
         .preview-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 1000; display: flex; justify-content: center; align-items: center; flex-direction: column; }
         .preview-overlay.hidden { display: none; }
         .preview-container { width: 90%; height: 90%; display: flex; align-items: center; justify-content: center; }
-        .preview-container video, .preview-container audio { max-width: 100%; max-height: 100%; outline: none; }
+        .preview-container video, .preview-container audio { max-width: 100%; max-height: 100%; outline: none; background: #000; }
         .video-controls { position: absolute; bottom: 20px; left: 20px; background: rgba(0,0,0,0.6); padding: 8px 12px; border-radius: 8px; display: flex; gap: 10px; z-index: 1001; }
         .video-controls button { background: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; }
         .preview-toolbar { position: absolute; top: 20px; right: 20px; display: flex; gap: 10px; z-index: 1001; }
@@ -207,7 +204,6 @@
         // ==================== CONFIG ====================
         const WORKER_BASE = 'https://gdrive-files-api.donthulanithish53.workers.dev';
 
-        // Global lock
         let globalLock = false;
         async function withLock(fn) {
             while (globalLock) await new Promise(r => setTimeout(r, 50));
@@ -215,7 +211,6 @@
             try { return await fn(); } finally { globalLock = false; }
         }
 
-        // State
         let ST = {
             token: localStorage.getItem('vtoken'),
             email: null,
@@ -231,10 +226,8 @@
             shareToken: null,
         };
         let uploadingFiles = new Set();
-        let cardData = new Map(); // publicId -> { comments, ticked, count }
-        let pendingPasteFiles = []; // store pasted files until Send clicked
+        let pendingPasteFiles = [];
 
-        // DOM helpers
         const $ = id => document.getElementById(id);
         const D = {
             stats: $('storageStats'), userUI: $('userUI'), adminBar: $('adminBar'),
@@ -283,9 +276,9 @@
         const fmtSpeed = bytesPerSec => { if(bytesPerSec<1024) return bytesPerSec.toFixed(0)+' B/s'; if(bytesPerSec<1048576) return (bytesPerSec/1024).toFixed(1)+' KB/s'; return (bytesPerSec/1048576).toFixed(1)+' MB/s'; };
         const getThumbnailHtml = (mime, name, publicId) => {
             if (mime.startsWith('image')) {
-                return `<img src="${WORKER_BASE}/video/${publicId}?utoken=${ST.token}" style="width:100%; height:100%; object-fit:cover; border-radius:10px;">`;
+                return `<img src="${WORKER_BASE}/video/${publicId}?utoken=${ST.token}" style="width:100%; height:100%; object-fit:cover; border-radius:10px; background:transparent;">`;
             } else if (mime.startsWith('video')) {
-                return `<video src="${WORKER_BASE}/video/${publicId}?utoken=${ST.token}" style="width:100%; height:100%; object-fit:cover; border-radius:10px;" muted preload="metadata"></video>`;
+                return `<video src="${WORKER_BASE}/video/${publicId}?utoken=${ST.token}" style="width:100%; height:100%; object-fit:cover; border-radius:10px; background:transparent;" muted preload="metadata"></video>`;
             } else if (mime.startsWith('audio')) return '🎵';
             else if (mime === 'application/pdf') return '📕';
             else if (mime.startsWith('text')) return '📝';
@@ -392,7 +385,7 @@
             showMain(); applyRoleUI(); fetchFiles();
         }
 
-        // Admin panels (full functional)
+        // Admin panels (events attached later)
         function safeAddEvent(element, event, handler) { if(element) element.addEventListener(event, handler); }
 
         safeAddEvent(D.btnSync, 'click', async () => {
@@ -437,9 +430,8 @@
         safeAddEvent(D.addUserBtn, 'click', async () => {
             const email = D.newUserEmail.value.trim();
             if (!email) { toast('Enter email', 'error'); return; }
-            const role = 'full'; // default role
             await withLock(async () => {
-                const r = await fetch(`${WORKER_BASE}/admin/add-user`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({ email, role }) });
+                const r = await fetch(`${WORKER_BASE}/admin/add-user`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({ email, role: 'full' }) });
                 if (!r.ok) throw new Error();
                 toast(`User ${email} added`, 'success');
                 D.newUserEmail.value = '';
@@ -543,7 +535,7 @@
                 .then(d => { D.analyticsCt.innerHTML = `<p>Files: ${d.files.total} (${fmtSz(d.files.totalSize)}) | Users: ${d.users.total}</p>`; });
         }
 
-        // ==================== CORE FILE LOGIC ====================
+        // Core file logic
         async function fetchFiles() {
             await withLock(async () => {
                 const r = await fetch(`${WORKER_BASE}/list`, { headers:getAuthHeaders() });
@@ -555,54 +547,15 @@
         }
 
         async function loadCardData(publicId) {
-            const [commentsRes, tickRes] = await Promise.all([
-                fetch(`${WORKER_BASE}/comment/list?fileId=${publicId}`, { headers:getAuthHeaders() }),
-                fetch(`${WORKER_BASE}/tick/get?fileId=${publicId}`, { headers:getAuthHeaders() })
-            ]);
-            const comments = await commentsRes.json();
-            const tickData = await tickRes.json();
-            return { comments: comments.comments, ticked: tickData.ticked, count: tickData.count };
-        }
-
-        async function refreshCard(publicId) {
-            const card = document.querySelector(`.card[data-public-id="${publicId}"]`);
-            if (!card) return;
-            const newData = await loadCardData(publicId);
-            cardData.set(publicId, newData);
-            // Update tick button
-            const tickBtn = card.querySelector('.tick-btn');
-            if (tickBtn) tickBtn.innerHTML = newData.ticked ? '✅' : '☑️';
-            const tickCountSpan = card.querySelector('.tick-count');
-            if (tickCountSpan) tickCountSpan.textContent = newData.count;
-            // Update comment icon count
-            const commentIcon = card.querySelector('.comment-header .comment-count');
-            if (commentIcon) commentIcon.textContent = newData.comments.length;
-            // Update comment list
-            const commentList = card.querySelector('.comment-list');
-            if (commentList) {
-                commentList.innerHTML = newData.comments.map(c => `
-                    <div class="comment" data-comment-id="${c.id}">
-                        <span class="comment-text"><strong>${esc(c.user_email)}</strong> ${esc(c.text)}</span>
-                        <div class="comment-actions">
-                            ${c.user_email === ST.email || ST.isAdmin ? `<button class="delete-comment" data-id="${c.id}">🗑</button>` : ''}
-                        </div>
-                    </div>
-                `).join('');
-                commentList.querySelectorAll('.delete-comment').forEach(btn => {
-                    btn.addEventListener('click', async () => {
-                        if (!confirm('Delete this comment?')) return;
-                        const commentId = btn.dataset.id;
-                        await withLock(async () => {
-                            await fetch(`${WORKER_BASE}/comment/delete`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-                                body: JSON.stringify({ commentId })
-                            });
-                            await refreshCard(publicId);
-                        });
-                    });
-                });
-            }
+            try {
+                const [commentsRes, tickRes] = await Promise.all([
+                    fetch(`${WORKER_BASE}/comment/list?fileId=${publicId}`, { headers:getAuthHeaders() }),
+                    fetch(`${WORKER_BASE}/tick/get?fileId=${publicId}`, { headers:getAuthHeaders() })
+                ]);
+                const comments = await commentsRes.json();
+                const tickData = await tickRes.json();
+                return { comments: comments.comments || [], ticked: tickData.ticked || false, count: tickData.count || 0 };
+            } catch(e) { return { comments: [], ticked: false, count: 0 }; }
         }
 
         async function addComment(publicId, text) {
@@ -613,21 +566,68 @@
                     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
                     body: JSON.stringify({ fileId: publicId, text })
                 });
-                await refreshCard(publicId);
+                // Refresh only this card
+                const newData = await loadCardData(publicId);
+                updateCardData(publicId, newData);
             }).catch(e => toast('Comment failed', 'error'));
         }
 
+        async function deleteComment(commentId, publicId) {
+            await withLock(async () => {
+                await fetch(`${WORKER_BASE}/comment/delete`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+                    body: JSON.stringify({ commentId })
+                });
+                const newData = await loadCardData(publicId);
+                updateCardData(publicId, newData);
+            }).catch(e => toast('Delete comment failed', 'error'));
+        }
+
         async function toggleTick(publicId) {
-            const data = cardData.get(publicId);
-            if (!data) return;
+            const card = document.querySelector(`.card[data-public-id="${publicId}"]`);
+            if (!card) return;
+            const tickBtn = card.querySelector('.tick-btn');
+            const currentTicked = tickBtn?.innerHTML === '✅';
             await withLock(async () => {
                 await fetch(`${WORKER_BASE}/tick/set`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-                    body: JSON.stringify({ fileId: publicId, ticked: !data.ticked })
+                    body: JSON.stringify({ fileId: publicId, ticked: !currentTicked })
                 });
-                await refreshCard(publicId);
+                const newData = await loadCardData(publicId);
+                updateCardData(publicId, newData);
             }).catch(e => toast('Tick failed', 'error'));
+        }
+
+        function updateCardData(publicId, data) {
+            const card = document.querySelector(`.card[data-public-id="${publicId}"]`);
+            if (!card) return;
+            const tickBtn = card.querySelector('.tick-btn');
+            if (tickBtn) tickBtn.innerHTML = data.ticked ? '✅' : '☑️';
+            const tickCountSpan = card.querySelector('.tick-count');
+            if (tickCountSpan) tickCountSpan.textContent = data.count;
+            const commentCountSpan = card.querySelector('.comment-count');
+            if (commentCountSpan) commentCountSpan.textContent = data.comments.length;
+            const commentList = card.querySelector('.comment-list');
+            if (commentList) {
+                commentList.innerHTML = data.comments.map(c => `
+                    <div class="comment" data-comment-id="${c.id}">
+                        <span class="comment-text"><strong>${esc(c.user_email)}</strong> ${esc(c.text)}</span>
+                        <div class="comment-actions">
+                            ${c.user_email === ST.email || ST.isAdmin ? `<button class="delete-comment" data-id="${c.id}">🗑</button>` : ''}
+                        </div>
+                    </div>
+                `).join('');
+                commentList.querySelectorAll('.delete-comment').forEach(btn => {
+                    btn.addEventListener('click', async (e) => {
+                        e.stopPropagation();
+                        if (!confirm('Delete this comment?')) return;
+                        const commentId = btn.dataset.id;
+                        await deleteComment(commentId, publicId);
+                    });
+                });
+            }
         }
 
         function renderFiles() {
@@ -654,7 +654,7 @@
                 const section = document.createElement('div'); section.className = 'file-section';
                 section.innerHTML = `<div class="section-title">📤 ${esc(uploader)} <span>${files.length}</span></div><div class="file-grid"></div>`;
                 const gridDiv = section.querySelector('.file-grid');
-                files.forEach(f => {
+                for (const f of files) {
                     const actions = getFileActions(f.publicId);
                     const upBy = f.uploadedBy ? `<div style="font-size:0.7rem; color:var(--text-secondary); margin-bottom:4px;">📤 ${f.uploadedBy}</div>` : '';
                     const thumbnailHtml = getThumbnailHtml(f.mimeType, f.name, f.publicId);
@@ -671,8 +671,6 @@
                             ${actions.includes('play') ? `<button class="btn-xs btn-xs-play" data-action="play" data-id="${f.publicId}">▶ Play</button>` : ''}
                             ${actions.includes('preview') ? `<button class="btn-xs btn-xs-preview" data-action="preview" data-id="${f.publicId}">🔍 Preview</button>` : ''}
                             ${actions.includes('download') ? `<button class="btn-xs btn-xs-download" data-action="download" data-id="${f.publicId}">⬇ Download</button>` : ''}
-                            ${actions.includes('rename') ? `<button class="btn-xs btn-xs-rename" data-action="rename" data-id="${f.publicId}">✏️ Rename</button>` : ''}
-                            ${actions.includes('replace') ? `<button class="btn-xs btn-xs-replace" data-action="replace" data-id="${f.publicId}">🔄 Replace</button>` : ''}
                             ${actions.includes('delete') ? `<button class="btn-xs btn-xs-delete" data-action="delete" data-id="${f.publicId}">🗑 Delete</button>` : ''}
                             <button class="btn-xs btn-xs-copy" data-action="copy" data-id="${f.publicId}" data-name="${esc(f.name)}">📋 Copy</button>
                             <button class="tick-btn" data-action="tick" data-id="${f.publicId}"></button>
@@ -694,40 +692,18 @@
                     // Load data asynchronously
                     (async () => {
                         const data = await loadCardData(f.publicId);
-                        cardData.set(f.publicId, data);
-                        const tickBtn = card.querySelector('.tick-btn');
-                        if (tickBtn) tickBtn.innerHTML = data.ticked ? '✅' : '☑️';
-                        const tickCountSpan = card.querySelector('.tick-count');
-                        if (tickCountSpan) tickCountSpan.textContent = data.count;
-                        const commentCountSpan = card.querySelector('.comment-count');
-                        if (commentCountSpan) commentCountSpan.textContent = data.comments.length;
-                        const commentList = card.querySelector('.comment-list');
-                        if (commentList) {
-                            commentList.innerHTML = data.comments.map(c => `
-                                <div class="comment" data-comment-id="${c.id}">
-                                    <span class="comment-text"><strong>${esc(c.user_email)}</strong> ${esc(c.text)}</span>
-                                    <div class="comment-actions">
-                                        ${c.user_email === ST.email || ST.isAdmin ? `<button class="delete-comment" data-id="${c.id}">🗑</button>` : ''}
-                                    </div>
-                                </div>
-                            `).join('');
-                            commentList.querySelectorAll('.delete-comment').forEach(btn => {
-                                btn.addEventListener('click', async () => {
-                                    if (!confirm('Delete this comment?')) return;
-                                    const commentId = btn.dataset.id;
-                                    await withLock(async () => {
-                                        await fetch(`${WORKER_BASE}/comment/delete`, {
-                                            method: 'POST',
-                                            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-                                            body: JSON.stringify({ commentId })
-                                        });
-                                        await refreshCard(f.publicId);
-                                    });
-                                });
+                        updateCardData(f.publicId, data);
+                        // Attach comment header toggle
+                        const header = card.querySelector('.comment-header');
+                        if (header) {
+                            header.addEventListener('click', () => {
+                                const list = card.querySelector('.comment-list');
+                                if (list) list.classList.toggle('show');
                             });
                         }
-                        const commentInput = card.querySelector('.comment-form input');
+                        // Attach post comment button
                         const postBtn = card.querySelector('.post-comment');
+                        const commentInput = card.querySelector('.comment-form input');
                         if (postBtn) {
                             postBtn.addEventListener('click', async () => {
                                 const text = commentInput.value;
@@ -737,16 +713,8 @@
                                 }
                             });
                         }
-                        // Comment header toggle
-                        const header = card.querySelector('.comment-header');
-                        if (header) {
-                            header.addEventListener('click', () => {
-                                const list = card.querySelector('.comment-list');
-                                if (list) list.classList.toggle('show');
-                            });
-                        }
                     })();
-                });
+                }
                 D.grid.appendChild(section);
             }
             attachEvents();
@@ -754,7 +722,7 @@
         }
 
         function getFileActions(pid) {
-            if (ST.isAdmin) return ['play','preview','download','rename','replace','delete'];
+            if (ST.isAdmin) return ['play','preview','download','delete'];
             if (!ST.role) return [];
             const f = ST.files.find(f => f.publicId === pid);
             if (!f) return [];
@@ -798,7 +766,7 @@
             const name = btn.dataset.name;
             const id = btn.dataset.id;
             const textToCopy = `File: ${name}\nPublic ID: ${id}\nDownload: ${getDownloadUrl(id)}`;
-            navigator.clipboard.writeText(textToCopy).then(() => toast('File info copied to clipboard', 'success')).catch(() => toast('Copy failed', 'error'));
+            navigator.clipboard.writeText(textToCopy).then(() => toast('File info copied', 'success')).catch(() => toast('Copy failed', 'error'));
         }
         function actionHandler(e) { e.stopPropagation(); const action = e.currentTarget.dataset.action, id = e.currentTarget.dataset.id; if (action && action !== 'tick') fileAction(action, id); }
         function cardClickHandler(e) { if (e.target.classList.contains('card-checkbox') || e.target.closest('.actions')) return; const cb = this.querySelector('.card-checkbox'); if (cb) toggleSelect(cb.dataset.id, !cb.checked); }
@@ -810,8 +778,6 @@
                 case 'preview': openPreview(id, prevType(ST.files.find(f=>f.publicId===id)?.mimeType)); break;
                 case 'download': window.open(getDownloadUrl(id), '_blank'); break;
                 case 'delete': deleteFile(id); break;
-                case 'replace': replaceFile(id); break;
-                case 'rename': renameFile(id); break;
             }
         }
         async function deleteFile(pid) {
@@ -822,35 +788,8 @@
                 else throw new Error();
             }).catch(() => toast('Delete failed', 'error'));
         }
-        function replaceFile(pid) {
-            const inp = document.createElement('input'); inp.type = 'file';
-            inp.onchange = async () => {
-                const file = inp.files[0];
-                if (!file) return;
-                await withLock(async () => {
-                    const init = await fetch(`${WORKER_BASE}/update`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({publicId:pid,fileName:file.name,fileSize:file.size,fileType:file.type||'application/octet-stream'}) });
-                    if (!init.ok) { toast('Replace init failed','error'); return; }
-                    const data = await init.json();
-                    const replacePublicId = data.publicId;
-                    await uploadFile(file, replacePublicId);
-                    await fetchFiles();
-                });
-            };
-            inp.click();
-        }
-        async function renameFile(pid) {
-            const f = ST.files.find(f => f.publicId === pid);
-            if (!f) return;
-            const newName = prompt('New name:', f.name);
-            if (!newName || newName === f.name) return;
-            await withLock(async () => {
-                const r = await fetch(`${WORKER_BASE}/rename`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({publicId:pid,newName}) });
-                if (r.ok) { await fetchFiles(); toast('Renamed'); }
-                else throw new Error();
-            }).catch(() => toast('Rename failed', 'error'));
-        }
 
-        // Upload (supports multiple files from paste -> send)
+        // Upload
         async function uploadFile(file, existingPid = null) {
             const fileKey = existingPid || file.name + file.size + file.lastModified;
             if (uploadingFiles.has(fileKey)) { toast(`${file.name} already uploading.`, 'info'); return; }
@@ -928,8 +867,7 @@
         const sleep = ms => new Promise(r => setTimeout(r, ms));
         safeAddEvent(D.cancelBtn, 'click', () => { if (ST.uploadCtrl) { ST.uploadCtrl.abort(); ST.uploadCtrl = null; if (D.progBox) D.progBox.classList.add('hidden'); } });
 
-        // Paste & Send Box: accumulate pasted files, upload on Send click
-        let pendingPasteFiles = [];
+        // Paste & Send
         document.addEventListener('paste', (e) => {
             const items = e.clipboardData.items;
             for (let i = 0; i < items.length; i++) {
@@ -956,7 +894,7 @@
             toast('All pasted files uploaded.', 'success');
         });
 
-        // Preview with custom video controls (30s skip, volume boost)
+        // Preview
         let currentVideo = null;
         function openPreview(pid, type) {
             if (!D.prevCont) return;
@@ -968,15 +906,13 @@
                 D.prevCont.appendChild(video);
                 currentVideo = video;
                 D.videoControls.style.display = 'flex';
-                // Attach custom controls
                 D.back30.onclick = () => { if (video) video.currentTime -= 30; };
                 D.forward30.onclick = () => { if (video) video.currentTime += 30; };
                 D.volumeBoost.oninput = () => {
                     if (video) {
                         const val = parseInt(D.volumeBoost.value,10);
                         D.volPercent.textContent = val+'%';
-                        video.volume = Math.min(val / 100, 1); // boost beyond 100% not possible without Web Audio, but we show percentage
-                        if (val > 100) toast('Volume boost beyond 100% may not work', 'info');
+                        video.volume = Math.min(val / 100, 1);
                     }
                 };
             } else if (type === 'audio') {
@@ -1013,7 +949,7 @@
             if (hint) hint.style.display = canUpload ? '' : 'none';
         }
 
-        // Share preview (simplified)
+        // Share preview
         async function showSharePreview() {
             const res = await fetch(`${WORKER_BASE}/share/verify?token=${ST.shareToken}`);
             if (!res.ok) { toast('Invalid or expired share link', 'error'); showLogin(); return; }
