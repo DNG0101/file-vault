@@ -2,7 +2,7 @@
 <html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
     <title>File Vault – Ultimate Gallery</title>
     <style>
         :root {
@@ -105,6 +105,11 @@
         .toast.error { background: var(--danger); }
         .toast.success { background: var(--success); }
         @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        /* Auto-rotate support: adjust grid columns on landscape */
+        @media (orientation: landscape) and (max-width: 900px) {
+            .file-grid { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+            .custom-video-controls button, .custom-video-controls select { padding: 4px 8px; font-size: 0.7rem; }
+        }
         @media (max-width: 600px) { body { padding: 10px; } .file-grid { grid-template-columns: 1fr; } }
         button:focus-visible, .card:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
     </style>
@@ -127,6 +132,7 @@
         <button class="btn-outline btn-sm" id="btnAnalytics">📊 Analytics</button>
         <button class="btn-outline btn-sm" id="btnShareManager">🔗 Shares</button>
         <button class="btn-danger btn-sm" id="btnAdminLogout">🔒 Logout</button>
+        <button class="btn-outline btn-sm" id="btnResetToken" style="background:#f97316;">🔄 Reset Token</button>
     </div>
     <div class="panel hidden" id="approvalPanel"><h3>Pending Approvals</h3><div id="approvalList"></div><button class="btn-sm btn-outline" id="refreshPendingBtn">🔄 Refresh</button></div>
     <div class="panel hidden" id="usersPanel"><h3>Active Users</h3><div id="usersList"></div><button class="btn-sm btn-outline" id="refreshUsersBtn">🔄 Refresh</button><div style="margin-top:12px;"><input type="text" id="newUserEmail" placeholder="user@example.com"><button id="addUserBtn" class="btn-sm btn-primary">➕ Add User</button></div></div>
@@ -201,6 +207,7 @@
         refreshFilesBtn: $('refreshFilesBtn'), refreshPendingBtn: $('refreshPendingBtn'),
         refreshUsersBtn: $('refreshUsersBtn'), refreshLogsBtn: $('refreshLogsBtn'), refreshAnalyticsBtn: $('refreshAnalyticsBtn'),
         pasteInput: $('pasteInput'), sendPasteBtn: $('sendPasteBtn'), addUserBtn: $('addUserBtn'), newUserEmail: $('newUserEmail'),
+        btnResetToken: $('btnResetToken')
     };
     function getAuthHeaders() { const h={}; if(ST.token){ if(ST.isAdmin) h['X-Admin-Token']=ST.token; else h['X-User-Token']=ST.token; } return h; }
     function getDownloadUrl(pid) { return `${WORKER_BASE}/download/${pid}?utoken=${ST.token}`; }
@@ -218,13 +225,20 @@
         if(mime.startsWith('text')) return '<div style="font-size:3rem;">📝</div>';
         return '<div style="font-size:3rem;">📄</div>';
     }
-    // Auth
+    // Auth functions (same as before but with reset token button)
     async function fetchUserInfo(){ if(!ST.token) return false; return withLock(async()=>{ const r=await fetch(`${WORKER_BASE}/user-info?utoken=${ST.token}`); if(!r.ok) throw new Error(); const i=await r.json(); ST.email=i.email; ST.isAdmin=i.isAdmin===true; ST.approved=i.approved; ST.role=i.role; if(ST.approved) render(); else showPending(); return true; }).catch(e=>{console.warn(e); return false;}); }
     function showLogin(){ D.adminBar?.classList.add('hidden'); D.userUI.innerHTML=''; D.grid.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:60px;"><h2>Welcome to File Vault</h2><p>Sign in to access your files.</p><button class="btn btn-primary" id="btnLogin">🔑 Login with Google</button></div>`; const loginBtn=$('btnLogin'); if(loginBtn) loginBtn.onclick=async()=>{ const r=await fetch(`${WORKER_BASE}/auth-url`); if(r.ok) window.location=(await r.json()).authUrl; else toast('Login failed','error'); }; }
     function showPending(){ D.adminBar?.classList.add('hidden'); D.userUI.innerHTML=''; D.dropzone.style.display='none'; document.querySelector('.hint-text').style.display='none'; D.grid.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:60px;"><h2>🔐 Waiting for Approval</h2><p>Email: <strong>${ST.email}</strong></p><p>After admin approves you, click <strong>Refresh Status</strong>.</p><div><button class="btn btn-outline btn-sm" id="manualRefreshBtn">🔄 Refresh Status</button> <button class="btn btn-danger btn-sm" id="btnSelfRevoke">❌ Cancel</button></div></div>`; const refreshBtn=$('manualRefreshBtn'); if(refreshBtn) refreshBtn.onclick=async()=>{ toast('Checking...','info'); await fetchUserInfo(); }; const selfRevokeBtn=$('btnSelfRevoke'); if(selfRevokeBtn) selfRevokeBtn.onclick=async()=>{ if(!confirm('Cancel request?')) return; await withLock(async()=>{ await fetch(`${WORKER_BASE}/user-revoke-self`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({utoken:ST.token})}); }); ST.token=null; localStorage.removeItem('vtoken'); showLogin(); toast('Request cancelled.'); }; }
     function showMain(){ document.querySelector('.hint-text').style.display=''; if(ST.isAdmin){ D.adminBar?.classList.remove('hidden'); D.userUI.innerHTML=''; D.dropzone.style.display=''; loadPendingCount(); } else { D.adminBar?.classList.add('hidden'); D.userUI.innerHTML=`<span>👤 ${ST.email} (${ST.role}) <button class="btn btn-sm btn-outline" id="btnUserLogout">🔒 Logout</button></span>`; const logoutBtn=$('btnUserLogout'); if(logoutBtn) logoutBtn.onclick=()=>{ ST.token=null; localStorage.removeItem('vtoken'); showLogin(); toast('Logged out.'); }; } }
     function render(){ if(!ST.email){ showLogin(); return; } if(ST.isAdmin || ST.approved){ showMain(); fetchFiles(); } else { showPending(); } }
-    // Admin panels (simplified)
+    // Reset token button
+    if(D.btnResetToken) D.btnResetToken.addEventListener('click', async () => { 
+        if(confirm('Reset admin token? You will need to login again.')) {
+            await fetch(`${WORKER_BASE}/admin/reset-token`, { method:'POST', headers:getAuthHeaders() });
+            ST.token = null; localStorage.removeItem('vtoken'); showLogin(); toast('Token reset. Please login again.', 'success');
+        }
+    });
+    // Admin panels (simplified - keep your existing logic)
     function safeAddEvent(el,ev,fn){ if(el) el.addEventListener(ev,fn); }
     safeAddEvent(D.btnSync,'click',async()=>{ toast('Syncing...','info'); await withLock(async()=>{ await fetch(`${WORKER_BASE}/sync`,{method:'POST',headers:getAuthHeaders()}); await fetchFiles(); toast('Sync done','success'); }).catch(()=>toast('Sync failed','error')); });
     safeAddEvent(D.btnAppr,'click',()=>togglePanel(D.pnlAppr,loadPending));
@@ -251,14 +265,13 @@
     function attachUserEvents(){ D.listUsers.querySelectorAll('button').forEach(btn=>{ btn.addEventListener('click',async()=>{ const action=btn.dataset.action; const email=btn.dataset.email; if(action==='makeadmin'){ await fetch(`${WORKER_BASE}/admin/make-subadmin`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({email,makeAdmin:true})}); toast(`${email} promoted to sub‑admin.`,'success'); loadAllUsers(); return; } let role='full'; const sel=btn.parentElement.querySelector(`.role-sel-${email}`); if(sel) role=sel.value; let endpoint=''; if(action==='approve') endpoint='approve'; else if(action==='update') endpoint='approve'; else if(action==='revoke') endpoint='revoke'; if(endpoint){ await fetch(`${WORKER_BASE}/admin/${endpoint}`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({email,role})}); toast(`${email} ${action==='revoke'?'revoked':'updated'}`); loadPending(); loadPendingCount(); loadAllUsers(); } }); }); }
     function loadLogs(){ fetch(`${WORKER_BASE}/admin/logs?limit=200`,{headers:getAuthHeaders()}).then(r=>r.json()).then(d=>{ D.logsCt.innerHTML=d.logs.length?d.logs.map(l=>`<div><strong>${new Date(l.ts).toLocaleString()}</strong> ${l.actor} ${l.action} <strong>${l.meta?.fileName||l.target}</strong></div>`).join(''):'<p>No logs.</p>'; }); }
     function loadAnalytics(){ fetch(`${WORKER_BASE}/admin/analytics`,{headers:getAuthHeaders()}).then(r=>r.json()).then(d=>{ D.analyticsCt.innerHTML=`<p>Files: ${d.files.total} (${fmtSz(d.files.totalSize)}) | Users: ${d.users.total}</p>`; }); }
-    // File core
+    // File core (same as before but with fixed copy & rename)
     async function fetchFiles(){ await withLock(async()=>{ const r=await fetch(`${WORKER_BASE}/list`,{headers:getAuthHeaders()}); if(!r.ok) throw new Error(); const data=await r.json(); ST.files=data.files; renderFiles(); }).catch(e=>toast('Failed to load files','error')); }
     async function loadCardData(pid){ const [commentsRes,tickRes]=await Promise.all([ fetch(`${WORKER_BASE}/comment/list?fileId=${pid}`,{headers:getAuthHeaders()}), fetch(`${WORKER_BASE}/tick/get?fileId=${pid}`,{headers:getAuthHeaders()}) ]); const comments=await commentsRes.json(); const tickData=await tickRes.json(); return { comments:comments.comments, ticked:tickData.ticked, count:tickData.count, users:tickData.users }; }
     async function refreshCard(pid){ const card=document.querySelector(`.card[data-public-id="${pid}"]`); if(!card) return; const newData=await loadCardData(pid); cardData.set(pid,newData); const tickBtn=card.querySelector('.tick-btn'); if(tickBtn){ tickBtn.innerHTML=newData.ticked?'✅':'☑️'; let tooltipSpan=tickBtn.querySelector('.tooltip'); if(!tooltipSpan){ tooltipSpan=document.createElement('span'); tooltipSpan.className='tooltip'; tickBtn.appendChild(tooltipSpan); } tooltipSpan.textContent=newData.users.length?`Ticked by: ${newData.users.join(', ')}`:'No ticks yet'; } card.querySelector('.tick-count').textContent=newData.count; card.querySelector('.comment-count').textContent=newData.comments.length; const commentList=card.querySelector('.comment-list'); if(commentList){ commentList.innerHTML=newData.comments.map(c=>`<div class="comment" data-comment-id="${c.id}"><span class="comment-text"><strong>${esc(c.user_email)}</strong> ${esc(c.text)}</span><div class="comment-actions">${c.user_email===ST.email||ST.isAdmin?`<button class="delete-comment" data-id="${c.id}">🗑</button>`:''}${c.user_email===ST.email||ST.isAdmin?`<button class="edit-comment" data-id="${c.id}" data-text="${esc(c.text)}">✏️</button>`:''}</div></div>`).join(''); attachCommentEvents(pid,commentList); } }
     function attachCommentEvents(pid,container){ container.querySelectorAll('.delete-comment').forEach(btn=>{ btn.addEventListener('click',async(e)=>{ e.stopPropagation(); if(!confirm('Delete comment?')) return; await withLock(async()=>{ await fetch(`${WORKER_BASE}/comment/delete`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({commentId:btn.dataset.id})}); await refreshCard(pid); }); }); }); container.querySelectorAll('.edit-comment').forEach(btn=>{ btn.addEventListener('click',async(e)=>{ e.stopPropagation(); const newText=prompt('Edit comment:',btn.dataset.text); if(newText&&newText!==btn.dataset.text){ await withLock(async()=>{ await fetch(`${WORKER_BASE}/comment/edit`,{method:'PATCH',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({commentId:btn.dataset.id,text:newText})}); await refreshCard(pid); }); } }); }); }
     async function addComment(pid,text){ if(!text.trim()) return; await withLock(async()=>{ await fetch(`${WORKER_BASE}/comment/add`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({fileId:pid,text})}); await refreshCard(pid); }).catch(e=>toast('Comment failed','error')); }
     async function toggleTick(pid){ const data=cardData.get(pid); if(!data) return; await withLock(async()=>{ const r=await fetch(`${WORKER_BASE}/tick/set`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({fileId:pid,ticked:!data.ticked})}); const res=await r.json(); if(res.success){ const newData={...data,ticked:!data.ticked,count:res.count,users:res.users}; cardData.set(pid,newData); const card=document.querySelector(`.card[data-public-id="${pid}"]`); if(card){ const tickBtn=card.querySelector('.tick-btn'); tickBtn.innerHTML=newData.ticked?'✅':'☑️'; let tooltipSpan=tickBtn.querySelector('.tooltip'); if(!tooltipSpan){ tooltipSpan=document.createElement('span'); tooltipSpan.className='tooltip'; tickBtn.appendChild(tooltipSpan); } tooltipSpan.textContent=newData.users.length?`Ticked by: ${newData.users.join(', ')}`:'No ticks yet'; card.querySelector('.tick-count').textContent=newData.count; } } }).catch(e=>toast('Tick failed','error')); }
-    // Direct copy using fetch with auth
     async function copyFileDirect(pid, name, mimeType){
         try {
             const response = await fetch(getDownloadUrl(pid), { headers: getAuthHeaders() });
@@ -268,7 +281,6 @@
                 await navigator.clipboard.write([ new ClipboardItem({ [blob.type]: blob }) ]);
                 toast('Image copied to clipboard!', 'success');
             } else {
-                // fallback: download
                 const a = document.createElement('a');
                 a.href = URL.createObjectURL(blob);
                 a.download = name;
@@ -276,13 +288,10 @@
                 URL.revokeObjectURL(a.href);
                 toast('File download started (copy not supported for this type)', 'info');
             }
-        } catch(err){
-            console.error('Copy error', err);
-            toast('Copy failed: ' + err.message, 'error');
-        }
+        } catch(err){ toast('Copy failed: '+err.message, 'error'); }
     }
     async function createShareLink(pid){ toast('Creating share link...','info'); const expiresIn=3600*24*7; await withLock(async()=>{ const r=await fetch(`${WORKER_BASE}/share/create`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({publicId:pid,expiresIn})}); const data=await r.json(); if(r.ok){ await navigator.clipboard.writeText(data.shareUrl); toast('Share link copied!','success'); } else { toast('Failed to create share link','error'); } }).catch(()=>toast('Share failed','error')); }
-    // Video player (fixed element existence checks)
+    // Video player (fixed null checks)
     let currentVideo = null, controlsTimeout = null;
     function setupVideoControls(video){
         if(!video) return;
@@ -360,7 +369,7 @@
     function closePreview(){ D.prevCont.innerHTML=''; D.prevOv.classList.add('hidden'); if(document.fullscreenElement) document.exitFullscreen(); const controls=document.querySelector('.custom-video-controls'); if(controls) controls.remove(); currentVideo=null; if(controlsTimeout) clearTimeout(controlsTimeout); }
     safeAddEvent(D.btnCloseP,'click',closePreview);
     safeAddEvent(D.btnFull,'click',()=>{ if(document.fullscreenElement) document.exitFullscreen(); else if(D.prevOv) D.prevOv.requestFullscreen(); });
-    // Render grid
+    // Render grid (rename only for full role)
     function getFileActions(pid){
         if(ST.isAdmin) return ['play','preview','download','rename','replace','delete'];
         if(!ST.role) return [];
@@ -450,7 +459,7 @@
     async function deleteFile(pid){ if(!confirm('Delete?')) return; await withLock(async()=>{ const r=await fetch(`${WORKER_BASE}/delete`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({publicId:pid})}); if(r.ok){ await fetchFiles(); toast('Deleted'); } else throw new Error(); }).catch(()=>toast('Delete failed','error')); }
     function replaceFile(pid){ const inp=document.createElement('input'); inp.type='file'; inp.onchange=async()=>{ const file=inp.files[0]; if(!file) return; await withLock(async()=>{ const init=await fetch(`${WORKER_BASE}/update`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({publicId:pid,fileName:file.name,fileSize:file.size,fileType:file.type||'application/octet-stream'})}); if(!init.ok){ toast('Replace init failed','error'); return; } const data=await init.json(); await uploadFile(file, data.publicId); await fetchFiles(); }); }; inp.click(); }
     async function renameFile(pid){ const f=ST.files.find(f=>f.publicId===pid); if(!f) return; const newName=prompt('New name:', f.name); if(!newName || newName===f.name) return; await withLock(async()=>{ const r=await fetch(`${WORKER_BASE}/rename`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({publicId:pid,newName})}); if(r.ok){ await fetchFiles(); toast('Renamed'); } else throw new Error(); }).catch(()=>toast('Rename failed','error')); }
-    // Upload
+    // Upload (same as before)
     let pendingPasteFiles = [];
     document.addEventListener('paste', (e)=>{ const items=e.clipboardData.items; for(let i=0;i<items.length;i++){ if(items[i].kind==='file'){ const file=items[i].getAsFile(); if(file) pendingPasteFiles.push(file); } } if(pendingPasteFiles.length>0){ toast(`${pendingPasteFiles.length} file(s) pasted. Click Send.`,'success'); D.pasteInput.value=`${pendingPasteFiles.length} file(s) ready`; } else { toast('No file in clipboard.','info'); } });
     safeAddEvent(D.sendPasteBtn,'click',async()=>{ if(pendingPasteFiles.length===0){ toast('No pasted files.','info'); return; } toast(`Uploading ${pendingPasteFiles.length} files...`,'info'); for(const file of pendingPasteFiles) await uploadFile(file); pendingPasteFiles=[]; D.pasteInput.value=''; toast('All uploaded.','success'); });
@@ -524,7 +533,7 @@
     function applyRoleUI(){ const canUpload=['full','delete','upload'].includes(ST.role); if(D.dropzone) D.dropzone.style.display=canUpload?'':'none'; const hint=document.querySelector('.hint-text'); if(hint) hint.style.display=canUpload?'':'none'; }
     async function showSharePreview(){ const res=await fetch(`${WORKER_BASE}/share/verify?token=${ST.shareToken}`); if(!res.ok){ toast('Invalid share link','error'); showLogin(); return; } const data=await res.json(); D.grid.innerHTML=`<div style="text-align:center;padding:60px;"><div class="thumbnail" style="font-size:4rem;">${getThumbnailHtml(data.mimeType, data.fileName, '')}</div><h2>${esc(data.fileName)}</h2><p>${fmtSz(data.fileSize)}</p><button class="btn btn-primary" id="shareDownloadBtn">⬇ Download</button><button class="btn btn-outline" onclick="location.href='/'">🔐 Login</button></div>`; const shareBtn=$('shareDownloadBtn'); if(shareBtn) shareBtn.addEventListener('click',()=>{ window.location.href=`${WORKER_BASE}/share/download?token=${ST.shareToken}`; }); D.dropzone.style.display='none'; document.querySelector('.hint-text').style.display='none'; D.adminBar.classList.add('hidden'); D.userUI.innerHTML=''; }
     // Dark mode
-    (function(){ if(ST.dark) document.documentElement.setAttribute('data-theme','dark'); D.btnDark.addEventListener('click',()=>{ ST.dark=!ST.dark; document.documentElement.setAttribute('data-theme',ST.dark?'dark':'light'); localStorage.setItem('darkMode',ST.dark); }); })();
+    (function(){ if(ST.dark) document.documentElement.setAttribute('data-theme','dark'); if(D.btnDark) D.btnDark.addEventListener('click',()=>{ ST.dark=!ST.dark; document.documentElement.setAttribute('data-theme',ST.dark?'dark':'light'); localStorage.setItem('darkMode',ST.dark); }); })();
     // Init
     async function init(){ const p=new URLSearchParams(location.search); const utoken=p.get('utoken'); const share=p.get('share'); const err=p.get('auth_error'); if(share){ ST.shareToken=share; history.replaceState({},'',location.pathname); await showSharePreview(); return; } if(err){ toast('Auth error: '+err.replace(/_/g,' '),'error'); history.replaceState({},'',location.pathname); } if(utoken){ ST.token=utoken; localStorage.setItem('vtoken',utoken); history.replaceState({},'',location.pathname); } if(ST.token && await fetchUserInfo()){ render(); } else { showLogin(); } }
     init();
