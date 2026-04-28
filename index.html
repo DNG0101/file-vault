@@ -3,13 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
-    <title>File Vault – Ultimate Edition</title>
+    <title>File Vault – Ultimate Gallery</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
             --bg: #f8fafc;
             --card-bg: #ffffff;
@@ -95,7 +91,7 @@
         .preview-toolbar { position: absolute; top: 20px; right: 20px; display: flex; gap: 10px; z-index: 1001; }
         .preview-toolbar button { background: rgba(0,0,0,0.6); border: none; color: white; padding: 8px 16px; border-radius: 8px; cursor: pointer; }
         #toastContainer { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
-        .toast { background: var(--toast-bg, #1e293b); color: white; padding: 8px 16px; border-radius: 8px; animation: slideIn 0.3s ease; }
+        .toast { background: #1e293b; color: white; padding: 8px 16px; border-radius: 8px; animation: slideIn 0.3s ease; }
         .toast.error { background: var(--danger); }
         .toast.success { background: var(--success); }
         @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
@@ -163,28 +159,24 @@
         shareToken: null,
         pendingCheckInterval: null
     };
-    let uploadingKeys = new Set(); // simple set of file keys to prevent double upload
-    let activeUploadControllers = new Map(); // key -> AbortController
+    let activeUploads = new Map(); // key -> AbortController
+    let uploadingKeys = new Set();  // simple set to prevent double upload
     let cardData = new Map();
 
     const $ = id => document.getElementById(id);
     const D = {
-        stats: $('storageStats'), userUI: $('userUI'), adminBar: $('adminBar'),
-        dropzone: $('dropzone'), fileInp: $('fileInput'), uploadProgressList: $('uploadProgressList'),
-        grid: $('fileGrid'), prevOv: $('previewOverlay'), prevCont: $('previewContainer'),
-        btnFull: $('btnFullscreen'), btnCloseP: $('btnClosePreview'), search: $('searchInput'),
-        sortSel: $('sortSelect'), bulkBar: $('bulkBar'), bulkCnt: $('bulkCount'), toastBox: $('toastContainer'),
-        btnDark: $('btnDarkMode'), btnSync: $('btnSync'), btnAppr: $('btnApprovals'),
-        btnAllUsers: $('btnAllUsers'), btnLogs: $('btnLogs'), btnAnalytics: $('btnAnalytics'),
-        btnUnAuth: $('btnAdminLogout'), pnlAppr: $('approvalPanel'), listAppr: $('approvalList'),
-        pnlUsers: $('usersPanel'), listUsers: $('usersList'), pnlLogs: $('logsPanel'), logsCt: $('logsContent'),
-        pnlAnalytics: $('analyticsPanel'), analyticsCt: $('analyticsContent'),
-        pendingBadge: $('pendingBadge'), btnClearLogs: $('btnClearLogs'),
-        btnBulkDelete: $('btnBulkDelete'), btnBulkCancel: $('btnBulkCancel'),
-        refreshFilesBtn: $('refreshFilesBtn'), refreshPendingBtn: $('refreshPendingBtn'),
-        refreshUsersBtn: $('refreshUsersBtn'), refreshLogsBtn: $('refreshLogsBtn'), refreshAnalyticsBtn: $('refreshAnalyticsBtn'),
-        pasteInput: $('pasteInput'), sendPasteBtn: $('sendPasteBtn'), addUserBtn: $('addUserBtn'), newUserEmail: $('newUserEmail'),
-        btnResetToken: $('btnResetToken')
+        userUI: $('userUI'), adminBar: $('adminBar'), dropzone: $('dropzone'), fileInp: $('fileInput'),
+        uploadProgressList: $('uploadProgressList'), grid: $('fileGrid'), prevOv: $('previewOverlay'),
+        prevCont: $('previewContainer'), btnFull: $('btnFullscreen'), btnCloseP: $('btnClosePreview'),
+        search: $('searchInput'), sortSel: $('sortSelect'), bulkBar: $('bulkBar'), bulkCnt: $('bulkCount'),
+        toastBox: $('toastContainer'), btnDark: $('btnDarkMode'), btnSync: $('btnSync'), btnAppr: $('btnApprovals'),
+        btnAllUsers: $('btnAllUsers'), btnLogs: $('btnLogs'), btnAnalytics: $('btnAnalytics'), btnUnAuth: $('btnAdminLogout'),
+        pnlAppr: $('approvalPanel'), listAppr: $('approvalList'), pnlUsers: $('usersPanel'), listUsers: $('usersList'),
+        pnlLogs: $('logsPanel'), logsCt: $('logsContent'), pnlAnalytics: $('analyticsPanel'), analyticsCt: $('analyticsContent'),
+        pendingBadge: $('pendingBadge'), btnClearLogs: $('btnClearLogs'), btnBulkDelete: $('btnBulkDelete'), btnBulkCancel: $('btnBulkCancel'),
+        refreshFilesBtn: $('refreshFilesBtn'), refreshPendingBtn: $('refreshPendingBtn'), refreshUsersBtn: $('refreshUsersBtn'),
+        refreshLogsBtn: $('refreshLogsBtn'), refreshAnalyticsBtn: $('refreshAnalyticsBtn'), pasteInput: $('pasteInput'),
+        sendPasteBtn: $('sendPasteBtn'), addUserBtn: $('addUserBtn'), newUserEmail: $('newUserEmail'), btnResetToken: $('btnResetToken')
     };
 
     function getAuthHeaders() {
@@ -248,7 +240,7 @@
             if (!wasApproved && ST.approved) {
                 if (ST.pendingCheckInterval) clearInterval(ST.pendingCheckInterval);
                 render();
-                toast('You have been approved! Access granted.', 'success');
+                toast('Access granted!', 'success');
             }
             return true;
         } catch (e) { return false; }
@@ -259,7 +251,7 @@
     }
     function showLogin() {
         if (ST.pendingCheckInterval) clearInterval(ST.pendingCheckInterval);
-        D.adminBar?.classList.add('hidden');
+        D.adminBar.classList.add('hidden');
         D.userUI.innerHTML = '';
         D.grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;"><h2>Welcome to File Vault</h2><p>Sign in to access your files.</p><button class="btn btn-primary" id="btnLogin">🔑 Login with Google</button></div>`;
         const loginBtn = $('btnLogin');
@@ -270,7 +262,9 @@
         };
     }
     function showPending() {
-        D.adminBar?.classList.add('hidden'); D.userUI.innerHTML = ''; D.dropzone.style.display = 'none';
+        D.adminBar.classList.add('hidden');
+        D.userUI.innerHTML = '';
+        D.dropzone.style.display = 'none';
         document.querySelector('.hint-text').style.display = 'none';
         D.grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;"><h2>🔐 Waiting for Approval</h2><p>Email: <strong>${ST.email}</strong></p><p>After admin approves you, this page will automatically refresh. You can also click <strong>Refresh Status</strong>.</p><div><button class="btn btn-outline btn-sm" id="manualRefreshBtn">🔄 Refresh Status</button> <button class="btn btn-danger btn-sm" id="btnSelfRevoke">❌ Cancel Request</button></div></div>`;
         const refreshBtn = $('manualRefreshBtn');
@@ -287,15 +281,17 @@
         if (ST.pendingCheckInterval) clearInterval(ST.pendingCheckInterval);
         document.querySelector('.hint-text').style.display = '';
         if (ST.isAdmin) {
-            D.adminBar?.classList.remove('hidden'); D.userUI.innerHTML = ''; D.dropzone.style.display = can('upload') ? '' : 'none';
+            D.adminBar.classList.remove('hidden');
+            D.userUI.innerHTML = '';
+            D.dropzone.style.display = can('upload') ? '' : 'none';
             loadPendingCount();
         } else {
-            D.adminBar?.classList.add('hidden');
+            D.adminBar.classList.add('hidden');
             D.userUI.innerHTML = `<span>👤 ${ST.email} (${ST.role}) <button class="btn btn-sm btn-outline" id="btnUserLogout">🔒 Logout</button></span>`;
             const logoutBtn = $('btnUserLogout');
             if (logoutBtn) logoutBtn.onclick = () => {
-                for (const ctrl of activeUploadControllers.values()) ctrl.abort();
-                activeUploadControllers.clear(); uploadingKeys.clear();
+                for (const ctrl of activeUploads.values()) ctrl.abort();
+                activeUploads.clear(); uploadingKeys.clear();
                 ST.token = null; localStorage.removeItem('vtoken'); showLogin(); toast('Logged out.');
             };
             D.dropzone.style.display = can('upload') ? '' : 'none';
@@ -317,7 +313,7 @@
         }
     });
 
-    // Admin panels (all actions)
+    // Admin actions
     safeAddEvent(D.btnSync, 'click', async () => { toast('Syncing...','info'); try { await fetch(`${WORKER_BASE}/sync`,{method:'POST',headers:getAuthHeaders()}); await fetchFiles(); toast('Sync done','success'); } catch { toast('Sync failed','error'); } });
     safeAddEvent(D.btnAppr, 'click', () => togglePanel(D.pnlAppr, loadPending));
     safeAddEvent(D.btnAllUsers, 'click', () => togglePanel(D.pnlUsers, loadAllUsers));
@@ -335,7 +331,7 @@
     safeAddEvent(D.addUserBtn, 'click', async () => { const email=D.newUserEmail.value.trim(); if(!email) { toast('Enter email','error'); return; } await fetch(`${WORKER_BASE}/admin/add-user`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({email,role:'full'})}); toast(`User ${email} added`,'success'); D.newUserEmail.value=''; loadAllUsers(); loadPendingCount(); });
 
     function togglePanel(panel, loadFn) { if(panel) { panel.classList.toggle('hidden'); if(!panel.classList.contains('hidden')) loadFn(); } }
-    async function adminLogout() { if(confirm('Logout as admin?')) { for (const ctrl of activeUploadControllers.values()) ctrl.abort(); activeUploadControllers.clear(); uploadingKeys.clear(); ST.token = null; localStorage.removeItem('vtoken'); showLogin(); toast('Admin logged out'); } }
+    async function adminLogout() { if(confirm('Logout as admin?')) { for (const ctrl of activeUploads.values()) ctrl.abort(); activeUploads.clear(); uploadingKeys.clear(); ST.token = null; localStorage.removeItem('vtoken'); showLogin(); toast('Admin logged out'); } }
     async function loadPendingCount() { if(!ST.isAdmin || !D.pendingBadge) return; const r=await fetch(`${WORKER_BASE}/admin/pending`,{headers:getAuthHeaders()}); const p=await r.json(); D.pendingBadge.textContent=p.length; D.pendingBadge.classList.toggle('hidden',p.length===0); }
     function loadPending() {
         fetch(`${WORKER_BASE}/admin/pending`,{headers:getAuthHeaders()}).then(r=>r.json()).then(users=>{
@@ -381,13 +377,9 @@
                 if(action==='makeadmin'){ await fetch(`${WORKER_BASE}/admin/make-subadmin`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({email,makeAdmin:true})}); toast(`${email} promoted to sub‑admin.`,'success'); loadAllUsers(); await fetchUserInfo(); return; }
                 if(action==='revokeadmin'){ await fetch(`${WORKER_BASE}/admin/make-subadmin`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({email,makeAdmin:false})}); toast(`${email} sub‑admin rights revoked.`,'success'); loadAllUsers(); await fetchUserInfo(); return; }
                 const role = btn.parentElement.querySelector(`.role-sel-${email}`)?.value || 'full';
-                let endpoint = '';
-                if(action==='approve') endpoint='approve';
-                else if(action==='update') endpoint='update-role';
-                else if(action==='revoke') endpoint='revoke';
-                if(endpoint==='update-role'){ await fetch(`${WORKER_BASE}/admin/update-role`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({email,role})}); toast(`${email} role updated to ${role}`); await fetchUserInfo(); await fetchFiles(); }
-                else if(endpoint==='revoke'){ await fetch(`${WORKER_BASE}/admin/revoke`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({email})}); toast(`${email} revoked`); loadAllUsers(); loadPending(); loadPendingCount(); await fetchUserInfo(); }
-                else if(endpoint==='approve'){ await fetch(`${WORKER_BASE}/admin/approve`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({email,role})}); toast(`${email} approved`); loadAllUsers(); loadPending(); loadPendingCount(); await fetchUserInfo(); }
+                if(action==='approve'){ await fetch(`${WORKER_BASE}/admin/approve`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({email,role})}); toast(`${email} approved`); loadAllUsers(); loadPending(); loadPendingCount(); await fetchUserInfo(); }
+                else if(action==='update'){ await fetch(`${WORKER_BASE}/admin/update-role`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({email,role})}); toast(`${email} role updated to ${role}`); await fetchUserInfo(); await fetchFiles(); }
+                else if(action==='revoke'){ await fetch(`${WORKER_BASE}/admin/revoke`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({email})}); toast(`${email} revoked`); loadAllUsers(); loadPending(); loadPendingCount(); await fetchUserInfo(); }
                 loadAllUsers();
             });
         });
@@ -472,7 +464,7 @@
         } catch(err){ toast('Copy failed: '+err.message,'error'); }
     }
 
-    // Enhanced video player with working volume boost (Web Audio API, CORS fixed)
+    // Video player with working audio and video
     let currentVideo = null, controlsTimeout = null, audioCtx = null, gainNode = null, sourceNode = null;
     function setupVideoControls(video) {
         if(!video) return;
@@ -509,7 +501,6 @@
         forward30.addEventListener('click', ()=>video.currentTime = Math.min(video.duration, video.currentTime+30));
         seekSlider.addEventListener('input', ()=>{ if(video.duration) video.currentTime = (seekSlider.value/100)*video.duration; });
         
-        // Volume boost using Web Audio API (requires user interaction)
         let webAudioEnabled = false;
         volumeSlider.addEventListener('input', async () => {
             let val = volumeSlider.value;
@@ -520,7 +511,6 @@
                 video.volume = Math.min(val/100, 1);
             }
         });
-        // Initialize Web Audio on first play (user gesture)
         video.addEventListener('play', async () => {
             if(!webAudioEnabled && typeof AudioContext !== 'undefined') {
                 try {
@@ -535,7 +525,6 @@
                 } catch(e) { console.warn('Web Audio failed', e); }
             } else if(audioCtx && audioCtx.state === 'suspended') { await audioCtx.resume(); webAudioEnabled = true; }
         });
-        // Auto-resume on any click
         document.addEventListener('click', ()=>{
             if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
         }, {once: true});
@@ -565,8 +554,8 @@
             video.style.width = '100%';
             video.style.height = '100%';
             video.style.objectFit = 'contain';
-            video.backgroundColor = '#000';
-            video.crossOrigin = "anonymous";  // CRITICAL: allows Web Audio API to access media
+            video.style.backgroundColor = '#000';
+            video.crossOrigin = "anonymous";
             element = video;
         } else if(type === 'audio'){
             const audio = document.createElement('audio');
@@ -708,7 +697,7 @@
     }
     async function deleteFile(pid){ if(!confirm('Delete?')) return; await fetch(`${WORKER_BASE}/delete`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({publicId:pid})}); await fetchFiles(); toast('Deleted'); }
 
-    // Upload – SINGLE REQUEST PER FILE
+    // Upload – SINGLE REQUEST, no double
     let pendingPaste = [];
     document.addEventListener('paste',(e)=>{
         const items = e.clipboardData.items;
@@ -726,7 +715,7 @@
         if(uploadingKeys.has(key)){ toast(`${file.name} already uploading.`,'info'); return; }
         uploadingKeys.add(key);
         const abortCtrl = new AbortController();
-        activeUploadControllers.set(key, abortCtrl);
+        activeUploads.set(key, abortCtrl);
         const progressDiv = document.createElement('div'); progressDiv.className = 'progress-item';
         progressDiv.id = `up-${Date.now()}`;
         progressDiv.innerHTML = `<div class="progress-header"><span>${esc(file.name)}</span><span class="progress-percent">0%</span></div><div class="progress-bar"><div class="progress-fill" style="width:0%"></div></div>`;
@@ -782,7 +771,7 @@
             if(D.uploadProgressList.children.length===0) D.uploadProgressList.classList.add('hidden');
             if(err.message !== 'Cancelled') toast(`Upload failed: ${err.message}`,'error');
         } finally {
-            activeUploadControllers.delete(key);
+            activeUploads.delete(key);
             uploadingKeys.delete(key);
         }
     }
