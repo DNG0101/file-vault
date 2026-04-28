@@ -5,11 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>File Vault – Gallery</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
         :root {
             --bg: #f8fafc;
             --card-bg: #ffffff;
@@ -36,412 +31,84 @@
             --shadow: 0 4px 12px rgba(0,0,0,0.3);
             --toast-bg: #475569;
         }
-        body {
-            font-family: system-ui, -apple-system, 'Inter', sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            padding: 20px;
-            transition: background 0.2s, color 0.2s;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: system-ui, -apple-system, 'Inter', sans-serif; background: var(--bg); color: var(--text); padding: 20px; transition: background 0.2s, color 0.2s; }
         .container { max-width: 1400px; margin: 0 auto; }
         .hidden { display: none !important; }
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 12px;
-            margin-bottom: 24px;
-        }
+        .header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 24px; }
         .header h1 { font-size: clamp(1.5rem, 5vw, 2rem); font-weight: 700; }
         .header-right { display: flex; align-items: center; gap: 12px; }
-        .btn-icon {
-            padding: 8px;
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            background: var(--card-bg);
-            cursor: pointer;
-            min-width: 42px;
-            min-height: 42px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .btn {
-            padding: 8px 16px;
-            border: none;
-            border-radius: 10px;
-            font-weight: 600;
-            cursor: pointer;
-            background: var(--card-bg);
-            color: var(--text);
-            border: 1px solid var(--border);
-            transition: all 0.2s;
-        }
+        .btn-icon { padding: 8px; border: 1px solid var(--border); border-radius: 10px; background: var(--card-bg); cursor: pointer; min-width: 42px; min-height: 42px; display: flex; align-items: center; justify-content: center; }
+        .btn { padding: 8px 16px; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; background: var(--card-bg); color: var(--text); border: 1px solid var(--border); transition: all 0.2s; }
         .btn-primary { background: var(--accent); color: white; border-color: var(--accent); }
         .btn-danger { background: var(--danger); color: white; border-color: var(--danger); }
         .btn-outline { background: transparent; }
         .btn-sm { padding: 4px 12px; font-size: 0.8rem; }
-        .toolbar {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            margin-bottom: 20px;
-        }
-        .search-box {
-            flex: 1;
-            padding: 8px 12px;
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            background: var(--card-bg);
-            color: var(--text);
-            outline: none;
-        }
-        .paste-box {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 20px;
-            align-items: center;
-        }
-        .paste-box input {
-            flex: 1;
-            padding: 8px 12px;
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            background: var(--card-bg);
-            color: var(--text);
-        }
-        .dropzone {
-            border: 2px dashed var(--border);
-            border-radius: 16px;
-            padding: 40px 20px;
-            text-align: center;
-            background: var(--card-bg);
-            cursor: pointer;
-            margin-bottom: 20px;
-            transition: all 0.2s;
-        }
-        .dropzone:hover, .dragover {
-            border-color: var(--accent);
-            background: color-mix(in srgb, var(--accent) 5%, var(--card-bg));
-        }
+        .toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+        .search-box { flex: 1; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--card-bg); color: var(--text); outline: none; }
+        .paste-box { display: flex; gap: 8px; margin-bottom: 20px; align-items: center; }
+        .paste-box input { flex: 1; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--card-bg); color: var(--text); }
+        .dropzone { border: 2px dashed var(--border); border-radius: 16px; padding: 40px 20px; text-align: center; background: var(--card-bg); cursor: pointer; margin-bottom: 20px; transition: all 0.2s; }
+        .dropzone:hover, .dragover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 5%, var(--card-bg)); }
         .progress-box { margin-bottom: 20px; }
-        .progress-bar {
-            height: 6px;
-            background: var(--border);
-            border-radius: 3px;
-            overflow: hidden;
-        }
-        .progress-fill {
-            height: 100%;
-            width: 0%;
-            background: var(--accent);
-            transition: width 0.3s;
-        }
-        .progress-text {
-            display: flex;
-            justify-content: space-between;
-            font-size: 0.8rem;
-            margin-top: 6px;
-        }
-        .cancel-btn {
-            background: var(--danger);
-            color: white;
-            border: none;
-            padding: 2px 8px;
-            border-radius: 4px;
-            cursor: pointer;
-        }
+        .progress-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+        .progress-fill { height: 100%; width: 0%; background: var(--accent); transition: width 0.3s; }
+        .progress-text { display: flex; justify-content: space-between; font-size: 0.8rem; margin-top: 6px; }
+        .cancel-btn { background: var(--danger); color: white; border: none; padding: 2px 8px; border-radius: 4px; cursor: pointer; }
         .file-section { margin-bottom: 32px; }
-        .section-title {
-            font-size: 1.2rem;
-            font-weight: 600;
-            margin-bottom: 16px;
-            padding-bottom: 8px;
-            border-bottom: 2px solid var(--accent);
-            color: var(--accent);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .section-title span {
-            background: var(--accent);
-            color: white;
-            padding: 2px 8px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-        }
-        .file-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 16px;
-        }
-        .card {
-            background: var(--card-bg);
-            border-radius: var(--radius);
-            padding: 12px;
-            box-shadow: var(--shadow);
-            border: 1px solid var(--border);
-            position: relative;
-            transition: all 0.2s;
-            display: flex;
-            flex-direction: column;
-        }
+        .section-title { font-size: 1.2rem; font-weight: 600; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid var(--accent); color: var(--accent); display: flex; align-items: center; gap: 10px; }
+        .section-title span { background: var(--accent); color: white; padding: 2px 8px; border-radius: 20px; font-size: 0.8rem; }
+        .file-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+        .card { background: var(--card-bg); border-radius: var(--radius); padding: 12px; box-shadow: var(--shadow); border: 1px solid var(--border); position: relative; transition: all 0.2s; display: flex; flex-direction: column; }
         .card.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
-        .card-checkbox {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            width: 18px;
-            height: 18px;
-            accent-color: var(--accent);
-            cursor: pointer;
-            z-index: 2;
-        }
-        .thumbnail {
-            width: 100%;
-            height: 160px;
-            object-fit: cover;
-            border-radius: 10px;
-            margin-bottom: 10px;
-            background: var(--card-bg);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 3rem;
-            overflow: hidden;
-        }
-        .thumbnail img, .thumbnail video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        .file-name {
-            font-weight: 600;
-            word-break: break-word;
-            margin-bottom: 6px;
-            font-size: 0.9rem;
-        }
-        .file-meta {
-            font-size: 0.7rem;
-            color: var(--text-secondary);
-            margin-bottom: 10px;
-        }
-        .actions {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            margin-top: 8px;
-        }
-        .btn-xs {
-            padding: 4px 8px;
-            border: none;
-            border-radius: 6px;
-            font-size: 0.7rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
+        .card-checkbox { position: absolute; top: 10px; right: 10px; width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; z-index: 2; }
+        .thumbnail { width: 100%; height: 160px; object-fit: cover; border-radius: 10px; margin-bottom: 10px; background: transparent; display: flex; align-items: center; justify-content: center; font-size: 3rem; overflow: hidden; background-color: transparent; }
+        .thumbnail img, .thumbnail video { width: 100%; height: 100%; object-fit: cover; }
+        .file-name { font-weight: 600; word-break: break-word; margin-bottom: 6px; font-size: 0.9rem; }
+        .file-meta { font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 10px; }
+        .actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+        .btn-xs { padding: 4px 8px; border: none; border-radius: 6px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
         .btn-xs-play { background: var(--accent); color: white; }
         .btn-xs-preview { background: var(--purple); color: white; }
         .btn-xs-download { background: var(--success); color: white; }
         .btn-xs-delete { background: var(--danger); color: white; }
         .btn-xs-rename { background: #6c757d; color: white; }
         .btn-xs-copy { background: #0d6efd; color: white; }
-        .comment-section {
-            margin-top: 12px;
-            border-top: 1px solid var(--border);
-            padding-top: 8px;
-            font-size: 0.75rem;
-        }
-        .comment-header {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 6px;
-            font-weight: 600;
-            cursor: pointer;
-        }
+        .comment-section { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 8px; font-size: 0.75rem; }
+        .comment-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-weight: 600; cursor: pointer; }
         .comment-icon { font-size: 1rem; }
-        .comment-count {
-            background: var(--accent);
-            color: white;
-            border-radius: 10px;
-            padding: 0 6px;
-            font-size: 0.7rem;
-        }
-        .comment-list {
-            max-height: 150px;
-            overflow-y: auto;
-            margin-bottom: 6px;
-            display: none;
-        }
+        .comment-count { background: var(--accent); color: white; border-radius: 10px; padding: 0 6px; font-size: 0.7rem; }
+        .comment-list { max-height: 150px; overflow-y: auto; margin-bottom: 6px; display: none; }
         .comment-list.show { display: block; }
-        .comment {
-            padding: 4px 0;
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
+        .comment { padding: 4px 0; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
         .comment strong { color: var(--accent); }
         .comment-text { word-break: break-word; flex: 1; margin-right: 8px; }
-        .comment-actions button {
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 0.7rem;
-            margin-left: 4px;
-            color: var(--text-secondary);
-        }
-        .comment-form {
-            display: flex;
-            gap: 6px;
-            margin-top: 6px;
-        }
-        .comment-form input {
-            flex: 1;
-            padding: 4px 8px;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            background: var(--card-bg);
-            color: var(--text);
-        }
-        .tick-btn {
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 1.2rem;
-            margin-right: 8px;
-            padding: 0;
-        }
-        .tick-count {
-            font-size: 0.7rem;
-            color: var(--text-secondary);
-            margin-right: 8px;
-        }
-        .admin-bar, .panel {
-            background: var(--card-bg);
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            padding: 12px;
-            margin-bottom: 16px;
-        }
+        .comment-actions button { background: none; border: none; cursor: pointer; font-size: 0.7rem; margin-left: 4px; color: var(--text-secondary); }
+        .comment-form { display: flex; gap: 6px; margin-top: 6px; }
+        .comment-form input { flex: 1; padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--card-bg); color: var(--text); }
+        .tick-btn { background: none; border: none; cursor: pointer; font-size: 1.2rem; margin-right: 8px; padding: 0; }
+        .tick-count { font-size: 0.7rem; color: var(--text-secondary); margin-right: 8px; }
+        .admin-bar, .panel { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; margin-bottom: 16px; }
         .panel { max-height: 500px; overflow-y: auto; }
-        .approval-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px 0;
-            border-bottom: 1px solid var(--border);
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-        .status-badge {
-            padding: 2px 8px;
-            border-radius: 10px;
-            font-size: 0.7rem;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
+        .approval-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); gap: 10px; flex-wrap: wrap; }
+        .status-badge { padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; }
         .status-approved { background: #d1fae5; color: #065f46; }
         .status-pending { background: #fef3c7; color: #92400e; }
-        .bulk-bar {
-            background: var(--accent);
-            color: white;
-            padding: 8px 16px;
-            border-radius: 8px;
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-        .preview-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.9);
-            z-index: 1000;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-        }
+        .bulk-bar { background: var(--accent); color: white; padding: 8px 16px; border-radius: 8px; margin-bottom: 12px; display: flex; align-items: center; gap: 12px; }
+        .preview-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 1000; display: flex; justify-content: center; align-items: center; flex-direction: column; }
         .preview-overlay.hidden { display: none; }
-        .preview-container {
-            width: 90%;
-            height: 90%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .preview-container video {
-            max-width: 100%;
-            max-height: 100%;
-            outline: none;
-            background: black;
-        }
-        .video-controls {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            background: rgba(0,0,0,0.6);
-            padding: 8px 12px;
-            border-radius: 8px;
-            display: flex;
-            gap: 10px;
-            z-index: 1001;
-        }
-        .video-controls button {
-            background: white;
-            border: none;
-            padding: 4px 8px;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        .preview-toolbar {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            display: flex;
-            gap: 10px;
-            z-index: 1001;
-        }
-        .preview-toolbar button {
-            background: rgba(0,0,0,0.6);
-            border: none;
-            color: white;
-            padding: 8px 16px;
-            border-radius: 8px;
-            cursor: pointer;
-        }
-        #toastContainer {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 9999;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-        .toast {
-            background: var(--toast-bg);
-            color: var(--toast-text);
-            padding: 8px 16px;
-            border-radius: 8px;
-            font-size: 0.85rem;
-            animation: slideIn 0.3s ease;
-        }
+        .preview-container { width: 90%; height: 90%; display: flex; align-items: center; justify-content: center; position: relative; }
+        .preview-container video, .preview-container audio { max-width: 100%; max-height: 100%; outline: none; }
+        .video-controls { position: absolute; bottom: 20px; left: 20px; background: rgba(0,0,0,0.6); padding: 8px 12px; border-radius: 8px; display: flex; gap: 10px; z-index: 1001; }
+        .video-controls button { background: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; }
+        .preview-toolbar { position: absolute; top: 20px; right: 20px; display: flex; gap: 10px; z-index: 1001; }
+        .preview-toolbar button { background: rgba(0,0,0,0.6); border: none; color: white; padding: 8px 16px; border-radius: 8px; cursor: pointer; }
+        #toastContainer { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+        .toast { background: var(--toast-bg); color: var(--toast-text); padding: 8px 16px; border-radius: 8px; font-size: 0.85rem; animation: slideIn 0.3s ease; }
         .toast.error { background: var(--danger); }
         .toast.success { background: var(--success); }
-        @keyframes slideIn {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-        @media (max-width: 600px) {
-            body { padding: 10px; }
-            .file-grid { grid-template-columns: 1fr; }
-            .toolbar { flex-direction: column; }
-        }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @media (max-width: 600px) { body { padding: 10px; } .file-grid { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
@@ -522,16 +189,8 @@
     <div class="preview-overlay hidden" id="previewOverlay">
         <div class="preview-container" id="previewContainer"></div>
         <div class="video-controls" id="videoControls" style="display:none;">
-            <button id="playPause">⏯️</button>
             <button id="back30">← 30s</button>
             <button id="forward30">30s →</button>
-            <input type="range" id="volumeBoost" min="0" max="200" value="100" step="5"> <span id="volPercent">100%</span>
-            <select id="speedSelect">
-                <option value="0.5">0.5x</option><option value="0.75">0.75x</option><option value="1" selected>1x</option>
-                <option value="1.25">1.25x</option><option value="1.5">1.5x</option><option value="2">2x</option>
-            </select>
-            <select id="audioTrackSelect" style="display:none;"></select>
-            <select id="subtitleSelect" style="display:none;"></select>
         </div>
         <div class="preview-toolbar">
             <button id="btnFullscreen">⛶ Fullscreen</button>
@@ -545,6 +204,7 @@
         // ==================== CONFIG ====================
         const WORKER_BASE = 'https://gdrive-files-api.donthulanithish53.workers.dev';
 
+        // Global lock
         let globalLock = false;
         async function withLock(fn) {
             while (globalLock) await new Promise(r => setTimeout(r, 50));
@@ -552,6 +212,7 @@
             try { return await fn(); } finally { globalLock = false; }
         }
 
+        // State
         let ST = {
             token: localStorage.getItem('vtoken'),
             email: null,
@@ -567,9 +228,9 @@
             shareToken: null,
         };
         let uploadingFiles = new Set();
-        let cardData = new Map();
-        let pendingPasteFiles = [];
+        let cardData = new Map(); // publicId -> { comments, ticked, count }
 
+        // DOM helpers
         const $ = id => document.getElementById(id);
         const D = {
             stats: $('storageStats'), userUI: $('userUI'), adminBar: $('adminBar'),
@@ -591,11 +252,8 @@
             btnBulkDelete: $('btnBulkDelete'), btnBulkCancel: $('btnBulkCancel'),
             refreshFilesBtn: $('refreshFilesBtn'), refreshPendingBtn: $('refreshPendingBtn'),
             refreshUsersBtn: $('refreshUsersBtn'), refreshLogsBtn: $('refreshLogsBtn'), refreshAnalyticsBtn: $('refreshAnalyticsBtn'),
-            pasteInput: $('pasteInput'), sendPasteBtn: $('sendPasteBtn'),
-            addUserBtn: $('addUserBtn'), newUserEmail: $('newUserEmail'),
+            pasteInput: $('pasteInput'), sendPasteBtn: $('sendPasteBtn'), addUserBtn: $('addUserBtn'), newUserEmail: $('newUserEmail'),
             videoControls: $('videoControls'), back30: $('back30'), forward30: $('forward30'),
-            volumeBoost: $('volumeBoost'), volPercent: $('volPercent'), speedSelect: $('speedSelect'),
-            playPause: $('playPause'), audioTrackSelect: $('audioTrackSelect'), subtitleSelect: $('subtitleSelect'),
         };
 
         function getAuthHeaders() {
@@ -656,7 +314,7 @@
             });
         })();
 
-        // Auth
+        // Authentication
         async function fetchUserInfo() {
             if (!ST.token) return false;
             return withLock(async () => {
@@ -730,7 +388,7 @@
             showMain(); applyRoleUI(); fetchFiles();
         }
 
-        // Admin panels (full)
+        // Admin panels (full functional)
         function safeAddEvent(element, event, handler) { if(element) element.addEventListener(event, handler); }
 
         safeAddEvent(D.btnSync, 'click', async () => {
@@ -775,9 +433,8 @@
         safeAddEvent(D.addUserBtn, 'click', async () => {
             const email = D.newUserEmail.value.trim();
             if (!email) { toast('Enter email', 'error'); return; }
-            const role = 'full';
             await withLock(async () => {
-                const r = await fetch(`${WORKER_BASE}/admin/add-user`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({ email, role }) });
+                const r = await fetch(`${WORKER_BASE}/admin/add-user`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({ email, role: 'full' }) });
                 if (!r.ok) throw new Error();
                 toast(`User ${email} added`, 'success');
                 D.newUserEmail.value = '';
@@ -825,10 +482,10 @@
                     let html = active.map(u => `<div class="approval-item">
                         <span>${u.email} <span class="status-badge status-${u.status}">${u.status}</span> ${u.role?`(${u.role})` : ''}</span>
                         <div>
-                            ${u.status==='pending' ?
+                            ${u.status==='pending' ? 
                                 `<select class="role-sel-${u.email}"><option value="full">Full</option><option value="delete">Delete</option><option value="upload">Upload Only</option><option value="download">Download</option><option value="read">Read</option><option value="none">None</option></select>
                                 <button class="btn-sm btn-success" data-action="approve" data-email="${u.email}">Approve</button>` : ''}
-                            ${u.status==='approved' ?
+                            ${u.status==='approved' ? 
                                 `<select class="role-sel-${u.email}"><option value="full" ${u.role==='full'?'selected':''}>Full</option><option value="delete" ${u.role==='delete'?'selected':''}>Delete</option><option value="upload" ${u.role==='upload'?'selected':''}>Upload Only</option><option value="download" ${u.role==='download'?'selected':''}>Download</option><option value="read" ${u.role==='read'?'selected':''}>Read</option><option value="none" ${u.role==='none'?'selected':''}>None</option></select>
                                 <button class="btn-sm btn-primary" data-action="update" data-email="${u.email}">Update</button>
                                 <button class="btn-sm btn-danger" data-action="revoke" data-email="${u.email}">Revoke</button>
@@ -911,8 +568,8 @@
             if (tickBtn) tickBtn.innerHTML = newData.ticked ? '✅' : '☑️';
             const tickCountSpan = card.querySelector('.tick-count');
             if (tickCountSpan) tickCountSpan.textContent = newData.count;
-            const commentCountSpan = card.querySelector('.comment-count');
-            if (commentCountSpan) commentCountSpan.textContent = newData.comments.length;
+            const commentIcon = card.querySelector('.comment-header .comment-count');
+            if (commentIcon) commentIcon.textContent = newData.comments.length;
             const commentList = card.querySelector('.comment-list');
             if (commentList) {
                 commentList.innerHTML = newData.comments.map(c => `
@@ -1008,7 +665,7 @@
                             ${actions.includes('download') ? `<button class="btn-xs btn-xs-download" data-action="download" data-id="${f.publicId}">⬇ Download</button>` : ''}
                             ${actions.includes('rename') ? `<button class="btn-xs btn-xs-rename" data-action="rename" data-id="${f.publicId}">✏️ Rename</button>` : ''}
                             ${actions.includes('delete') ? `<button class="btn-xs btn-xs-delete" data-action="delete" data-id="${f.publicId}">🗑 Delete</button>` : ''}
-                            <button class="btn-xs btn-xs-copy" data-action="copy" data-id="${f.publicId}" data-name="${esc(f.name)}">📋 Copy Info</button>
+                            <button class="btn-xs btn-xs-copy" data-action="copy" data-id="${f.publicId}" data-name="${esc(f.name)}">📋 Copy</button>
                             <button class="tick-btn" data-action="tick" data-id="${f.publicId}"></button>
                             <span class="tick-count"></span>
                             <div class="comment-section">
@@ -1025,6 +682,7 @@
                         </div>
                     `;
                     gridDiv.appendChild(card);
+                    // Load data asynchronously
                     (async () => {
                         const data = await loadCardData(f.publicId);
                         cardData.set(f.publicId, data);
@@ -1129,7 +787,7 @@
             const btn = e.currentTarget;
             const name = btn.dataset.name;
             const id = btn.dataset.id;
-            const textToCopy = `File: ${name}\nPublic ID: ${id}\nDownload: ${getDownloadUrl(id)}`;
+            const textToCopy = `File: ${name}\nPublic ID: ${id}\nSize: ${ST.files.find(f=>f.publicId===id)?.size || '?'} bytes\nUploaded: ${new Date(ST.files.find(f=>f.publicId===id)?.createdAt).toLocaleString()}`;
             navigator.clipboard.writeText(textToCopy).then(() => toast('File info copied to clipboard', 'success')).catch(() => toast('Copy failed', 'error'));
         }
         function actionHandler(e) { e.stopPropagation(); const action = e.currentTarget.dataset.action, id = e.currentTarget.dataset.id; if (action && action !== 'tick') fileAction(action, id); }
@@ -1165,7 +823,7 @@
             }).catch(() => toast('Rename failed', 'error'));
         }
 
-        // Upload (with progress, paste & send)
+        // Upload (supports multiple files from paste -> send)
         async function uploadFile(file, existingPid = null) {
             const fileKey = existingPid || file.name + file.size + file.lastModified;
             if (uploadingFiles.has(fileKey)) { toast(`${file.name} already uploading.`, 'info'); return; }
@@ -1182,7 +840,10 @@
                         body: JSON.stringify({ fileName: file.name, fileSize: file.size, fileType: file.type || 'application/octet-stream' }),
                         signal: ST.uploadCtrl.signal
                     });
-                    if (!initRes.ok) throw new Error('Init failed');
+                    if (!initRes.ok) {
+                        const errText = await initRes.text();
+                        throw new Error(`Init failed: ${errText}`);
+                    }
                     const initData = await initRes.json();
                     pid = initData.publicId;
                 }
@@ -1243,7 +904,8 @@
         const sleep = ms => new Promise(r => setTimeout(r, ms));
         safeAddEvent(D.cancelBtn, 'click', () => { if (ST.uploadCtrl) { ST.uploadCtrl.abort(); ST.uploadCtrl = null; if (D.progBox) D.progBox.classList.add('hidden'); } });
 
-        // Paste & Send
+        // Paste & Send Box: accumulate pasted files, upload on Send click
+        let pendingPasteFiles = [];
         document.addEventListener('paste', (e) => {
             const items = e.clipboardData.items;
             for (let i = 0; i < items.length; i++) {
@@ -1270,7 +932,7 @@
             toast('All pasted files uploaded.', 'success');
         });
 
-        // Preview with full video player (native controls replaced with custom)
+        // Preview with custom video controls (30s skip)
         let currentVideo = null;
         function openPreview(pid, type) {
             if (!D.prevCont) return;
@@ -1278,55 +940,12 @@
             const url = getPreviewUrl(pid);
             if (type === 'video') {
                 const video = document.createElement('video');
-                video.src = url; video.controls = false; video.autoplay = true; video.style.width = '100%'; video.style.height = '100%'; video.style.objectFit = 'contain';
+                video.src = url; video.controls = true; video.autoplay = true; video.style.width = '100%'; video.style.height = '100%'; video.style.objectFit = 'contain';
                 D.prevCont.appendChild(video);
                 currentVideo = video;
                 D.videoControls.style.display = 'flex';
-                // Attach custom controls
-                D.playPause.onclick = () => video.paused ? video.play() : video.pause();
-                D.back30.onclick = () => video.currentTime -= 30;
-                D.forward30.onclick = () => video.currentTime += 30;
-                D.volumeBoost.oninput = () => {
-                    const val = parseInt(D.volumeBoost.value,10);
-                    D.volPercent.textContent = val+'%';
-                    video.volume = Math.min(val / 100, 1);
-                    if (val > 100) toast('Volume boost beyond 100% may not work', 'info');
-                };
-                D.speedSelect.onchange = () => video.playbackRate = parseFloat(D.speedSelect.value);
-                // Audio tracks and subtitles (basic support)
-                video.addEventListener('loadedmetadata', () => {
-                    const audioTracks = video.audioTracks;
-                    if (audioTracks && audioTracks.length) {
-                        D.audioTrackSelect.style.display = 'inline-block';
-                        D.audioTrackSelect.innerHTML = '<option value="">Audio Track</option>';
-                        for (let i=0; i<audioTracks.length; i++) {
-                            const option = document.createElement('option');
-                            option.value = i;
-                            option.text = audioTracks[i].label || `Track ${i+1}`;
-                            option.selected = audioTracks[i].enabled;
-                            D.audioTrackSelect.appendChild(option);
-                        }
-                        D.audioTrackSelect.onchange = () => {
-                            for (let i=0; i<audioTracks.length; i++) audioTracks[i].enabled = false;
-                            if (D.audioTrackSelect.value) audioTracks[D.audioTrackSelect.value].enabled = true;
-                        };
-                    }
-                    const textTracks = video.textTracks;
-                    if (textTracks && textTracks.length) {
-                        D.subtitleSelect.style.display = 'inline-block';
-                        D.subtitleSelect.innerHTML = '<option value="">Subtitles Off</option>';
-                        for (let i=0; i<textTracks.length; i++) {
-                            const option = document.createElement('option');
-                            option.value = i;
-                            option.text = textTracks[i].label || `Subtitle ${i+1}`;
-                            D.subtitleSelect.appendChild(option);
-                        }
-                        D.subtitleSelect.onchange = () => {
-                            for (let i=0; i<textTracks.length; i++) textTracks[i].mode = 'disabled';
-                            if (D.subtitleSelect.value) textTracks[D.subtitleSelect.value].mode = 'showing';
-                        };
-                    }
-                });
+                D.back30.onclick = () => { if (video) video.currentTime -= 30; };
+                D.forward30.onclick = () => { if (video) video.currentTime += 30; };
             } else if (type === 'audio') {
                 const audio = document.createElement('audio');
                 audio.src = url; audio.controls = true; audio.autoplay = true; audio.style.width = '100%';
@@ -1361,6 +980,7 @@
             if (hint) hint.style.display = canUpload ? '' : 'none';
         }
 
+        // Share preview
         async function showSharePreview() {
             const res = await fetch(`${WORKER_BASE}/share/verify?token=${ST.shareToken}`);
             if (!res.ok) { toast('Invalid or expired share link', 'error'); showLogin(); return; }
@@ -1394,14 +1014,13 @@
         }
         if (D.fileInp) D.fileInp.addEventListener('change', e => handleFiles(e.target.files));
         function handleFiles(files) { for (const f of files) uploadFile(f); }
-        document.addEventListener('paste', (e) => { /* already handled */ });
         document.addEventListener('keydown', e => {
             if (e.ctrlKey && e.key === 'u') { e.preventDefault(); if (D.fileInp) D.fileInp.click(); }
             if (e.ctrlKey && e.key === 'f') { e.preventDefault(); if (D.search) D.search.focus(); }
             if (e.key === 'Escape') closePreview();
         });
         if (D.search) D.search.addEventListener('input', () => { ST.query = D.search.value.toLowerCase(); renderFiles(); });
-        if (D.sortSel) D.sortSel.addEventListener('change', () => { ST.sort = D.sortSel.value; localStorage.setItem('sort', ST.sort); renderFiles(); D.sortSel.value = ST.sort; });
+        if (D.sortSel) D.sortSel.addEventListener('change', () => { ST.sort = D.sortSel.value; localStorage.setItem('sort', ST.sort); renderFiles(); });
 
         async function init() {
             const p = new URLSearchParams(location.search);
