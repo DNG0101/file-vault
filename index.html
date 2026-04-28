@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>File Vault – Ultimate Gallery</title>
     <style>
-        /* (same CSS as before – keep it) */
         :root {
             --bg: #f8fafc;
             --card-bg: #ffffff;
@@ -73,7 +72,6 @@
         .btn-xs-replace { background: var(--warn); color: #222; }
         .btn-xs-rename { background: #6c757d; color: white; }
         .btn-xs-copy { background: #0d6efd; color: white; }
-        .btn-xs-share { background: #1e7e34; color: white; }
         .tick-btn { background: none; border: none; font-size: 1.2rem; cursor: pointer; position: relative; }
         .tick-btn .tooltip { visibility: hidden; background: #333; color: #fff; border-radius: 6px; padding: 4px 8px; position: absolute; bottom: 125%; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 0.7rem; }
         .tick-btn:hover .tooltip { visibility: visible; }
@@ -90,7 +88,7 @@
         .preview-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 1000; display: flex; justify-content: center; align-items: center; flex-direction: column; }
         .preview-overlay.hidden { display: none; }
         .preview-container { width: 90%; height: 85%; display: flex; align-items: center; justify-content: center; }
-        .preview-container video { max-width: 100%; max-height: 100%; outline: none; background: #000; }
+        .preview-container video, .preview-container audio { max-width: 100%; max-height: 100%; outline: none; background: #000; }
         .custom-video-controls {
             position: absolute; bottom: 20px; left: 20px; right: 20px;
             background: var(--video-control-bg); backdrop-filter: blur(8px);
@@ -108,10 +106,7 @@
         .toast.success { background: var(--success); }
         @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         @media (max-width: 600px) { body { padding: 10px; } .file-grid { grid-template-columns: 1fr; } }
-        button:focus-visible, .card:focus-visible, input:focus-visible, select:focus-visible {
-            outline: 3px solid var(--accent);
-            outline-offset: 2px;
-        }
+        button:focus-visible, .card:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
     </style>
 </head>
 <body>
@@ -134,13 +129,13 @@
         <button class="btn-danger btn-sm" id="btnAdminLogout">🔒 Logout</button>
     </div>
     <div class="panel hidden" id="approvalPanel"><h3>Pending Approvals</h3><div id="approvalList"></div><button class="btn-sm btn-outline" id="refreshPendingBtn">🔄 Refresh</button></div>
-    <div class="panel hidden" id="usersPanel"><h3>Active Users</h3><div id="usersList"></div><button class="btn-sm btn-outline" id="refreshUsersBtn">🔄 Refresh</button><div style="margin-top:12px;"><input type="text" id="newUserEmail" placeholder="user@example.com" style="flex:1; padding:6px;"><button id="addUserBtn" class="btn-sm btn-primary">➕ Add User</button></div></div>
+    <div class="panel hidden" id="usersPanel"><h3>Active Users</h3><div id="usersList"></div><button class="btn-sm btn-outline" id="refreshUsersBtn">🔄 Refresh</button><div style="margin-top:12px;"><input type="text" id="newUserEmail" placeholder="user@example.com"><button id="addUserBtn" class="btn-sm btn-primary">➕ Add User</button></div></div>
     <div class="panel hidden" id="logsPanel"><h3>Audit Logs</h3><div id="logsContent"></div><button class="btn-danger btn-sm" id="btnClearLogs">🗑 Clear All Logs</button><button class="btn-sm btn-outline" id="refreshLogsBtn">🔄 Refresh</button></div>
     <div class="panel hidden" id="analyticsPanel"><h3>Analytics</h3><div id="analyticsContent"></div><button class="btn-sm btn-outline" id="refreshAnalyticsBtn">🔄 Refresh</button></div>
     <div class="panel hidden" id="sharePanel"><h3>Share Manager</h3><div id="shareContent"></div></div>
     <div class="toolbar">
         <input type="text" class="search-box" id="searchInput" placeholder="Search files... (Ctrl+F)">
-        <select class="sort-select" id="sortSelect">
+        <select id="sortSelect">
             <option value="newest">Newest</option><option value="oldest">Oldest</option>
             <option value="name-asc">Name A‑Z</option><option value="name-desc">Name Z‑A</option>
             <option value="size-desc">Largest</option><option value="size-asc">Smallest</option>
@@ -176,12 +171,11 @@
     // ==================== CONFIG ====================
     const WORKER_BASE = 'https://gdrive-files-api.donthulanithish53.workers.dev';
     let globalLock = false;
-    async function withLock(fn) { while (globalLock) await new Promise(r => setTimeout(r, 50)); globalLock = true; try { return await fn(); } finally { globalLock = false; } }
+    const withLock = fn => { while(globalLock) setTimeout(()=>{},50); globalLock=true; try{ return fn(); }finally{ globalLock=false; } };
     let ST = {
         token: localStorage.getItem('vtoken'), email: null, isAdmin: false, approved: false, role: null,
-        files: [], selected: new Set(), sort: localStorage.getItem('sort') || 'newest', query: '',
-        uploadCtrl: null, dark: localStorage.getItem('darkMode') === 'true', shareToken: null,
-        focusedCardIndex: -1
+        files: [], selected: new Set(), sort: localStorage.getItem('sort')||'newest', query: '',
+        uploadCtrl: null, dark: localStorage.getItem('darkMode')==='true', shareToken: null
     };
     let uploadingFiles = new Set();
     let cardData = new Map();
@@ -208,111 +202,97 @@
         refreshUsersBtn: $('refreshUsersBtn'), refreshLogsBtn: $('refreshLogsBtn'), refreshAnalyticsBtn: $('refreshAnalyticsBtn'),
         pasteInput: $('pasteInput'), sendPasteBtn: $('sendPasteBtn'), addUserBtn: $('addUserBtn'), newUserEmail: $('newUserEmail'),
     };
-    function getAuthHeaders() { const h = {}; if (ST.token) { if (ST.isAdmin) h['X-Admin-Token'] = ST.token; else h['X-User-Token'] = ST.token; } return h; }
+    function getAuthHeaders() { const h={}; if(ST.token){ if(ST.isAdmin) h['X-Admin-Token']=ST.token; else h['X-User-Token']=ST.token; } return h; }
     function getDownloadUrl(pid) { return `${WORKER_BASE}/download/${pid}?utoken=${ST.token}`; }
     function getPreviewUrl(pid) { return `${WORKER_BASE}/video/${pid}?utoken=${ST.token}`; }
-    function toast(msg, type='info') { if (!D.toastBox) return; const el = document.createElement('div'); el.className = `toast ${type}`; el.textContent = msg; D.toastBox.appendChild(el); setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 3000); }
-    const esc = s => { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
-    const fmtSz = b => { if(!b) return '0 B'; const u=['B','KB','MB','GB']; let i=0,s=b; while(s>=1024 && i<3) { s/=1024; i++; } return s.toFixed(1)+' '+u[i]; };
+    function toast(msg, type='info'){ if(!D.toastBox) return; const el=document.createElement('div'); el.className=`toast ${type}`; el.textContent=msg; D.toastBox.appendChild(el); setTimeout(()=>{el.style.opacity='0'; setTimeout(()=>el.remove(),300);},3000); }
+    const esc = s => { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; };
+    const fmtSz = b => { if(!b) return '0 B'; const u=['B','KB','MB','GB']; let i=0,s=b; while(s>=1024&&i<3){s/=1024;i++;} return s.toFixed(1)+' '+u[i]; };
     const fmtSpeed = bps => { if(bps<1024) return bps.toFixed(0)+' B/s'; if(bps<1048576) return (bps/1024).toFixed(1)+' KB/s'; return (bps/1048576).toFixed(1)+' MB/s'; };
     const prevType = m => { if(!m) return ''; if(m.startsWith('video')) return 'video'; if(m.startsWith('audio')) return 'audio'; if(m.startsWith('image')) return 'image'; if(m==='application/pdf') return 'pdf'; if(m.startsWith('text')) return 'text'; return ''; };
     function getThumbnailHtml(mime, name, pid) {
-        if (mime.startsWith('image')) return `<img src="${getPreviewUrl(pid)}" style="width:100%;height:100%;object-fit:cover;border-radius:10px;" loading="lazy">`;
-        if (mime.startsWith('video')) return `<video src="${getPreviewUrl(pid)}" style="width:100%;height:100%;object-fit:cover;border-radius:10px;" muted preload="metadata"></video>`;
-        if (mime.startsWith('audio')) return '<div style="font-size:3rem;">🎵</div>';
-        if (mime === 'application/pdf') return '<div style="font-size:3rem;">📕</div>';
-        if (mime.startsWith('text')) return '<div style="font-size:3rem;">📝</div>';
+        if(mime.startsWith('image')) return `<img src="${getPreviewUrl(pid)}" style="width:100%;height:100%;object-fit:cover;border-radius:10px;" loading="lazy">`;
+        if(mime.startsWith('video')) return `<video src="${getPreviewUrl(pid)}" style="width:100%;height:100%;object-fit:cover;border-radius:10px;" muted preload="metadata"></video>`;
+        if(mime.startsWith('audio')) return '<div style="font-size:3rem;">🎵</div>';
+        if(mime==='application/pdf') return '<div style="font-size:3rem;">📕</div>';
+        if(mime.startsWith('text')) return '<div style="font-size:3rem;">📝</div>';
         return '<div style="font-size:3rem;">📄</div>';
     }
-    // Dark mode
-    function initDarkMode() {
-        if(ST.dark) document.documentElement.setAttribute('data-theme','dark');
-        else document.documentElement.setAttribute('data-theme','light');
-        if(D.btnDark) D.btnDark.addEventListener('click', () => {
-            ST.dark = !ST.dark;
-            document.documentElement.setAttribute('data-theme', ST.dark ? 'dark' : 'light');
-            localStorage.setItem('darkMode', ST.dark);
-        });
-    }
-    // Authentication
-    async function fetchUserInfo() { if (!ST.token) return false; return withLock(async () => { const r = await fetch(`${WORKER_BASE}/user-info?utoken=${ST.token}`); if(!r.ok) throw new Error(); const i = await r.json(); ST.email = i.email; ST.isAdmin = i.isAdmin===true; ST.approved = i.approved; ST.role = i.role; if(ST.approved) render(); else showPending(); return true; }).catch(e=>{console.warn(e); return false;}); }
-    function showLogin() { D.adminBar?.classList.add('hidden'); if(D.userUI) D.userUI.innerHTML = ''; if(D.grid) D.grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;"><h2>Welcome to File Vault</h2><p>Sign in to access your files.</p><button class="btn btn-primary" id="btnLogin">🔑 Login with Google</button></div>`; const loginBtn = $('btnLogin'); if(loginBtn) loginBtn.onclick = async () => { const r = await fetch(`${WORKER_BASE}/auth-url`); if(r.ok) window.location = (await r.json()).authUrl; else toast('Login failed','error'); }; }
-    function showPending() { D.adminBar?.classList.add('hidden'); D.userUI.innerHTML = ''; D.dropzone.style.display = 'none'; const hint = document.querySelector('.hint-text'); if(hint) hint.style.display = 'none'; D.grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;"><h2>🔐 Waiting for Approval</h2><p>Email: <strong>${ST.email}</strong></p><p>After admin approves you, click <strong>Refresh Status</strong>.</p><div><button class="btn btn-outline btn-sm" id="manualRefreshBtn">🔄 Refresh Status</button> <button class="btn btn-danger btn-sm" id="btnSelfRevoke">❌ Cancel</button></div></div>`; const refreshBtn = $('manualRefreshBtn'); if(refreshBtn) refreshBtn.onclick = async () => { toast('Checking...', 'info'); await fetchUserInfo(); }; const selfRevokeBtn = $('btnSelfRevoke'); if(selfRevokeBtn) selfRevokeBtn.onclick = async () => { if(!confirm('Cancel request?')) return; await withLock(async () => { await fetch(`${WORKER_BASE}/user-revoke-self`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({utoken:ST.token}) }); }); ST.token = null; localStorage.removeItem('vtoken'); showLogin(); toast('Request cancelled.'); }; }
-    function showMain() { const hint = document.querySelector('.hint-text'); if(hint) hint.style.display = ''; if(ST.isAdmin) { D.adminBar?.classList.remove('hidden'); D.userUI.innerHTML = ''; D.dropzone.style.display = ''; loadPendingCount(); } else { D.adminBar?.classList.add('hidden'); D.userUI.innerHTML = `<span>👤 ${ST.email} (${ST.role}) <button class="btn btn-sm btn-outline" id="btnUserLogout">🔒 Logout</button></span>`; const logoutBtn = $('btnUserLogout'); if(logoutBtn) logoutBtn.onclick = () => { ST.token = null; localStorage.removeItem('vtoken'); showLogin(); toast('Logged out.'); }; } }
-    function render() { if(!ST.email) { showLogin(); return; } if(ST.isAdmin || ST.approved) { showMain(); fetchFiles(); } else { showPending(); } }
+    // Auth
+    async function fetchUserInfo(){ if(!ST.token) return false; return withLock(async()=>{ const r=await fetch(`${WORKER_BASE}/user-info?utoken=${ST.token}`); if(!r.ok) throw new Error(); const i=await r.json(); ST.email=i.email; ST.isAdmin=i.isAdmin===true; ST.approved=i.approved; ST.role=i.role; if(ST.approved) render(); else showPending(); return true; }).catch(e=>{console.warn(e); return false;}); }
+    function showLogin(){ D.adminBar?.classList.add('hidden'); D.userUI.innerHTML=''; D.grid.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:60px;"><h2>Welcome to File Vault</h2><p>Sign in to access your files.</p><button class="btn btn-primary" id="btnLogin">🔑 Login with Google</button></div>`; const loginBtn=$('btnLogin'); if(loginBtn) loginBtn.onclick=async()=>{ const r=await fetch(`${WORKER_BASE}/auth-url`); if(r.ok) window.location=(await r.json()).authUrl; else toast('Login failed','error'); }; }
+    function showPending(){ D.adminBar?.classList.add('hidden'); D.userUI.innerHTML=''; D.dropzone.style.display='none'; document.querySelector('.hint-text').style.display='none'; D.grid.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:60px;"><h2>🔐 Waiting for Approval</h2><p>Email: <strong>${ST.email}</strong></p><p>After admin approves you, click <strong>Refresh Status</strong>.</p><div><button class="btn btn-outline btn-sm" id="manualRefreshBtn">🔄 Refresh Status</button> <button class="btn btn-danger btn-sm" id="btnSelfRevoke">❌ Cancel</button></div></div>`; const refreshBtn=$('manualRefreshBtn'); if(refreshBtn) refreshBtn.onclick=async()=>{ toast('Checking...','info'); await fetchUserInfo(); }; const selfRevokeBtn=$('btnSelfRevoke'); if(selfRevokeBtn) selfRevokeBtn.onclick=async()=>{ if(!confirm('Cancel request?')) return; await withLock(async()=>{ await fetch(`${WORKER_BASE}/user-revoke-self`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({utoken:ST.token})}); }); ST.token=null; localStorage.removeItem('vtoken'); showLogin(); toast('Request cancelled.'); }; }
+    function showMain(){ document.querySelector('.hint-text').style.display=''; if(ST.isAdmin){ D.adminBar?.classList.remove('hidden'); D.userUI.innerHTML=''; D.dropzone.style.display=''; loadPendingCount(); } else { D.adminBar?.classList.add('hidden'); D.userUI.innerHTML=`<span>👤 ${ST.email} (${ST.role}) <button class="btn btn-sm btn-outline" id="btnUserLogout">🔒 Logout</button></span>`; const logoutBtn=$('btnUserLogout'); if(logoutBtn) logoutBtn.onclick=()=>{ ST.token=null; localStorage.removeItem('vtoken'); showLogin(); toast('Logged out.'); }; } }
+    function render(){ if(!ST.email){ showLogin(); return; } if(ST.isAdmin || ST.approved){ showMain(); fetchFiles(); } else { showPending(); } }
     // Admin panels (simplified)
-    function safeAddEvent(el, ev, fn) { if(el) el.addEventListener(ev, fn); }
-    safeAddEvent(D.btnSync, 'click', async () => { toast('Syncing...', 'info'); await withLock(async () => { await fetch(`${WORKER_BASE}/sync`, { method:'POST', headers:getAuthHeaders() }); await fetchFiles(); toast('Sync done', 'success'); }).catch(()=>toast('Sync failed','error')); });
-    safeAddEvent(D.btnAppr, 'click', () => togglePanel(D.pnlAppr, loadPending));
-    safeAddEvent(D.btnAllUsers, 'click', () => togglePanel(D.pnlUsers, loadAllUsers));
-    safeAddEvent(D.btnLogs, 'click', () => togglePanel(D.pnlLogs, loadLogs));
-    safeAddEvent(D.btnAnalytics, 'click', () => togglePanel(D.pnlAnalytics, loadAnalytics));
-    safeAddEvent(D.btnShare, 'click', () => togglePanel(D.pnlShare, () => { if(D.shareCt) D.shareCt.innerHTML = '<p>Create a share link from a file card (🔗 Share).</p>'; }));
-    safeAddEvent(D.btnUnAuth, 'click', adminLogout);
-    safeAddEvent(D.btnClearLogs, 'click', async () => { if(!confirm('Delete all logs?')) return; await withLock(async () => { await fetch(`${WORKER_BASE}/admin/logs/clear`, { method:'POST', headers:getAuthHeaders() }); loadLogs(); toast('Logs cleared'); }); });
-    safeAddEvent(D.btnBulkCancel, 'click', () => { ST.selected.clear(); renderFiles(); updateBulkBar(); });
-    safeAddEvent(D.btnBulkDelete, 'click', async () => { if(!confirm(`Delete ${ST.selected.size} files?`)) return; const ids = Array.from(ST.selected); await withLock(async () => { const r = await fetch(`${WORKER_BASE}/bulk-delete`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({publicIds:ids}) }); const d = await r.json(); ST.selected.clear(); updateBulkBar(); await fetchFiles(); toast(`${d.deleted} deleted, ${d.failed} failed`); }); });
-    safeAddEvent(D.refreshFilesBtn, 'click', () => fetchFiles());
-    safeAddEvent(D.refreshPendingBtn, 'click', () => loadPending());
-    safeAddEvent(D.refreshUsersBtn, 'click', () => loadAllUsers());
-    safeAddEvent(D.refreshLogsBtn, 'click', () => loadLogs());
-    safeAddEvent(D.refreshAnalyticsBtn, 'click', () => loadAnalytics());
-    safeAddEvent(D.addUserBtn, 'click', async () => { const email = D.newUserEmail.value.trim(); if (!email) { toast('Enter email', 'error'); return; } await withLock(async () => { await fetch(`${WORKER_BASE}/admin/add-user`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({ email, role:'full' }) }); toast(`User ${email} added`, 'success'); D.newUserEmail.value = ''; loadAllUsers(); loadPendingCount(); }).catch(e=>toast('Failed to add user','error')); });
-    function togglePanel(panel, loadFn) { if(panel) { panel.classList.toggle('hidden'); if(!panel.classList.contains('hidden')) loadFn(); } }
-    async function adminLogout() { if(confirm('Logout as admin?')) { ST.token = null; localStorage.removeItem('vtoken'); showLogin(); toast('Admin logged out'); } }
-    async function loadPendingCount() { if(!ST.isAdmin || !D.pendingBadge) return; const r = await fetch(`${WORKER_BASE}/admin/pending`, { headers:getAuthHeaders() }); const p = await r.json(); D.pendingBadge.textContent = p.length; D.pendingBadge.classList.toggle('hidden', p.length===0); }
-    function loadPending() { fetch(`${WORKER_BASE}/admin/pending`, { headers:getAuthHeaders() }).then(r=>r.json()).then(users => { D.listAppr.innerHTML = users.length ? users.map(u => `<div class="approval-item"><span>${u.email}</span><div><select class="role-sel"><option value="full">Full</option><option value="delete">Delete</option><option value="upload">Upload Only</option><option value="download">Download Only</option><option value="read">Read Only</option><option value="none">None</option></select><button class="btn btn-sm btn-success" data-email="${u.email}">Approve</button><button class="btn btn-sm btn-danger" data-email="${u.email}">Deny</button></div></div>`).join('') : '<p>No pending users.</p>'; attachApproveEvents(); }); }
-    function attachApproveEvents() { D.listAppr.querySelectorAll('button').forEach(btn => { btn.addEventListener('click', async () => { const email = btn.dataset.email; const role = btn.parentElement.querySelector('.role-sel')?.value || 'full'; const isApprove = btn.classList.contains('btn-success'); const endpoint = isApprove ? 'approve' : 'deny'; await withLock(async () => { await fetch(`${WORKER_BASE}/admin/${endpoint}`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({email, role}) }); toast(`${email} ${isApprove ? 'approved' : 'denied'}`); loadPending(); loadPendingCount(); loadAllUsers(); }); }); }); }
-    function loadAllUsers() { fetch(`${WORKER_BASE}/admin/all-users`, { headers:getAuthHeaders() }).then(r=>r.json()).then(users => { const active = users.filter(u => u.status !== 'revoked' && u.is_admin !== 1); D.listUsers.innerHTML = active.map(u => `<div class="approval-item"><span>${u.email} <span class="status-badge status-${u.status}">${u.status}</span> ${u.role?`(${u.role})` : ''}</span><div>${u.status==='pending' ? `<select class="role-sel-${u.email}"><option value="full">Full</option><option value="delete">Delete</option><option value="upload">Upload Only</option><option value="download">Download</option><option value="read">Read</option><option value="none">None</option></select><button class="btn-sm btn-success" data-action="approve" data-email="${u.email}">Approve</button>` : ''}${u.status==='approved' ? `<select class="role-sel-${u.email}"><option value="full" ${u.role==='full'?'selected':''}>Full</option><option value="delete" ${u.role==='delete'?'selected':''}>Delete</option><option value="upload" ${u.role==='upload'?'selected':''}>Upload Only</option><option value="download" ${u.role==='download'?'selected':''}>Download</option><option value="read" ${u.role==='read'?'selected':''}>Read</option><option value="none" ${u.role==='none'?'selected':''}>None</option></select><button class="btn-sm btn-primary" data-action="update" data-email="${u.email}">Update</button><button class="btn-sm btn-danger" data-action="revoke" data-email="${u.email}">Revoke</button><button class="btn-sm btn-warning" data-action="makeadmin" data-email="${u.email}">Make Sub‑Admin</button>` : ''}</div></div>`).join(''); attachUserEvents(); }); }
-    function attachUserEvents() { D.listUsers.querySelectorAll('button').forEach(btn => { btn.addEventListener('click', async () => { const action = btn.dataset.action; const email = btn.dataset.email; if (action === 'makeadmin') { await fetch(`${WORKER_BASE}/admin/make-subadmin`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({email, makeAdmin: true}) }); toast(`${email} promoted to sub‑admin.`, 'success'); loadAllUsers(); return; } let role = 'full'; const sel = btn.parentElement.querySelector(`.role-sel-${email}`); if(sel) role = sel.value; let endpoint = ''; if (action === 'approve') endpoint = 'approve'; else if (action === 'update') endpoint = 'approve'; else if (action === 'revoke') endpoint = 'revoke'; if (endpoint) { await fetch(`${WORKER_BASE}/admin/${endpoint}`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({email, role}) }); toast(`${email} ${action === 'revoke' ? 'revoked' : 'updated'}`); loadPending(); loadPendingCount(); loadAllUsers(); } }); }); }
-    function loadLogs() { fetch(`${WORKER_BASE}/admin/logs?limit=200`, { headers:getAuthHeaders() }).then(r=>r.json()).then(d => { D.logsCt.innerHTML = d.logs.length ? d.logs.map(l=>`<div><strong>${new Date(l.ts).toLocaleString()}</strong> ${l.actor} ${l.action} <strong>${l.meta?.fileName||l.target}</strong></div>`).join('') : '<p>No logs.</p>'; }); }
-    function loadAnalytics() { fetch(`${WORKER_BASE}/admin/analytics`, { headers:getAuthHeaders() }).then(r=>r.json()).then(d => { D.analyticsCt.innerHTML = `<p>Files: ${d.files.total} (${fmtSz(d.files.totalSize)}) | Users: ${d.users.total}</p>`; }); }
+    function safeAddEvent(el,ev,fn){ if(el) el.addEventListener(ev,fn); }
+    safeAddEvent(D.btnSync,'click',async()=>{ toast('Syncing...','info'); await withLock(async()=>{ await fetch(`${WORKER_BASE}/sync`,{method:'POST',headers:getAuthHeaders()}); await fetchFiles(); toast('Sync done','success'); }).catch(()=>toast('Sync failed','error')); });
+    safeAddEvent(D.btnAppr,'click',()=>togglePanel(D.pnlAppr,loadPending));
+    safeAddEvent(D.btnAllUsers,'click',()=>togglePanel(D.pnlUsers,loadAllUsers));
+    safeAddEvent(D.btnLogs,'click',()=>togglePanel(D.pnlLogs,loadLogs));
+    safeAddEvent(D.btnAnalytics,'click',()=>togglePanel(D.pnlAnalytics,loadAnalytics));
+    safeAddEvent(D.btnShare,'click',()=>togglePanel(D.pnlShare,()=>{ if(D.shareCt) D.shareCt.innerHTML='<p>Create a share link from a file card (🔗 Share).</p>'; }));
+    safeAddEvent(D.btnUnAuth,'click',adminLogout);
+    safeAddEvent(D.btnClearLogs,'click',async()=>{ if(!confirm('Delete all logs?')) return; await withLock(async()=>{ await fetch(`${WORKER_BASE}/admin/logs/clear`,{method:'POST',headers:getAuthHeaders()}); loadLogs(); toast('Logs cleared'); }); });
+    safeAddEvent(D.btnBulkCancel,'click',()=>{ ST.selected.clear(); renderFiles(); updateBulkBar(); });
+    safeAddEvent(D.btnBulkDelete,'click',async()=>{ if(!confirm(`Delete ${ST.selected.size} files?`)) return; const ids=Array.from(ST.selected); await withLock(async()=>{ const r=await fetch(`${WORKER_BASE}/bulk-delete`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({publicIds:ids})}); const d=await r.json(); ST.selected.clear(); updateBulkBar(); await fetchFiles(); toast(`${d.deleted} deleted, ${d.failed} failed`); }); });
+    safeAddEvent(D.refreshFilesBtn,'click',()=>fetchFiles());
+    safeAddEvent(D.refreshPendingBtn,'click',()=>loadPending());
+    safeAddEvent(D.refreshUsersBtn,'click',()=>loadAllUsers());
+    safeAddEvent(D.refreshLogsBtn,'click',()=>loadLogs());
+    safeAddEvent(D.refreshAnalyticsBtn,'click',()=>loadAnalytics());
+    safeAddEvent(D.addUserBtn,'click',async()=>{ const email=D.newUserEmail.value.trim(); if(!email){ toast('Enter email','error'); return; } await withLock(async()=>{ await fetch(`${WORKER_BASE}/admin/add-user`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({email,role:'full'})}); toast(`User ${email} added`,'success'); D.newUserEmail.value=''; loadAllUsers(); loadPendingCount(); }).catch(e=>toast('Failed to add user','error')); });
+    function togglePanel(panel,loadFn){ if(panel){ panel.classList.toggle('hidden'); if(!panel.classList.contains('hidden')) loadFn(); } }
+    async function adminLogout(){ if(confirm('Logout as admin?')){ ST.token=null; localStorage.removeItem('vtoken'); showLogin(); toast('Admin logged out'); } }
+    async function loadPendingCount(){ if(!ST.isAdmin||!D.pendingBadge) return; const r=await fetch(`${WORKER_BASE}/admin/pending`,{headers:getAuthHeaders()}); const p=await r.json(); D.pendingBadge.textContent=p.length; D.pendingBadge.classList.toggle('hidden',p.length===0); }
+    function loadPending(){ fetch(`${WORKER_BASE}/admin/pending`,{headers:getAuthHeaders()}).then(r=>r.json()).then(users=>{ D.listAppr.innerHTML=users.length?users.map(u=>`<div class="approval-item"><span>${u.email}</span><div><select class="role-sel"><option value="full">Full</option><option value="delete">Delete</option><option value="upload">Upload Only</option><option value="download">Download Only</option><option value="read">Read Only</option><option value="none">None</option></select><button class="btn btn-sm btn-success" data-email="${u.email}">Approve</button><button class="btn btn-sm btn-danger" data-email="${u.email}">Deny</button></div></div>`).join(''):'<p>No pending users.</p>'; attachApproveEvents(); }); }
+    function attachApproveEvents(){ D.listAppr.querySelectorAll('button').forEach(btn=>{ btn.addEventListener('click',async()=>{ const email=btn.dataset.email; const role=btn.parentElement.querySelector('.role-sel')?.value||'full'; const isApprove=btn.classList.contains('btn-success'); const endpoint=isApprove?'approve':'deny'; await withLock(async()=>{ await fetch(`${WORKER_BASE}/admin/${endpoint}`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({email,role})}); toast(`${email} ${isApprove?'approved':'denied'}`); loadPending(); loadPendingCount(); loadAllUsers(); }); }); }); }
+    function loadAllUsers(){ fetch(`${WORKER_BASE}/admin/all-users`,{headers:getAuthHeaders()}).then(r=>r.json()).then(users=>{ const active=users.filter(u=>u.status!=='revoked'&&u.is_admin!==1); D.listUsers.innerHTML=active.map(u=>`<div class="approval-item"><span>${u.email} <span class="status-badge status-${u.status}">${u.status}</span> ${u.role?`(${u.role})`:''}</span><div>${u.status==='pending'?`<select class="role-sel-${u.email}"><option value="full">Full</option><option value="delete">Delete</option><option value="upload">Upload Only</option><option value="download">Download</option><option value="read">Read</option><option value="none">None</option></select><button class="btn-sm btn-success" data-action="approve" data-email="${u.email}">Approve</button>`:''}${u.status==='approved'?`<select class="role-sel-${u.email}"><option value="full" ${u.role==='full'?'selected':''}>Full</option><option value="delete" ${u.role==='delete'?'selected':''}>Delete</option><option value="upload" ${u.role==='upload'?'selected':''}>Upload Only</option><option value="download" ${u.role==='download'?'selected':''}>Download</option><option value="read" ${u.role==='read'?'selected':''}>Read</option><option value="none" ${u.role==='none'?'selected':''}>None</option></select><button class="btn-sm btn-primary" data-action="update" data-email="${u.email}">Update</button><button class="btn-sm btn-danger" data-action="revoke" data-email="${u.email}">Revoke</button><button class="btn-sm btn-warning" data-action="makeadmin" data-email="${u.email}">Make Sub‑Admin</button>`:''}</div></div>`).join(''); attachUserEvents(); }); }
+    function attachUserEvents(){ D.listUsers.querySelectorAll('button').forEach(btn=>{ btn.addEventListener('click',async()=>{ const action=btn.dataset.action; const email=btn.dataset.email; if(action==='makeadmin'){ await fetch(`${WORKER_BASE}/admin/make-subadmin`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({email,makeAdmin:true})}); toast(`${email} promoted to sub‑admin.`,'success'); loadAllUsers(); return; } let role='full'; const sel=btn.parentElement.querySelector(`.role-sel-${email}`); if(sel) role=sel.value; let endpoint=''; if(action==='approve') endpoint='approve'; else if(action==='update') endpoint='approve'; else if(action==='revoke') endpoint='revoke'; if(endpoint){ await fetch(`${WORKER_BASE}/admin/${endpoint}`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({email,role})}); toast(`${email} ${action==='revoke'?'revoked':'updated'}`); loadPending(); loadPendingCount(); loadAllUsers(); } }); }); }
+    function loadLogs(){ fetch(`${WORKER_BASE}/admin/logs?limit=200`,{headers:getAuthHeaders()}).then(r=>r.json()).then(d=>{ D.logsCt.innerHTML=d.logs.length?d.logs.map(l=>`<div><strong>${new Date(l.ts).toLocaleString()}</strong> ${l.actor} ${l.action} <strong>${l.meta?.fileName||l.target}</strong></div>`).join(''):'<p>No logs.</p>'; }); }
+    function loadAnalytics(){ fetch(`${WORKER_BASE}/admin/analytics`,{headers:getAuthHeaders()}).then(r=>r.json()).then(d=>{ D.analyticsCt.innerHTML=`<p>Files: ${d.files.total} (${fmtSz(d.files.totalSize)}) | Users: ${d.users.total}</p>`; }); }
     // File core
-    async function fetchFiles() { await withLock(async () => { const r = await fetch(`${WORKER_BASE}/list`, { headers:getAuthHeaders() }); if(!r.ok) throw new Error(); const data = await r.json(); ST.files = data.files; renderFiles(); }).catch(e=>toast('Failed to load files','error')); }
-    async function loadCardData(pid) { const [commentsRes, tickRes] = await Promise.all([ fetch(`${WORKER_BASE}/comment/list?fileId=${pid}`, { headers:getAuthHeaders() }), fetch(`${WORKER_BASE}/tick/get?fileId=${pid}`, { headers:getAuthHeaders() }) ]); const comments = await commentsRes.json(); const tickData = await tickRes.json(); return { comments: comments.comments, ticked: tickData.ticked, count: tickData.count, users: tickData.users }; }
-    async function refreshCard(pid) { const card = document.querySelector(`.card[data-public-id="${pid}"]`); if(!card) return; const newData = await loadCardData(pid); cardData.set(pid, newData); const tickBtn = card.querySelector('.tick-btn'); if(tickBtn) { tickBtn.innerHTML = newData.ticked ? '✅' : '☑️'; let tooltipSpan = tickBtn.querySelector('.tooltip'); if(!tooltipSpan) { tooltipSpan = document.createElement('span'); tooltipSpan.className = 'tooltip'; tickBtn.appendChild(tooltipSpan); } tooltipSpan.textContent = newData.users.length ? `Ticked by: ${newData.users.join(', ')}` : 'No ticks yet'; } card.querySelector('.tick-count').textContent = newData.count; card.querySelector('.comment-count').textContent = newData.comments.length; const commentList = card.querySelector('.comment-list'); if(commentList) { commentList.innerHTML = newData.comments.map(c => `<div class="comment" data-comment-id="${c.id}"><span class="comment-text"><strong>${esc(c.user_email)}</strong> ${esc(c.text)}</span><div class="comment-actions">${c.user_email === ST.email || ST.isAdmin ? `<button class="delete-comment" data-id="${c.id}">🗑</button>` : ''}${c.user_email === ST.email || ST.isAdmin ? `<button class="edit-comment" data-id="${c.id}" data-text="${esc(c.text)}">✏️</button>` : ''}</div></div>`).join(''); attachCommentEvents(pid, commentList); } }
-    function attachCommentEvents(pid, container) { container.querySelectorAll('.delete-comment').forEach(btn => { btn.addEventListener('click', async (e) => { e.stopPropagation(); if(!confirm('Delete comment?')) return; await withLock(async () => { await fetch(`${WORKER_BASE}/comment/delete`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({commentId: btn.dataset.id}) }); await refreshCard(pid); }); }); }); container.querySelectorAll('.edit-comment').forEach(btn => { btn.addEventListener('click', async (e) => { e.stopPropagation(); const newText = prompt('Edit comment:', btn.dataset.text); if(newText && newText !== btn.dataset.text) { await withLock(async () => { await fetch(`${WORKER_BASE}/comment/edit`, { method:'PATCH', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({commentId: btn.dataset.id, text: newText}) }); await refreshCard(pid); }); } }); }); }
-    async function addComment(pid, text) { if(!text.trim()) return; await withLock(async () => { await fetch(`${WORKER_BASE}/comment/add`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({fileId:pid, text}) }); await refreshCard(pid); }).catch(e=>toast('Comment failed','error')); }
-    async function toggleTick(pid) { const data = cardData.get(pid); if(!data) return; await withLock(async () => { const r = await fetch(`${WORKER_BASE}/tick/set`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({fileId:pid, ticked:!data.ticked}) }); const res = await r.json(); if(res.success) { const newData = { ...data, ticked:!data.ticked, count:res.count, users:res.users }; cardData.set(pid, newData); const card = document.querySelector(`.card[data-public-id="${pid}"]`); if(card) { const tickBtn = card.querySelector('.tick-btn'); tickBtn.innerHTML = newData.ticked ? '✅' : '☑️'; let tooltipSpan = tickBtn.querySelector('.tooltip'); if(!tooltipSpan) { tooltipSpan = document.createElement('span'); tooltipSpan.className = 'tooltip'; tickBtn.appendChild(tooltipSpan); } tooltipSpan.textContent = newData.users.length ? `Ticked by: ${newData.users.join(', ')}` : 'No ticks yet'; card.querySelector('.tick-count').textContent = newData.count; } } }).catch(e=>toast('Tick failed','error')); }
-    // Direct file copy (for images) or download
-    async function copyFileDirect(pid, name, mimeType) {
-        if (mimeType && mimeType.startsWith('image/')) {
-            try {
-                const response = await fetch(getDownloadUrl(pid), { headers: getAuthHeaders() });
-                if (!response.ok) throw new Error('Fetch failed');
-                const blob = await response.blob();
-                await navigator.clipboard.write([
-                    new ClipboardItem({
-                        [blob.type]: blob
-                    })
-                ]);
+    async function fetchFiles(){ await withLock(async()=>{ const r=await fetch(`${WORKER_BASE}/list`,{headers:getAuthHeaders()}); if(!r.ok) throw new Error(); const data=await r.json(); ST.files=data.files; renderFiles(); }).catch(e=>toast('Failed to load files','error')); }
+    async function loadCardData(pid){ const [commentsRes,tickRes]=await Promise.all([ fetch(`${WORKER_BASE}/comment/list?fileId=${pid}`,{headers:getAuthHeaders()}), fetch(`${WORKER_BASE}/tick/get?fileId=${pid}`,{headers:getAuthHeaders()}) ]); const comments=await commentsRes.json(); const tickData=await tickRes.json(); return { comments:comments.comments, ticked:tickData.ticked, count:tickData.count, users:tickData.users }; }
+    async function refreshCard(pid){ const card=document.querySelector(`.card[data-public-id="${pid}"]`); if(!card) return; const newData=await loadCardData(pid); cardData.set(pid,newData); const tickBtn=card.querySelector('.tick-btn'); if(tickBtn){ tickBtn.innerHTML=newData.ticked?'✅':'☑️'; let tooltipSpan=tickBtn.querySelector('.tooltip'); if(!tooltipSpan){ tooltipSpan=document.createElement('span'); tooltipSpan.className='tooltip'; tickBtn.appendChild(tooltipSpan); } tooltipSpan.textContent=newData.users.length?`Ticked by: ${newData.users.join(', ')}`:'No ticks yet'; } card.querySelector('.tick-count').textContent=newData.count; card.querySelector('.comment-count').textContent=newData.comments.length; const commentList=card.querySelector('.comment-list'); if(commentList){ commentList.innerHTML=newData.comments.map(c=>`<div class="comment" data-comment-id="${c.id}"><span class="comment-text"><strong>${esc(c.user_email)}</strong> ${esc(c.text)}</span><div class="comment-actions">${c.user_email===ST.email||ST.isAdmin?`<button class="delete-comment" data-id="${c.id}">🗑</button>`:''}${c.user_email===ST.email||ST.isAdmin?`<button class="edit-comment" data-id="${c.id}" data-text="${esc(c.text)}">✏️</button>`:''}</div></div>`).join(''); attachCommentEvents(pid,commentList); } }
+    function attachCommentEvents(pid,container){ container.querySelectorAll('.delete-comment').forEach(btn=>{ btn.addEventListener('click',async(e)=>{ e.stopPropagation(); if(!confirm('Delete comment?')) return; await withLock(async()=>{ await fetch(`${WORKER_BASE}/comment/delete`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({commentId:btn.dataset.id})}); await refreshCard(pid); }); }); }); container.querySelectorAll('.edit-comment').forEach(btn=>{ btn.addEventListener('click',async(e)=>{ e.stopPropagation(); const newText=prompt('Edit comment:',btn.dataset.text); if(newText&&newText!==btn.dataset.text){ await withLock(async()=>{ await fetch(`${WORKER_BASE}/comment/edit`,{method:'PATCH',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({commentId:btn.dataset.id,text:newText})}); await refreshCard(pid); }); } }); }); }
+    async function addComment(pid,text){ if(!text.trim()) return; await withLock(async()=>{ await fetch(`${WORKER_BASE}/comment/add`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({fileId:pid,text})}); await refreshCard(pid); }).catch(e=>toast('Comment failed','error')); }
+    async function toggleTick(pid){ const data=cardData.get(pid); if(!data) return; await withLock(async()=>{ const r=await fetch(`${WORKER_BASE}/tick/set`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({fileId:pid,ticked:!data.ticked})}); const res=await r.json(); if(res.success){ const newData={...data,ticked:!data.ticked,count:res.count,users:res.users}; cardData.set(pid,newData); const card=document.querySelector(`.card[data-public-id="${pid}"]`); if(card){ const tickBtn=card.querySelector('.tick-btn'); tickBtn.innerHTML=newData.ticked?'✅':'☑️'; let tooltipSpan=tickBtn.querySelector('.tooltip'); if(!tooltipSpan){ tooltipSpan=document.createElement('span'); tooltipSpan.className='tooltip'; tickBtn.appendChild(tooltipSpan); } tooltipSpan.textContent=newData.users.length?`Ticked by: ${newData.users.join(', ')}`:'No ticks yet'; card.querySelector('.tick-count').textContent=newData.count; } } }).catch(e=>toast('Tick failed','error')); }
+    // Direct copy using fetch with auth
+    async function copyFileDirect(pid, name, mimeType){
+        try {
+            const response = await fetch(getDownloadUrl(pid), { headers: getAuthHeaders() });
+            if(!response.ok) throw new Error('Download failed');
+            const blob = await response.blob();
+            if(mimeType && mimeType.startsWith('image/')){
+                await navigator.clipboard.write([ new ClipboardItem({ [blob.type]: blob }) ]);
                 toast('Image copied to clipboard!', 'success');
-                return;
-            } catch (err) {
-                console.warn('Image copy failed', err);
-                toast('Copy failed, downloading instead', 'error');
+            } else {
+                // fallback: download
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = name;
+                a.click();
+                URL.revokeObjectURL(a.href);
+                toast('File download started (copy not supported for this type)', 'info');
             }
+        } catch(err){
+            console.error('Copy error', err);
+            toast('Copy failed: ' + err.message, 'error');
         }
-        // Fallback: trigger download
-        const a = document.createElement('a');
-        a.href = getDownloadUrl(pid);
-        a.download = name;
-        a.click();
-        toast('File download started', 'info');
     }
-    async function createShareLink(pid) { toast('Creating share link...', 'info'); const expiresIn = 3600*24*7; await withLock(async () => { const r = await fetch(`${WORKER_BASE}/share/create`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({publicId:pid, expiresIn}) }); const data = await r.json(); if(r.ok) { await navigator.clipboard.writeText(data.shareUrl); toast('Share link copied!', 'success'); } else { toast('Failed to create share link','error'); } }).catch(()=>toast('Share failed','error')); }
-    // Video player with custom controls – fixed null references
-    let currentVideo = null, controlsTimeout = null, videoControlsDiv = null;
-    function setupVideoControls(video) {
+    async function createShareLink(pid){ toast('Creating share link...','info'); const expiresIn=3600*24*7; await withLock(async()=>{ const r=await fetch(`${WORKER_BASE}/share/create`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({publicId:pid,expiresIn})}); const data=await r.json(); if(r.ok){ await navigator.clipboard.writeText(data.shareUrl); toast('Share link copied!','success'); } else { toast('Failed to create share link','error'); } }).catch(()=>toast('Share failed','error')); }
+    // Video player (fixed element existence checks)
+    let currentVideo = null, controlsTimeout = null;
+    function setupVideoControls(video){
         if(!video) return;
         currentVideo = video;
-        // Remove existing controls if any
-        if(videoControlsDiv) videoControlsDiv.remove();
-        videoControlsDiv = document.createElement('div');
-        videoControlsDiv.className = 'custom-video-controls';
-        videoControlsDiv.innerHTML = `<button id="vidPlayPause">⏯️</button><button id="vidBack30">←30s</button><button id="vidForward30">30s→</button><span id="vidTime">0:00 / 0:00</span><input type="range" id="vidSeek" value="0" step="0.1" style="flex:1"><input type="range" id="vidVolume" min="0" max="100" value="100"><span id="vidVolIcon">🔊</span><select id="vidAspect"><option value="auto">Auto</option><option value="16:9">16:9</option><option value="4:3">4:3</option><option value="1:1">1:1</option></select><button id="vidFullscreen">⛶</button>`;
-        document.getElementById('previewOverlay').appendChild(videoControlsDiv);
-        
+        const existing = document.querySelector('.custom-video-controls');
+        if(existing) existing.remove();
+        const controlsDiv = document.createElement('div');
+        controlsDiv.className = 'custom-video-controls';
+        controlsDiv.innerHTML = `<button id="vidPlayPause">⏯️</button><button id="vidBack30">←30s</button><button id="vidForward30">30s→</button><span id="vidTime">0:00 / 0:00</span><input type="range" id="vidSeek" value="0" step="0.1" style="flex:1"><input type="range" id="vidVolume" min="0" max="100" value="100"><span id="vidVolIcon">🔊</span><select id="vidAspect"><option value="auto">Auto</option><option value="16:9">16:9</option><option value="4:3">4:3</option><option value="1:1">1:1</option></select><button id="vidFullscreen">⛶</button>`;
+        document.getElementById('previewOverlay').appendChild(controlsDiv);
         const playPause = document.getElementById('vidPlayPause');
         const back30 = document.getElementById('vidBack30');
         const forward30 = document.getElementById('vidForward30');
@@ -322,69 +302,231 @@
         const volIcon = document.getElementById('vidVolIcon');
         const aspectSelect = document.getElementById('vidAspect');
         const fullscreenBtn = document.getElementById('vidFullscreen');
-        
-        function formatTime(sec) { if(isNaN(sec)) return '0:00'; const h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60), s = Math.floor(sec%60); return h>0 ? `${h}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}` : `${m}:${s.toString().padStart(2,'0')}`; }
-        function updateTime() { if(!video) return; const cur = video.currentTime, dur = video.duration||0; if(seekSlider) seekSlider.value = (cur/dur)*100||0; if(timeSpan) timeSpan.textContent = `${formatTime(cur)} / ${formatTime(dur)}`; }
+        if(!playPause || !back30 || !forward30 || !timeSpan || !seekSlider || !volumeSlider || !volIcon || !aspectSelect || !fullscreenBtn){
+            console.error('Video controls missing');
+            return;
+        }
+        function formatTime(sec){ if(isNaN(sec)) return '0:00'; const h=Math.floor(sec/3600), m=Math.floor((sec%3600)/60), s=Math.floor(sec%60); return h>0?`${h}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`:`${m}:${s.toString().padStart(2,'0')}`; }
+        function updateTime(){ if(!video) return; const cur=video.currentTime, dur=video.duration||0; seekSlider.value = (cur/dur)*100||0; timeSpan.textContent = `${formatTime(cur)} / ${formatTime(dur)}`; }
         video.addEventListener('timeupdate', updateTime);
         video.addEventListener('loadedmetadata', updateTime);
-        video.addEventListener('play', () => { if(playPause) playPause.textContent = '⏸️'; });
-        video.addEventListener('pause', () => { if(playPause) playPause.textContent = '⏯️'; });
-        if(playPause) playPause.addEventListener('click', () => video.paused ? video.play() : video.pause());
-        if(back30) back30.addEventListener('click', () => video.currentTime = Math.max(0, video.currentTime-30));
-        if(forward30) forward30.addEventListener('click', () => video.currentTime = Math.min(video.duration, video.currentTime+30));
-        if(seekSlider) seekSlider.addEventListener('input', () => { if(video.duration) video.currentTime = (seekSlider.value/100)*video.duration; });
-        if(volumeSlider) volumeSlider.addEventListener('input', () => { const val = volumeSlider.value; video.volume = val/100; if(volIcon) volIcon.textContent = val==0 ? '🔇' : val<30 ? '🔉' : '🔊'; });
-        if(aspectSelect) aspectSelect.addEventListener('change', () => { const asp = aspectSelect.value; video.style.aspectRatio = asp==='16:9'?'16/9':asp==='4:3'?'4/3':asp==='1:1'?'1/1':'auto'; });
-        if(fullscreenBtn) fullscreenBtn.addEventListener('click', () => { if(document.fullscreenElement) document.exitFullscreen(); else video.parentElement?.requestFullscreen(); });
-        
-        function hideControls() { if(videoControlsDiv) { videoControlsDiv.style.opacity = '0'; videoControlsDiv.style.pointerEvents = 'none'; } }
-        function showControls() { if(videoControlsDiv) { videoControlsDiv.style.opacity = '1'; videoControlsDiv.style.pointerEvents = 'auto'; if(controlsTimeout) clearTimeout(controlsTimeout); controlsTimeout = setTimeout(hideControls, 3000); } }
+        video.addEventListener('play', ()=>playPause.textContent='⏸️');
+        video.addEventListener('pause', ()=>playPause.textContent='⏯️');
+        playPause.addEventListener('click', ()=>video.paused?video.play():video.pause());
+        back30.addEventListener('click', ()=>video.currentTime = Math.max(0, video.currentTime-30));
+        forward30.addEventListener('click', ()=>video.currentTime = Math.min(video.duration, video.currentTime+30));
+        seekSlider.addEventListener('input', ()=>{ if(video.duration) video.currentTime = (seekSlider.value/100)*video.duration; });
+        volumeSlider.addEventListener('input', ()=>{ const val=volumeSlider.value; video.volume=val/100; volIcon.textContent=val==0?'🔇':val<30?'🔉':'🔊'; });
+        aspectSelect.addEventListener('change', ()=>{ const asp=aspectSelect.value; video.style.aspectRatio = asp==='16:9'?'16/9':asp==='4:3'?'4/3':asp==='1:1'?'1/1':'auto'; });
+        fullscreenBtn.addEventListener('click', ()=>{ if(document.fullscreenElement) document.exitFullscreen(); else video.parentElement?.requestFullscreen(); });
+        const hideControls = ()=>{ controlsDiv.style.opacity='0'; controlsDiv.style.pointerEvents='none'; };
+        const showControls = ()=>{ controlsDiv.style.opacity='1'; controlsDiv.style.pointerEvents='auto'; if(controlsTimeout) clearTimeout(controlsTimeout); controlsTimeout = setTimeout(hideControls,3000); };
         video.addEventListener('mousemove', showControls);
         video.addEventListener('click', showControls);
-        if(videoControlsDiv) videoControlsDiv.addEventListener('mouseenter', showControls);
-        if(videoControlsDiv) videoControlsDiv.addEventListener('mouseleave', showControls);
+        controlsDiv.addEventListener('mouseenter', showControls);
+        controlsDiv.addEventListener('mouseleave', showControls);
         showControls();
     }
-    function openPreview(pid, type) { if(!D.prevCont) return; D.prevCont.innerHTML = ''; const url = getPreviewUrl(pid); if(type === 'video') { const video = document.createElement('video'); video.src = url; video.autoplay = true; video.style.width = '100%'; video.style.height = '100%'; video.style.objectFit = 'contain'; video.style.backgroundColor = '#000'; D.prevCont.appendChild(video); video.load(); setupVideoControls(video); } else if(type === 'audio') { const audio = document.createElement('audio'); audio.src = url; audio.controls = true; audio.autoplay = true; audio.style.width = '100%'; D.prevCont.appendChild(audio); } else if(type === 'image') { const img = document.createElement('img'); img.src = url; img.style.maxWidth = '95%'; img.style.maxHeight = '95%'; D.prevCont.appendChild(img); } else if(type === 'pdf') { const ifr = document.createElement('iframe'); ifr.src = url; ifr.style.width = '90%'; ifr.style.height = '90%'; D.prevCont.appendChild(ifr); } else if(type === 'text') { fetch(url, { headers:getAuthHeaders() }).then(r=>r.text()).then(t => { const pre = document.createElement('pre'); pre.textContent = t; D.prevCont.appendChild(pre); }); } else { return; } D.prevOv.classList.remove('hidden'); }
-    function closePreview() { D.prevCont.innerHTML = ''; D.prevOv.classList.add('hidden'); if(document.fullscreenElement) document.exitFullscreen(); if(videoControlsDiv) videoControlsDiv.remove(); videoControlsDiv = null; currentVideo = null; if(controlsTimeout) clearTimeout(controlsTimeout); }
-    safeAddEvent(D.btnCloseP, 'click', closePreview);
-    safeAddEvent(D.btnFull, 'click', () => { if(document.fullscreenElement) document.exitFullscreen(); else if(D.prevOv) D.prevOv.requestFullscreen(); });
-    // Render files – rename only for admin
-    function getFileActions(pid) { if(ST.isAdmin) return ['play','preview','download','rename','replace','delete']; if(!ST.role) return []; const f = ST.files.find(f=>f.publicId===pid); if(!f) return []; const pt = prevType(f.mimeType); const a = []; if((pt==='video'||pt==='audio') && ['full','delete','upload','download','read'].includes(ST.role)) a.push('play'); if(['image','pdf','text'].includes(pt) && ['full','delete','upload','download','read'].includes(ST.role)) a.push('preview'); if(['full','delete','upload','download'].includes(ST.role)) a.push('download'); if(['full','delete','upload','download'].includes(ST.role)) a.push('share'); if(['full','delete'].includes(ST.role)) a.push('delete'); if(['full','delete','upload'].includes(ST.role)) a.push('replace'); // rename only for admin (handled separately)
+    function openPreview(pid, type){
+        if(!D.prevCont) return;
+        D.prevCont.innerHTML = '';
+        const url = getPreviewUrl(pid);
+        if(type === 'video'){
+            const video = document.createElement('video');
+            video.src = url;
+            video.autoplay = true;
+            video.style.width = '100%';
+            video.style.height = '100%';
+            video.style.objectFit = 'contain';
+            video.style.backgroundColor = '#000';
+            D.prevCont.appendChild(video);
+            video.load();
+            setupVideoControls(video);
+        } else if(type === 'audio'){
+            const audio = document.createElement('audio');
+            audio.src = url; audio.controls = true; audio.autoplay = true; audio.style.width = '100%';
+            D.prevCont.appendChild(audio);
+        } else if(type === 'image'){
+            const img = document.createElement('img'); img.src = url; img.style.maxWidth = '95%'; img.style.maxHeight = '95%';
+            D.prevCont.appendChild(img);
+        } else if(type === 'pdf'){
+            const ifr = document.createElement('iframe'); ifr.src = url; ifr.style.width = '90%'; ifr.style.height = '90%';
+            D.prevCont.appendChild(ifr);
+        } else if(type === 'text'){
+            fetch(url, { headers:getAuthHeaders() }).then(r=>r.text()).then(t=>{ const pre=document.createElement('pre'); pre.textContent=t; D.prevCont.appendChild(pre); });
+        } else { return; }
+        D.prevOv.classList.remove('hidden');
+    }
+    function closePreview(){ D.prevCont.innerHTML=''; D.prevOv.classList.add('hidden'); if(document.fullscreenElement) document.exitFullscreen(); const controls=document.querySelector('.custom-video-controls'); if(controls) controls.remove(); currentVideo=null; if(controlsTimeout) clearTimeout(controlsTimeout); }
+    safeAddEvent(D.btnCloseP,'click',closePreview);
+    safeAddEvent(D.btnFull,'click',()=>{ if(document.fullscreenElement) document.exitFullscreen(); else if(D.prevOv) D.prevOv.requestFullscreen(); });
+    // Render grid
+    function getFileActions(pid){
+        if(ST.isAdmin) return ['play','preview','download','rename','replace','delete'];
+        if(!ST.role) return [];
+        const f = ST.files.find(f=>f.publicId===pid);
+        if(!f) return [];
+        const pt = prevType(f.mimeType);
+        const a = [];
+        if((pt==='video'||pt==='audio') && ['full','delete','upload','download','read'].includes(ST.role)) a.push('play');
+        if(['image','pdf','text'].includes(pt) && ['full','delete','upload','download','read'].includes(ST.role)) a.push('preview');
+        if(['full','delete','upload','download'].includes(ST.role)) a.push('download');
+        if(['full','delete','upload','download'].includes(ST.role)) a.push('share');
+        if(['full','delete'].includes(ST.role)) a.push('delete');
+        if(['full','delete','upload'].includes(ST.role)) a.push('replace');
+        if(ST.role === 'full') a.push('rename');
         return a;
     }
-    function renderFiles() { if(!D.grid) return; let list = [...ST.files]; if(ST.query) list = list.filter(f=>f.name.toLowerCase().includes(ST.query)); const s = ST.sort; list.sort((a,b)=>{ switch(s){ case 'newest': return b.createdAt - a.createdAt; case 'oldest': return a.createdAt - b.createdAt; case 'name-asc': return a.name.localeCompare(b.name); case 'name-desc': return b.name.localeCompare(a.name); case 'size-desc': return b.size - a.size; case 'size-asc': return a.size - b.size; default: return 0; } }); const groups = {}; list.forEach(f=>{ const key = f.uploadedBy||'unknown'; if(!groups[key]) groups[key]=[]; groups[key].push(f); }); D.grid.innerHTML = ''; if(Object.keys(groups).length===0) { D.grid.innerHTML = '<p style="text-align:center;padding:30px;">No files yet.</p>'; return; } for(const [uploader, files] of Object.entries(groups)) { const section = document.createElement('div'); section.className = 'file-section'; section.innerHTML = `<div class="section-title">📤 ${esc(uploader)} <span>${files.length}</span></div><div class="file-grid"></div>`; const gridDiv = section.querySelector('.file-grid'); files.forEach(f => { const actions = getFileActions(f.publicId); const canRename = ST.isAdmin; // only admin can rename const upBy = f.uploadedBy ? `<div style="font-size:0.7rem; color:var(--text-secondary); margin-bottom:4px;">📤 ${f.uploadedBy}</div>` : ''; const thumbnailHtml = getThumbnailHtml(f.mimeType, f.name, f.publicId); const card = document.createElement('div'); card.className = `card${ST.selected.has(f.publicId) ? ' selected' : ''}`; card.dataset.publicId = f.publicId; card.tabIndex = 0; card.setAttribute('aria-label', f.name); card.innerHTML = `<input type="checkbox" class="card-checkbox" data-id="${f.publicId}" ${ST.selected.has(f.publicId) ? 'checked' : ''}><div class="thumbnail">${thumbnailHtml}</div><div class="file-name">${esc(f.name)}</div><div class="file-meta">${fmtSz(f.size)} · ${new Date(f.createdAt).toLocaleString()}</div>${upBy}<div class="actions">${actions.includes('play') ? `<button class="btn-xs btn-xs-play" data-action="play" data-id="${f.publicId}">▶ Play</button>` : ''}${actions.includes('preview') ? `<button class="btn-xs btn-xs-preview" data-action="preview" data-id="${f.publicId}">🔍 Preview</button>` : ''}${actions.includes('download') ? `<button class="btn-xs btn-xs-download" data-action="download" data-id="${f.publicId}">⬇ Download</button>` : ''}${canRename ? `<button class="btn-xs btn-xs-rename" data-action="rename" data-id="${f.publicId}">✏️ Rename</button>` : ''}${actions.includes('replace') ? `<button class="btn-xs btn-xs-replace" data-action="replace" data-id="${f.publicId}">🔄 Replace</button>` : ''}${actions.includes('delete') ? `<button class="btn-xs btn-xs-delete" data-action="delete" data-id="${f.publicId}">🗑 Delete</button>` : ''}<button class="btn-xs btn-xs-copy" data-action="copy" data-id="${f.publicId}" data-name="${esc(f.name)}" data-mime="${f.mimeType}">📋 Copy File</button>${actions.includes('share') ? `<button class="btn-xs btn-xs-share" data-action="share" data-id="${f.publicId}">🔗 Share</button>` : ''}<button class="tick-btn" data-action="tick" data-id="${f.publicId}"><span class="tooltip"></span></button><span class="tick-count"></span><div class="comment-section"><div class="comment-header"><span class="comment-icon">💬</span><span class="comment-count"></span></div><div class="comment-list"></div><div class="comment-form"><input type="text" placeholder="Add a comment..."><button class="btn-xs btn-outline post-comment">Post</button></div></div></div>`; gridDiv.appendChild(card); (async () => { const data = await loadCardData(f.publicId); cardData.set(f.publicId, data); const tickBtn = card.querySelector('.tick-btn'); tickBtn.innerHTML = data.ticked ? '✅' : '☑️'; let tooltipSpan = tickBtn.querySelector('.tooltip'); if(!tooltipSpan) { tooltipSpan = document.createElement('span'); tooltipSpan.className = 'tooltip'; tickBtn.appendChild(tooltipSpan); } tooltipSpan.textContent = data.users.length ? `Ticked by: ${data.users.join(', ')}` : 'No ticks yet'; card.querySelector('.tick-count').textContent = data.count; card.querySelector('.comment-count').textContent = data.comments.length; const commentList = card.querySelector('.comment-list'); if(commentList) { commentList.innerHTML = data.comments.map(c => `<div class="comment" data-comment-id="${c.id}"><span class="comment-text"><strong>${esc(c.user_email)}</strong> ${esc(c.text)}</span><div class="comment-actions">${c.user_email === ST.email || ST.isAdmin ? `<button class="delete-comment" data-id="${c.id}">🗑</button>` : ''}${c.user_email === ST.email || ST.isAdmin ? `<button class="edit-comment" data-id="${c.id}" data-text="${esc(c.text)}">✏️</button>` : ''}</div></div>`).join(''); attachCommentEvents(f.publicId, commentList); } const commentInput = card.querySelector('.comment-form input'); const postBtn = card.querySelector('.post-comment'); if(postBtn) postBtn.addEventListener('click', async () => { const text = commentInput.value; if(text.trim()) { await addComment(f.publicId, text); commentInput.value = ''; } }); const commentHeader = card.querySelector('.comment-header'); if(commentHeader) commentHeader.addEventListener('click', () => card.querySelector('.comment-list')?.classList.toggle('show')); })(); }); D.grid.appendChild(section); } attachEvents(); updateBulkBar(); setupKeyboardNav(); }
-    function attachEvents() { if(!D.grid) return; D.grid.querySelectorAll('.card-checkbox').forEach(cb => { cb.removeEventListener('change', checkboxHandler); cb.addEventListener('change', checkboxHandler); }); D.grid.querySelectorAll('.actions button').forEach(btn => { if(btn.classList.contains('tick-btn')) { btn.removeEventListener('click', tickHandler); btn.addEventListener('click', tickHandler); } else if(btn.classList.contains('btn-xs-copy')) { btn.removeEventListener('click', copyHandler); btn.addEventListener('click', copyHandler); } else if(btn.classList.contains('btn-xs-share')) { btn.removeEventListener('click', shareHandler); btn.addEventListener('click', shareHandler); } else { btn.removeEventListener('click', actionHandler); btn.addEventListener('click', actionHandler); } }); D.grid.querySelectorAll('.card').forEach(card => { card.removeEventListener('click', cardClickHandler); card.addEventListener('click', cardClickHandler); }); }
-    function checkboxHandler(e) { e.stopPropagation(); toggleSelect(e.target.dataset.id, e.target.checked); }
-    async function tickHandler(e) { e.stopPropagation(); await toggleTick(e.currentTarget.dataset.id); }
-    async function copyHandler(e) { e.stopPropagation(); const btn = e.currentTarget; await copyFileDirect(btn.dataset.id, btn.dataset.name, btn.dataset.mime); }
-    async function shareHandler(e) { e.stopPropagation(); await createShareLink(e.currentTarget.dataset.id); }
-    function actionHandler(e) { e.stopPropagation(); const action = e.currentTarget.dataset.action, id = e.currentTarget.dataset.id; if(action && action !== 'tick' && action !== 'copy' && action !== 'share') fileAction(action, id); }
-    function cardClickHandler(e) { if(e.target.classList.contains('card-checkbox') || e.target.closest('.actions')) return; const cb = this.querySelector('.card-checkbox'); if(cb) toggleSelect(cb.dataset.id, !cb.checked); }
-    function toggleSelect(id, checked) { if(checked) ST.selected.add(id); else ST.selected.delete(id); updateBulkBar(); const card = document.querySelector(`.card[data-public-id="${id}"]`); if(card) card.classList.toggle('selected', checked); }
-    function updateBulkBar() { if(D.bulkBar) { if(ST.selected.size) { D.bulkBar.classList.remove('hidden'); D.bulkCnt.textContent = `${ST.selected.size} selected`; } else D.bulkBar.classList.add('hidden'); } }
-    function fileAction(action, id) { switch(action){ case 'play': openPreview(id, 'video'); break; case 'preview': openPreview(id, prevType(ST.files.find(f=>f.publicId===id)?.mimeType)); break; case 'download': window.open(getDownloadUrl(id), '_blank'); break; case 'delete': deleteFile(id); break; case 'replace': replaceFile(id); break; case 'rename': renameFile(id); break; } }
-    async function deleteFile(pid) { if(!confirm('Delete?')) return; await withLock(async () => { const r = await fetch(`${WORKER_BASE}/delete`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({publicId:pid}) }); if(r.ok) { await fetchFiles(); toast('Deleted'); } else throw new Error(); }).catch(()=>toast('Delete failed','error')); }
-    function replaceFile(pid) { const inp = document.createElement('input'); inp.type='file'; inp.onchange=async()=>{ const file=inp.files[0]; if(!file) return; await withLock(async()=>{ const init=await fetch(`${WORKER_BASE}/update`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({publicId:pid,fileName:file.name,fileSize:file.size,fileType:file.type||'application/octet-stream'}) }); if(!init.ok){ toast('Replace init failed','error'); return; } const data=await init.json(); await uploadFile(file, data.publicId); await fetchFiles(); }); }; inp.click(); }
-    async function renameFile(pid) { if(!ST.isAdmin) { toast('Only admin can rename', 'error'); return; } const f=ST.files.find(f=>f.publicId===pid); if(!f) return; const newName=prompt('New name:', f.name); if(!newName || newName===f.name) return; await withLock(async()=>{ const r=await fetch(`${WORKER_BASE}/rename`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({publicId:pid,newName}) }); if(r.ok){ await fetchFiles(); toast('Renamed'); } else throw new Error(); }).catch(()=>toast('Rename failed','error')); }
+    function renderFiles(){
+        if(!D.grid) return;
+        let list = [...ST.files];
+        if(ST.query) list = list.filter(f=>f.name.toLowerCase().includes(ST.query));
+        const s=ST.sort;
+        list.sort((a,b)=>{ switch(s){ case 'newest': return b.createdAt - a.createdAt; case 'oldest': return a.createdAt - b.createdAt; case 'name-asc': return a.name.localeCompare(b.name); case 'name-desc': return b.name.localeCompare(a.name); case 'size-desc': return b.size - a.size; case 'size-asc': return a.size - b.size; default: return 0; } });
+        const groups = {};
+        list.forEach(f=>{ const key=f.uploadedBy||'unknown'; if(!groups[key]) groups[key]=[]; groups[key].push(f); });
+        D.grid.innerHTML = '';
+        if(Object.keys(groups).length===0){ D.grid.innerHTML='<p style="text-align:center;padding:30px;">No files yet.</p>'; return; }
+        for(const [uploader, files] of Object.entries(groups)){
+            const section = document.createElement('div'); section.className='file-section';
+            section.innerHTML = `<div class="section-title">📤 ${esc(uploader)} <span>${files.length}</span></div><div class="file-grid"></div>`;
+            const gridDiv = section.querySelector('.file-grid');
+            files.forEach(f=>{
+                const actions = getFileActions(f.publicId);
+                const upBy = f.uploadedBy ? `<div style="font-size:0.7rem; color:var(--text-secondary); margin-bottom:4px;">📤 ${f.uploadedBy}</div>` : '';
+                const thumbnailHtml = getThumbnailHtml(f.mimeType, f.name, f.publicId);
+                const card = document.createElement('div');
+                card.className = `card${ST.selected.has(f.publicId)?' selected':''}`;
+                card.dataset.publicId = f.publicId;
+                card.tabIndex = 0;
+                card.innerHTML = `<input type="checkbox" class="card-checkbox" data-id="${f.publicId}" ${ST.selected.has(f.publicId)?'checked':''}><div class="thumbnail">${thumbnailHtml}</div><div class="file-name">${esc(f.name)}</div><div class="file-meta">${fmtSz(f.size)} · ${new Date(f.createdAt).toLocaleString()}</div>${upBy}<div class="actions">${actions.includes('play')?`<button class="btn-xs btn-xs-play" data-action="play" data-id="${f.publicId}">▶ Play</button>`:''}${actions.includes('preview')?`<button class="btn-xs btn-xs-preview" data-action="preview" data-id="${f.publicId}">🔍 Preview</button>`:''}${actions.includes('download')?`<button class="btn-xs btn-xs-download" data-action="download" data-id="${f.publicId}">⬇ Download</button>`:''}${actions.includes('rename')?`<button class="btn-xs btn-xs-rename" data-action="rename" data-id="${f.publicId}">✏️ Rename</button>`:''}${actions.includes('replace')?`<button class="btn-xs btn-xs-replace" data-action="replace" data-id="${f.publicId}">🔄 Replace</button>`:''}${actions.includes('delete')?`<button class="btn-xs btn-xs-delete" data-action="delete" data-id="${f.publicId}">🗑 Delete</button>`:''}<button class="btn-xs btn-xs-copy" data-action="copy" data-id="${f.publicId}" data-name="${esc(f.name)}" data-mime="${f.mimeType}">📋 Copy File</button>${actions.includes('share')?`<button class="btn-xs btn-xs-share" data-action="share" data-id="${f.publicId}">🔗 Share</button>`:''}<button class="tick-btn" data-action="tick" data-id="${f.publicId}"><span class="tooltip"></span></button><span class="tick-count"></span><div class="comment-section"><div class="comment-header"><span class="comment-icon">💬</span><span class="comment-count"></span></div><div class="comment-list"></div><div class="comment-form"><input type="text" placeholder="Add a comment..."><button class="btn-xs btn-outline post-comment">Post</button></div></div></div>`;
+                gridDiv.appendChild(card);
+                (async()=>{
+                    const data = await loadCardData(f.publicId);
+                    cardData.set(f.publicId, data);
+                    const tickBtn = card.querySelector('.tick-btn');
+                    tickBtn.innerHTML = data.ticked ? '✅' : '☑️';
+                    let tooltipSpan = tickBtn.querySelector('.tooltip');
+                    if(!tooltipSpan){ tooltipSpan=document.createElement('span'); tooltipSpan.className='tooltip'; tickBtn.appendChild(tooltipSpan); }
+                    tooltipSpan.textContent = data.users.length ? `Ticked by: ${data.users.join(', ')}` : 'No ticks yet';
+                    card.querySelector('.tick-count').textContent = data.count;
+                    card.querySelector('.comment-count').textContent = data.comments.length;
+                    const commentList = card.querySelector('.comment-list');
+                    if(commentList){
+                        commentList.innerHTML = data.comments.map(c=>`<div class="comment" data-comment-id="${c.id}"><span class="comment-text"><strong>${esc(c.user_email)}</strong> ${esc(c.text)}</span><div class="comment-actions">${c.user_email===ST.email||ST.isAdmin?`<button class="delete-comment" data-id="${c.id}">🗑</button>`:''}${c.user_email===ST.email||ST.isAdmin?`<button class="edit-comment" data-id="${c.id}" data-text="${esc(c.text)}">✏️</button>`:''}</div></div>`).join('');
+                        attachCommentEvents(f.publicId, commentList);
+                    }
+                    const commentInput = card.querySelector('.comment-form input');
+                    const postBtn = card.querySelector('.post-comment');
+                    if(postBtn) postBtn.addEventListener('click', async()=>{ const text=commentInput.value; if(text.trim()){ await addComment(f.publicId, text); commentInput.value=''; } });
+                    const commentHeader = card.querySelector('.comment-header');
+                    if(commentHeader) commentHeader.addEventListener('click', ()=>card.querySelector('.comment-list')?.classList.toggle('show'));
+                })();
+            });
+            D.grid.appendChild(section);
+        }
+        attachEvents(); updateBulkBar(); setupKeyboardNav();
+    }
+    function attachEvents(){
+        if(!D.grid) return;
+        D.grid.querySelectorAll('.card-checkbox').forEach(cb=>{ cb.removeEventListener('change', checkboxHandler); cb.addEventListener('change', checkboxHandler); });
+        D.grid.querySelectorAll('.actions button').forEach(btn=>{
+            if(btn.classList.contains('tick-btn')){ btn.removeEventListener('click', tickHandler); btn.addEventListener('click', tickHandler); }
+            else if(btn.classList.contains('btn-xs-copy')){ btn.removeEventListener('click', copyHandler); btn.addEventListener('click', copyHandler); }
+            else if(btn.classList.contains('btn-xs-share')){ btn.removeEventListener('click', shareHandler); btn.addEventListener('click', shareHandler); }
+            else { btn.removeEventListener('click', actionHandler); btn.addEventListener('click', actionHandler); }
+        });
+        D.grid.querySelectorAll('.card').forEach(card=>{ card.removeEventListener('click', cardClickHandler); card.addEventListener('click', cardClickHandler); });
+    }
+    function checkboxHandler(e){ e.stopPropagation(); toggleSelect(e.target.dataset.id, e.target.checked); }
+    async function tickHandler(e){ e.stopPropagation(); await toggleTick(e.currentTarget.dataset.id); }
+    async function copyHandler(e){ e.stopPropagation(); const btn=e.currentTarget; await copyFileDirect(btn.dataset.id, btn.dataset.name, btn.dataset.mime); }
+    async function shareHandler(e){ e.stopPropagation(); await createShareLink(e.currentTarget.dataset.id); }
+    function actionHandler(e){ e.stopPropagation(); const action=e.currentTarget.dataset.action, id=e.currentTarget.dataset.id; if(action && action!=='tick' && action!=='copy' && action!=='share') fileAction(action, id); }
+    function cardClickHandler(e){ if(e.target.classList.contains('card-checkbox')||e.target.closest('.actions')) return; const cb=this.querySelector('.card-checkbox'); if(cb) toggleSelect(cb.dataset.id, !cb.checked); }
+    function toggleSelect(id, checked){ if(checked) ST.selected.add(id); else ST.selected.delete(id); updateBulkBar(); const card=document.querySelector(`.card[data-public-id="${id}"]`); if(card) card.classList.toggle('selected', checked); }
+    function updateBulkBar(){ if(D.bulkBar){ if(ST.selected.size){ D.bulkBar.classList.remove('hidden'); D.bulkCnt.textContent=`${ST.selected.size} selected`; } else D.bulkBar.classList.add('hidden'); } }
+    function fileAction(action, id){ switch(action){ case 'play': openPreview(id, 'video'); break; case 'preview': openPreview(id, prevType(ST.files.find(f=>f.publicId===id)?.mimeType)); break; case 'download': window.open(getDownloadUrl(id), '_blank'); break; case 'delete': deleteFile(id); break; case 'replace': replaceFile(id); break; case 'rename': renameFile(id); break; } }
+    async function deleteFile(pid){ if(!confirm('Delete?')) return; await withLock(async()=>{ const r=await fetch(`${WORKER_BASE}/delete`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({publicId:pid})}); if(r.ok){ await fetchFiles(); toast('Deleted'); } else throw new Error(); }).catch(()=>toast('Delete failed','error')); }
+    function replaceFile(pid){ const inp=document.createElement('input'); inp.type='file'; inp.onchange=async()=>{ const file=inp.files[0]; if(!file) return; await withLock(async()=>{ const init=await fetch(`${WORKER_BASE}/update`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({publicId:pid,fileName:file.name,fileSize:file.size,fileType:file.type||'application/octet-stream'})}); if(!init.ok){ toast('Replace init failed','error'); return; } const data=await init.json(); await uploadFile(file, data.publicId); await fetchFiles(); }); }; inp.click(); }
+    async function renameFile(pid){ const f=ST.files.find(f=>f.publicId===pid); if(!f) return; const newName=prompt('New name:', f.name); if(!newName || newName===f.name) return; await withLock(async()=>{ const r=await fetch(`${WORKER_BASE}/rename`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({publicId:pid,newName})}); if(r.ok){ await fetchFiles(); toast('Renamed'); } else throw new Error(); }).catch(()=>toast('Rename failed','error')); }
     // Upload
     let pendingPasteFiles = [];
-    document.addEventListener('paste', (e) => { const items = e.clipboardData.items; for(let i=0;i<items.length;i++) { if(items[i].kind === 'file') { const file = items[i].getAsFile(); if(file) pendingPasteFiles.push(file); } } if(pendingPasteFiles.length > 0) { toast(`${pendingPasteFiles.length} file(s) pasted. Click Send.`, 'success'); D.pasteInput.value = `${pendingPasteFiles.length} file(s) ready`; } else { toast('No file in clipboard.', 'info'); } });
-    safeAddEvent(D.sendPasteBtn, 'click', async () => { if(pendingPasteFiles.length===0) { toast('No pasted files.', 'info'); return; } toast(`Uploading ${pendingPasteFiles.length} files...`, 'info'); for(const file of pendingPasteFiles) await uploadFile(file); pendingPasteFiles = []; D.pasteInput.value = ''; toast('All uploaded.', 'success'); });
-    async function uploadFile(file, existingPid = null) { const fileKey = existingPid || file.name+file.size+file.lastModified; if(uploadingFiles.has(fileKey)) { toast(`${file.name} already uploading.`, 'info'); return; } uploadingFiles.add(fileKey); if(ST.uploadCtrl) ST.uploadCtrl.abort(); ST.uploadCtrl = new AbortController(); D.progBox.classList.remove('hidden'); try { let pid = existingPid; if(!pid) { const initRes = await fetch(`${WORKER_BASE}/upload-init`, { method:'POST', headers:{'Content-Type':'application/json', ...getAuthHeaders()}, body:JSON.stringify({fileName:file.name, fileSize:file.size, fileType:file.type||'application/octet-stream'}), signal:ST.uploadCtrl.signal }); if(!initRes.ok) throw new Error(await initRes.text()); const initData = await initRes.json(); pid = initData.publicId; } const CHUNK = 5*1024*1024; let uploaded=0, lastBytes=0, lastTime=Date.now(); while(uploaded < file.size) { if(ST.uploadCtrl.signal.aborted) throw new Error('Cancelled'); const end = Math.min(uploaded+CHUNK-1, file.size-1); const chunk = file.slice(uploaded, end+1); let retries=3, done=false; while(retries-- && !done) { const chunkRes = await fetch(`${WORKER_BASE}/upload-chunk/${pid}`, { method:'PUT', headers:{'Content-Range':`bytes ${uploaded}-${end}/${file.size}`, ...getAuthHeaders()}, body:chunk, signal:ST.uploadCtrl.signal }); const data = await chunkRes.json(); if(chunkRes.ok) { if(data.complete===true || data.status==='complete') { done=true; break; } if(typeof data.uploadedBytes === 'number') { uploaded = data.uploadedBytes; const now = Date.now(); const speed = ((uploaded-lastBytes)/Math.max(1, now-lastTime))*1000; updateProgress(uploaded, file.size, speed); lastBytes=uploaded; lastTime=now; } done=true; } else { if(retries<=0) throw new Error(data.error||'Chunk error'); await sleep(1000); } } if(done && uploaded>=file.size) break; if(!done) { const statusRes = await fetch(`${WORKER_BASE}/upload-status/${pid}`, { headers:getAuthHeaders(), signal:ST.uploadCtrl.signal }); if(statusRes.ok) { const s = await statusRes.json(); uploaded = s.uploadedBytes || uploaded; updateProgress(uploaded, file.size, 0); } } } toast(`${file.name} uploaded`, 'success'); await fetchFiles(); if(D.fileInp) D.fileInp.value = ''; } catch(err) { if(err.message !== 'Cancelled') toast(`Upload failed: ${err.message}`, 'error'); } finally { D.progBox.classList.add('hidden'); ST.uploadCtrl = null; uploadingFiles.delete(fileKey); } }
-    function updateProgress(uploaded, total, speed) { const p = Math.round(uploaded/total*100); D.progFill.style.width = p+'%'; D.pctDisp.textContent = p+'%'; D.speedDisp.textContent = speed ? fmtSpeed(speed) : '--'; D.sizeDisp.textContent = `${fmtSz(uploaded)} / ${fmtSz(total)}`; }
+    document.addEventListener('paste', (e)=>{ const items=e.clipboardData.items; for(let i=0;i<items.length;i++){ if(items[i].kind==='file'){ const file=items[i].getAsFile(); if(file) pendingPasteFiles.push(file); } } if(pendingPasteFiles.length>0){ toast(`${pendingPasteFiles.length} file(s) pasted. Click Send.`,'success'); D.pasteInput.value=`${pendingPasteFiles.length} file(s) ready`; } else { toast('No file in clipboard.','info'); } });
+    safeAddEvent(D.sendPasteBtn,'click',async()=>{ if(pendingPasteFiles.length===0){ toast('No pasted files.','info'); return; } toast(`Uploading ${pendingPasteFiles.length} files...`,'info'); for(const file of pendingPasteFiles) await uploadFile(file); pendingPasteFiles=[]; D.pasteInput.value=''; toast('All uploaded.','success'); });
+    async function uploadFile(file, existingPid=null){
+        const fileKey = existingPid || file.name+file.size+file.lastModified;
+        if(uploadingFiles.has(fileKey)){ toast(`${file.name} already uploading.`,'info'); return; }
+        uploadingFiles.add(fileKey);
+        if(ST.uploadCtrl) ST.uploadCtrl.abort();
+        ST.uploadCtrl = new AbortController();
+        D.progBox.classList.remove('hidden');
+        try {
+            let pid = existingPid;
+            if(!pid){
+                const initRes = await fetch(`${WORKER_BASE}/upload-init`,{ method:'POST', headers:{'Content-Type':'application/json',...getAuthHeaders()}, body:JSON.stringify({fileName:file.name, fileSize:file.size, fileType:file.type||'application/octet-stream'}), signal:ST.uploadCtrl.signal });
+                if(!initRes.ok){ const errText=await initRes.text(); throw new Error(`Init failed: ${errText}`); }
+                const initData = await initRes.json();
+                pid = initData.publicId;
+            }
+            const CHUNK = 5*1024*1024;
+            let uploaded=0, lastBytes=0, lastTime=Date.now();
+            while(uploaded < file.size){
+                if(ST.uploadCtrl.signal.aborted) throw new Error('Cancelled');
+                const end = Math.min(uploaded+CHUNK-1, file.size-1);
+                const chunk = file.slice(uploaded, end+1);
+                let retries=3, done=false;
+                while(retries-- && !done){
+                    const chunkRes = await fetch(`${WORKER_BASE}/upload-chunk/${pid}`,{ method:'PUT', headers:{'Content-Range':`bytes ${uploaded}-${end}/${file.size}`, ...getAuthHeaders()}, body:chunk, signal:ST.uploadCtrl.signal });
+                    const data = await chunkRes.json();
+                    if(chunkRes.ok){
+                        if(data.complete===true || data.status==='complete'){ done=true; break; }
+                        if(typeof data.uploadedBytes === 'number'){
+                            uploaded = data.uploadedBytes;
+                            const now = Date.now();
+                            const speed = ((uploaded-lastBytes)/Math.max(1, now-lastTime))*1000;
+                            updateProgress(uploaded, file.size, speed);
+                            lastBytes=uploaded; lastTime=now;
+                        }
+                        done=true;
+                    } else {
+                        if(retries<=0) throw new Error(data.error||'Chunk error');
+                        await sleep(1000);
+                    }
+                }
+                if(done && uploaded>=file.size) break;
+                if(!done){
+                    const statusRes = await fetch(`${WORKER_BASE}/upload-status/${pid}`,{ headers:getAuthHeaders(), signal:ST.uploadCtrl.signal });
+                    if(statusRes.ok){ const s=await statusRes.json(); uploaded=s.uploadedBytes||uploaded; updateProgress(uploaded, file.size, 0); }
+                }
+            }
+            toast(`${file.name} uploaded`,'success');
+            await fetchFiles();
+            if(D.fileInp) D.fileInp.value='';
+        } catch(err){
+            if(err.message !== 'Cancelled') toast(`Upload failed: ${err.message}`,'error');
+        } finally {
+            D.progBox.classList.add('hidden');
+            ST.uploadCtrl = null;
+            uploadingFiles.delete(fileKey);
+        }
+    }
+    function updateProgress(uploaded, total, speed){ const p=Math.round(uploaded/total*100); D.progFill.style.width=p+'%'; D.pctDisp.textContent=p+'%'; D.speedDisp.textContent=speed?fmtSpeed(speed):'--'; D.sizeDisp.textContent=`${fmtSz(uploaded)} / ${fmtSz(total)}`; }
     const sleep = ms => new Promise(r=>setTimeout(r,ms));
-    safeAddEvent(D.cancelBtn, 'click', () => { if(ST.uploadCtrl) { ST.uploadCtrl.abort(); ST.uploadCtrl = null; D.progBox.classList.add('hidden'); } });
-    // Drag & drop, keyboard
-    if(D.dropzone) { ['dragenter','dragover','dragleave','drop'].forEach(ev => D.dropzone.addEventListener(ev, e=>e.preventDefault())); D.dropzone.addEventListener('dragover', ()=>D.dropzone.classList.add('dragover')); D.dropzone.addEventListener('dragleave', ()=>D.dropzone.classList.remove('dragover')); D.dropzone.addEventListener('drop', e => { D.dropzone.classList.remove('dragover'); const files = e.dataTransfer.files; if(files.length) handleFiles(files); }); D.dropzone.addEventListener('click', () => D.fileInp.click()); }
-    if(D.fileInp) D.fileInp.addEventListener('change', e => handleFiles(e.target.files));
-    function handleFiles(files) { for(const f of files) uploadFile(f); }
-    function setupKeyboardNav() { const cards = Array.from(document.querySelectorAll('.card')); if(cards.length === 0) return; cards.forEach((card, idx) => { card.setAttribute('data-index', idx); card.addEventListener('keydown', (e) => { if(e.key === 'Enter' || e.key === ' ' || e.key === 'OK') { e.preventDefault(); const cb = card.querySelector('.card-checkbox'); if(cb) toggleSelect(cb.dataset.id, !cb.checked); } else if(e.key === 'ArrowRight') { const next = cards[idx+1]; if(next) next.focus(); } else if(e.key === 'ArrowLeft') { const prev = cards[idx-1]; if(prev) prev.focus(); } else if(e.key === 'ArrowDown') { const nextRow = cards[idx+ (Math.floor(cards.length/3)||1)]; if(nextRow) nextRow.focus(); } else if(e.key === 'ArrowUp') { const prevRow = cards[idx- (Math.floor(cards.length/3)||1)]; if(prevRow) prevRow.focus(); } }); }); if(ST.focusedCardIndex >=0 && cards[ST.focusedCardIndex]) cards[ST.focusedCardIndex].focus(); else if(cards[0]) cards[0].focus(); }
-    document.addEventListener('keydown', e => { if(e.ctrlKey && e.key==='u') { e.preventDefault(); if(D.fileInp) D.fileInp.click(); } if(e.ctrlKey && e.key==='f') { e.preventDefault(); if(D.search) D.search.focus(); } if(e.key==='Escape') closePreview(); });
-    function applyRoleUI() { const canUpload = ['full','delete','upload'].includes(ST.role); if(D.dropzone) D.dropzone.style.display = canUpload ? '' : 'none'; const hint = document.querySelector('.hint-text'); if(hint) hint.style.display = canUpload ? '' : 'none'; }
-    async function showSharePreview() { const res = await fetch(`${WORKER_BASE}/share/verify?token=${ST.shareToken}`); if(!res.ok) { toast('Invalid share link', 'error'); showLogin(); return; } const data = await res.json(); D.grid.innerHTML = `<div style="text-align:center;padding:60px;"><div class="thumbnail" style="font-size:4rem;">${getThumbnailHtml(data.mimeType, data.fileName, '')}</div><h2>${esc(data.fileName)}</h2><p>${fmtSz(data.fileSize)}</p><button class="btn btn-primary" id="shareDownloadBtn">⬇ Download</button><button class="btn btn-outline" onclick="location.href='/'">🔐 Login</button></div>`; const shareBtn = $('shareDownloadBtn'); if(shareBtn) shareBtn.addEventListener('click', () => { window.location.href = `${WORKER_BASE}/share/download?token=${ST.shareToken}`; }); D.dropzone.style.display = 'none'; document.querySelector('.hint-text').style.display = 'none'; D.adminBar.classList.add('hidden'); D.userUI.innerHTML = ''; }
-    async function resetAdminToken() { if(ST.isAdmin) { await fetch(`${WORKER_BASE}/admin/reset`, { method:'POST', headers:getAuthHeaders() }); toast('Admin token reset. Please login again.', 'info'); ST.token = null; localStorage.removeItem('vtoken'); showLogin(); } }
-    async function init() { initDarkMode(); const p = new URLSearchParams(location.search); const utoken = p.get('utoken'); const share = p.get('share'); const err = p.get('auth_error'); if(share) { ST.shareToken = share; history.replaceState({}, '', location.pathname); await showSharePreview(); return; } if(err) { toast('Auth error: ' + err.replace(/_/g,' '), 'error'); history.replaceState({}, '', location.pathname); } if(utoken) { ST.token = utoken; localStorage.setItem('vtoken', utoken); history.replaceState({}, '', location.pathname); } if(ST.token && await fetchUserInfo()) { render(); // Check if admin token is valid; if upload fails, offer reset if(ST.isAdmin) { const test = await fetch(`${WORKER_BASE}/health`).catch(()=>null); if(test && test.status === 200) { const data = await test.json(); if(!data.vault) { toast('Admin token expired. Please logout and login again.', 'error'); resetAdminToken(); } } } } else { showLogin(); } }
+    safeAddEvent(D.cancelBtn,'click',()=>{ if(ST.uploadCtrl){ ST.uploadCtrl.abort(); ST.uploadCtrl=null; D.progBox.classList.add('hidden'); } });
+    // Drag & drop
+    if(D.dropzone){ ['dragenter','dragover','dragleave','drop'].forEach(ev=>D.dropzone.addEventListener(ev,e=>e.preventDefault())); D.dropzone.addEventListener('dragover',()=>D.dropzone.classList.add('dragover')); D.dropzone.addEventListener('dragleave',()=>D.dropzone.classList.remove('dragover')); D.dropzone.addEventListener('drop',e=>{ D.dropzone.classList.remove('dragover'); const files=e.dataTransfer.files; if(files.length) handleFiles(files); }); D.dropzone.addEventListener('click',()=>D.fileInp.click()); }
+    if(D.fileInp) D.fileInp.addEventListener('change',e=>handleFiles(e.target.files));
+    function handleFiles(files){ for(const f of files) uploadFile(f); }
+    // Keyboard navigation
+    function setupKeyboardNav(){ const cards=Array.from(document.querySelectorAll('.card')); if(cards.length===0) return; cards.forEach((card,idx)=>{ card.setAttribute('data-index',idx); card.addEventListener('keydown',(e)=>{ if(e.key==='Enter' || e.key===' ' || e.key==='OK'){ e.preventDefault(); const cb=card.querySelector('.card-checkbox'); if(cb) toggleSelect(cb.dataset.id, !cb.checked); } else if(e.key==='ArrowRight'){ const next=cards[idx+1]; if(next) next.focus(); } else if(e.key==='ArrowLeft'){ const prev=cards[idx-1]; if(prev) prev.focus(); } else if(e.key==='ArrowDown'){ const nextRow=cards[idx+ (Math.floor(cards.length/3)||1)]; if(nextRow) nextRow.focus(); } else if(e.key==='ArrowUp'){ const prevRow=cards[idx- (Math.floor(cards.length/3)||1)]; if(prevRow) prevRow.focus(); } }); }); if(ST.focusedCardIndex>=0 && cards[ST.focusedCardIndex]) cards[ST.focusedCardIndex].focus(); else if(cards[0]) cards[0].focus(); }
+    document.addEventListener('keydown',e=>{ if(e.ctrlKey&&e.key==='u'){ e.preventDefault(); if(D.fileInp) D.fileInp.click(); } if(e.ctrlKey&&e.key==='f'){ e.preventDefault(); if(D.search) D.search.focus(); } if(e.key==='Escape') closePreview(); });
+    function applyRoleUI(){ const canUpload=['full','delete','upload'].includes(ST.role); if(D.dropzone) D.dropzone.style.display=canUpload?'':'none'; const hint=document.querySelector('.hint-text'); if(hint) hint.style.display=canUpload?'':'none'; }
+    async function showSharePreview(){ const res=await fetch(`${WORKER_BASE}/share/verify?token=${ST.shareToken}`); if(!res.ok){ toast('Invalid share link','error'); showLogin(); return; } const data=await res.json(); D.grid.innerHTML=`<div style="text-align:center;padding:60px;"><div class="thumbnail" style="font-size:4rem;">${getThumbnailHtml(data.mimeType, data.fileName, '')}</div><h2>${esc(data.fileName)}</h2><p>${fmtSz(data.fileSize)}</p><button class="btn btn-primary" id="shareDownloadBtn">⬇ Download</button><button class="btn btn-outline" onclick="location.href='/'">🔐 Login</button></div>`; const shareBtn=$('shareDownloadBtn'); if(shareBtn) shareBtn.addEventListener('click',()=>{ window.location.href=`${WORKER_BASE}/share/download?token=${ST.shareToken}`; }); D.dropzone.style.display='none'; document.querySelector('.hint-text').style.display='none'; D.adminBar.classList.add('hidden'); D.userUI.innerHTML=''; }
+    // Dark mode
+    (function(){ if(ST.dark) document.documentElement.setAttribute('data-theme','dark'); D.btnDark.addEventListener('click',()=>{ ST.dark=!ST.dark; document.documentElement.setAttribute('data-theme',ST.dark?'dark':'light'); localStorage.setItem('darkMode',ST.dark); }); })();
+    // Init
+    async function init(){ const p=new URLSearchParams(location.search); const utoken=p.get('utoken'); const share=p.get('share'); const err=p.get('auth_error'); if(share){ ST.shareToken=share; history.replaceState({},'',location.pathname); await showSharePreview(); return; } if(err){ toast('Auth error: '+err.replace(/_/g,' '),'error'); history.replaceState({},'',location.pathname); } if(utoken){ ST.token=utoken; localStorage.setItem('vtoken',utoken); history.replaceState({},'',location.pathname); } if(ST.token && await fetchUserInfo()){ render(); } else { showLogin(); } }
     init();
 </script>
 </body>
