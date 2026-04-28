@@ -160,7 +160,7 @@
         pendingCheckInterval: null
     };
     let activeUploads = new Map(); // key -> AbortController
-    let uploadingKeys = new Set();  // simple set to prevent double upload
+    let uploadingKeys = new Set();  // prevents double upload
     let cardData = new Map();
 
     const $ = id => document.getElementById(id);
@@ -464,7 +464,7 @@
         } catch(err){ toast('Copy failed: '+err.message,'error'); }
     }
 
-    // Video player with working audio and video
+    // Video player with proper null checks
     let currentVideo = null, controlsTimeout = null, audioCtx = null, gainNode = null, sourceNode = null;
     function setupVideoControls(video) {
         if(!video) return;
@@ -491,7 +491,12 @@
         const volumeSlider = $('#vidVolume'), volIcon = $('#vidVolIcon'), brightnessSlider = $('#vidBrightness'), aspectSelect = $('#vidAspect'), fullscreenBtn = $('#vidFullscreen');
         
         function formatTime(sec){ if(isNaN(sec)) return '0:00'; const h=Math.floor(sec/3600), m=Math.floor((sec%3600)/60), s=Math.floor(sec%60); return h>0?`${h}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`:`${m}:${s.toString().padStart(2,'0')}`; }
-        function updateTime(){ if(!video) return; const cur=video.currentTime, dur=video.duration||0; seekSlider.value = (cur/dur)*100||0; timeSpan.textContent = `${formatTime(cur)} / ${formatTime(dur)}`; }
+        function updateTime(){
+            if(!video) return;
+            const cur = video.currentTime, dur = video.duration || 0;
+            if(seekSlider) seekSlider.value = (cur/dur)*100||0;
+            if(timeSpan) timeSpan.textContent = `${formatTime(cur)} / ${formatTime(dur)}`;
+        }
         video.addEventListener('timeupdate', updateTime);
         video.addEventListener('loadedmetadata', updateTime);
         video.addEventListener('play', ()=>playPause.textContent='⏸️');
