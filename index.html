@@ -20,7 +20,7 @@
             --shadow: 0 4px 12px rgba(0,0,0,0.05);
             --toast-bg: #1e293b;
             --toast-text: #f1f5f9;
-            --video-control-bg: rgba(0,0,0,0.7);
+            --video-control-bg: rgba(0,0,0,0.85);
         }
         [data-theme="dark"] {
             --bg: #0f172a;
@@ -92,7 +92,7 @@
             position: absolute; bottom: 20px; left: 20px; right: 20px;
             background: var(--video-control-bg); backdrop-filter: blur(8px);
             border-radius: 12px; padding: 12px 20px; display: flex; flex-wrap: wrap;
-            align-items: center; gap: 8px; justify-content: center; transition: opacity 0.3s; z-index: 1001;
+            align-items: center; gap: 8px; justify-content: center; z-index: 1001;
             font-size: 0.8rem;
         }
         .custom-video-controls button, .custom-video-controls select, .custom-video-controls input {
@@ -152,7 +152,7 @@
         <button id="btnBulkDelete">🗑 Delete Selected</button>
         <button id="btnBulkCancel">✕</button>
     </div>
-    <div class="hint-text"><kbd>Ctrl+V</kbd> paste | <kbd>Ctrl+U</kbd> upload | <kbd>Ctrl+F</kbd> search | <kbd>Esc</kbd> close | <kbd>▲▼◀▶</kbd> navigate | <kbd>Enter</kbd> select | <kbd>Click</kbd> file to preview</div>
+    <div class="hint-text"><kbd>Ctrl+V</kbd> paste | <kbd>Ctrl+U</kbd> upload | <kbd>Ctrl+F</kbd> search | <kbd>Esc</kbd> close | <kbd>▲▼◀▶</kbd> navigate | <kbd>Enter</kbd> select/submit</div>
     <div class="dropzone" id="dropzone">
         <p>📂 Drop files here or click to browse</p>
         <input type="file" id="fileInput" multiple>
@@ -283,7 +283,6 @@
             ST.approved = i.approved;
             ST.role = i.role;
             if (!wasApproved && ST.approved) {
-                // Just got approved: reload the main view
                 if (ST.pendingCheckInterval) clearInterval(ST.pendingCheckInterval);
                 render();
                 toast('You have been approved! Access granted.', 'success');
@@ -299,7 +298,7 @@
         if (ST.pendingCheckInterval) clearInterval(ST.pendingCheckInterval);
         ST.pendingCheckInterval = setInterval(async () => {
             await fetchUserInfo();
-        }, 30000); // check every 30s while pending
+        }, 30000);
     }
 
     function showLogin() {
@@ -378,7 +377,7 @@
         }
     });
 
-    // Admin actions (sync, users, logs, etc.)
+    // Admin actions
     safeAddEvent(D.btnSync, 'click', async () => {
         toast('Syncing...', 'info');
         try {
@@ -504,16 +503,22 @@
                 if (endpoint === 'update-role') {
                     await fetch(`${WORKER_BASE}/admin/update-role`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }, body: JSON.stringify({ email, role }) });
                     toast(`${email} role updated to ${role}`);
+                    // Refresh user info and files
+                    await fetchUserInfo();
+                    await fetchFiles();
                 } else if (endpoint === 'revoke') {
                     await fetch(`${WORKER_BASE}/admin/revoke`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }, body: JSON.stringify({ email }) });
                     toast(`${email} revoked`);
+                    loadAllUsers();
+                    loadPending();
+                    loadPendingCount();
                 } else if (endpoint === 'approve') {
                     await fetch(`${WORKER_BASE}/admin/approve`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }, body: JSON.stringify({ email, role }) });
                     toast(`${email} approved`);
+                    loadAllUsers();
+                    loadPending();
+                    loadPendingCount();
                 }
-                loadAllUsers();
-                loadPending();
-                loadPendingCount();
             });
         });
     }
@@ -624,19 +629,27 @@
         }
     }
 
-    async function copyFileUrl(pid, name) {
-        const url = getDownloadUrl(pid);
+    // Copy file (actual file for images, else download link)
+    async function copyFile(pid, name, mime) {
         try {
-            await navigator.clipboard.writeText(url);
-            toast(`Download link for "${name}" copied`, 'success');
+            const response = await fetch(getDownloadUrl(pid), { headers: getAuthHeaders() });
+            if (!response.ok) throw new Error('Fetch failed');
+            const blob = await response.blob();
+            if (mime && mime.startsWith('image/')) {
+                await navigator.clipboard.write([ new ClipboardItem({ [blob.type]: blob }) ]);
+                toast('Image copied to clipboard!', 'success');
+            } else {
+                // Fallback: copy download link
+                await navigator.clipboard.writeText(getDownloadUrl(pid));
+                toast('Download link copied (file copy not supported for this type)', 'info');
+            }
         } catch (err) {
-            toast('Copy failed', 'error');
+            toast('Copy failed: ' + err.message, 'error');
         }
     }
 
     // Advanced video player with brightness, audio tracks, language, aspect ratio, volume boost
     let currentVideo = null;
-    let controlsTimeout = null;
     function setupVideoControls(video) {
         if (!video) return;
         currentVideo = video;
@@ -650,9 +663,9 @@
             <button id="vidForward30">30s→</button>
             <span id="vidTime">0:00 / 0:00</span>
             <input type="range" id="vidSeek" value="0" step="0.1" style="width:100px">
-            <input type="range" id="vidVolume" min="0" max="100" value="100" style="width:60px">
+            <input type="range" id="vidVolume" min="0" max="300" value="100" style="width:80px">
             <span id="vidVolIcon">🔊</span>
-            <input type="range" id="vidBrightness" min="0" max="200" value="100" style="width:60px">
+            <input type="range" id="vidBrightness" min="0" max="200" value="100" style="width:80px">
             <span>☀️</span>
             <select id="vidAudioTrack"></select>
             <select id="vidLanguage"></select>
@@ -679,7 +692,7 @@
         const fullscreenBtn = document.getElementById('vidFullscreen');
         if (!playPause || !back30 || !forward30 || !timeSpan || !seekSlider || !volumeSlider || !volIcon || !brightnessSlider || !audioTrackSelect || !languageSelect || !aspectSelect || !fullscreenBtn) return;
         
-        function formatTime(sec) { if (isNaN(sec)) return '0:00'; const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = Math.floor(sec % 60); return h > 0 ? `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}` : `${m}:${s.toString().padStart(2, '0')}`; }
+        function formatTime(sec) { if (isNaN(sec)) return '0:00'; const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = Math.floor(sec % 60); return h > 0 ? `${h}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}` : `${m}:${s.toString().padStart(2,'0')}`; }
         function updateTime() { if (!video) return; const cur = video.currentTime, dur = video.duration || 0; seekSlider.value = (cur / dur) * 100 || 0; timeSpan.textContent = `${formatTime(cur)} / ${formatTime(dur)}`; }
         video.addEventListener('timeupdate', updateTime);
         video.addEventListener('loadedmetadata', updateTime);
@@ -689,14 +702,12 @@
         back30.addEventListener('click', () => video.currentTime = Math.max(0, video.currentTime - 30));
         forward30.addEventListener('click', () => video.currentTime = Math.min(video.duration, video.currentTime + 30));
         seekSlider.addEventListener('input', () => { if (video.duration) video.currentTime = (seekSlider.value / 100) * video.duration; });
-        volumeSlider.addEventListener('input', () => { let val = volumeSlider.value; video.volume = val / 100; volIcon.textContent = val == 0 ? '🔇' : val < 30 ? '🔉' : '🔊'; });
+        volumeSlider.addEventListener('input', () => { let val = volumeSlider.value; video.volume = Math.min(val / 100, 1); volIcon.textContent = val == 0 ? '🔇' : val < 30 ? '🔉' : '🔊'; });
         brightnessSlider.addEventListener('input', () => { let val = brightnessSlider.value / 100; video.style.filter = `brightness(${val})`; });
         
-        // Populate audio tracks and languages
         function updateTracks() {
             if (!video.audioTracks) return;
             audioTrackSelect.innerHTML = '';
-            languageSelect.innerHTML = '';
             for (let i = 0; i < video.audioTracks.length; i++) {
                 const track = video.audioTracks[i];
                 const option = document.createElement('option');
@@ -705,7 +716,7 @@
                 if (track.enabled) option.selected = true;
                 audioTrackSelect.appendChild(option);
             }
-            // Language selection (if multiple languages in text tracks)
+            languageSelect.innerHTML = '<option value="">No subtitles</option>';
             for (let i = 0; i < video.textTracks.length; i++) {
                 const track = video.textTracks[i];
                 if (track.kind === 'subtitles' || track.kind === 'captions') {
@@ -715,35 +726,19 @@
                     languageSelect.appendChild(option);
                 }
             }
-            if (languageSelect.options.length === 0) {
-                languageSelect.innerHTML = '<option value="">No subtitles</option>';
-            }
         }
         video.addEventListener('loadedmetadata', updateTracks);
         audioTrackSelect.addEventListener('change', () => {
             if (!video.audioTracks) return;
-            for (let i = 0; i < video.audioTracks.length; i++) {
-                video.audioTracks[i].enabled = (i == audioTrackSelect.value);
-            }
+            for (let i = 0; i < video.audioTracks.length; i++) video.audioTracks[i].enabled = (i == audioTrackSelect.value);
         });
         languageSelect.addEventListener('change', () => {
             if (!video.textTracks) return;
             const idx = parseInt(languageSelect.value);
-            for (let i = 0; i < video.textTracks.length; i++) {
-                video.textTracks[i].mode = (i === idx) ? 'showing' : 'hidden';
-            }
+            for (let i = 0; i < video.textTracks.length; i++) video.textTracks[i].mode = (i === idx) ? 'showing' : 'hidden';
         });
-        
         aspectSelect.addEventListener('change', () => { const asp = aspectSelect.value; video.style.aspectRatio = asp === '16:9' ? '16/9' : asp === '4:3' ? '4/3' : asp === '1:1' ? '1/1' : 'auto'; });
         fullscreenBtn.addEventListener('click', () => { if (document.fullscreenElement) document.exitFullscreen(); else video.parentElement?.requestFullscreen(); });
-        
-        const hideControls = () => { controlsDiv.style.opacity = '0'; controlsDiv.style.pointerEvents = 'none'; };
-        const showControls = () => { controlsDiv.style.opacity = '1'; controlsDiv.style.pointerEvents = 'auto'; if (controlsTimeout) clearTimeout(controlsTimeout); controlsTimeout = setTimeout(hideControls, 3000); };
-        video.addEventListener('mousemove', showControls);
-        video.addEventListener('click', showControls);
-        controlsDiv.addEventListener('mouseenter', showControls);
-        controlsDiv.addEventListener('mouseleave', showControls);
-        showControls();
     }
 
     function openPreview(pid, type, mime) {
@@ -789,7 +784,6 @@
         if (document.fullscreenElement) document.exitFullscreen();
         const controls = document.querySelector('.custom-video-controls');
         if (controls) controls.remove();
-        if (controlsTimeout) clearTimeout(controlsTimeout);
         currentVideo = null;
     }
     safeAddEvent(D.btnCloseP, 'click', closePreview);
@@ -827,7 +821,7 @@
                 if (can('preview')) actionsHtml.push(`<button class="btn-xs btn-xs-preview" data-action="preview" data-id="${f.publicId}" data-mime="${f.mimeType}">🔍 Preview</button>`);
                 if (can('download')) actionsHtml.push(`<button class="btn-xs btn-xs-download" data-action="download" data-id="${f.publicId}">⬇ Download</button>`);
                 if (can('delete')) actionsHtml.push(`<button class="btn-xs btn-xs-delete" data-action="delete" data-id="${f.publicId}">🗑 Delete</button>`);
-                if (can('copy')) actionsHtml.push(`<button class="btn-xs btn-xs-copy" data-action="copy" data-id="${f.publicId}" data-name="${esc(f.name)}">📋 Copy Link</button>`);
+                if (can('copy')) actionsHtml.push(`<button class="btn-xs btn-xs-copy" data-action="copy" data-id="${f.publicId}" data-name="${esc(f.name)}" data-mime="${f.mimeType}">📋 Copy File</button>`);
                 const upBy = f.uploadedBy ? `<div style="font-size:0.7rem; color:var(--text-secondary); margin-bottom:4px;">📤 ${f.uploadedBy}</div>` : '';
                 const thumbnailHtml = getThumbnailHtml(f.mimeType, f.name, f.publicId);
                 const card = document.createElement('div');
@@ -869,12 +863,10 @@
 
     function attachEvents() {
         if (!D.grid) return;
-        // Checkbox handlers
         D.grid.querySelectorAll('.card-checkbox').forEach(cb => {
             cb.removeEventListener('change', checkboxHandler);
             cb.addEventListener('change', checkboxHandler);
         });
-        // Action buttons
         D.grid.querySelectorAll('.actions button').forEach(btn => {
             if (btn.classList.contains('tick-btn')) {
                 btn.removeEventListener('click', tickHandler);
@@ -884,7 +876,6 @@
                 btn.addEventListener('click', actionHandler);
             }
         });
-        // Card click = preview/play
         D.grid.querySelectorAll('.card').forEach(card => {
             card.removeEventListener('click', cardClickHandler);
             card.addEventListener('click', cardClickHandler);
@@ -893,7 +884,7 @@
 
     function checkboxHandler(e) { e.stopPropagation(); toggleSelect(e.target.dataset.id, e.target.checked); }
     async function tickHandler(e) { e.stopPropagation(); await toggleTick(e.currentTarget.dataset.id); }
-    function actionHandler(e) { e.stopPropagation(); const action = e.currentTarget.dataset.action, id = e.currentTarget.dataset.id, mime = e.currentTarget.dataset.mime, name = e.currentTarget.dataset.name; if (action === 'copy') copyFileUrl(id, name); else fileAction(action, id, mime); }
+    function actionHandler(e) { e.stopPropagation(); const action = e.currentTarget.dataset.action, id = e.currentTarget.dataset.id, mime = e.currentTarget.dataset.mime, name = e.currentTarget.dataset.name; if (action === 'copy') copyFile(id, name, mime); else fileAction(action, id, mime); }
     function cardClickHandler(e) {
         if (e.target.classList.contains('card-checkbox') || e.target.closest('.actions')) return;
         const pid = this.dataset.publicId;
@@ -1076,7 +1067,7 @@
         });
     })();
 
-    // Share preview (if share token in URL)
+    // Share preview
     async function showSharePreview() {
         const res = await fetch(`${WORKER_BASE}/share/verify?token=${ST.shareToken}`);
         if (!res.ok) { toast('Invalid share link', 'error'); showLogin(); return; }
