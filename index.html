@@ -233,7 +233,7 @@
         if (!ST.token) return false;
         try {
             const r = await fetch(`${WORKER_BASE}/user-info?utoken=${ST.token}`);
-            if (!r.ok) throw new Error();
+            if (!r.ok) throw new Error(await r.text());
             const i = await r.json();
             const wasApproved = ST.approved;
             ST.email = i.email; ST.isAdmin = i.isAdmin === true; ST.approved = i.approved; ST.role = i.role;
@@ -243,7 +243,7 @@
                 toast('Access granted!', 'success');
             }
             return true;
-        } catch (e) { return false; }
+        } catch (e) { console.warn(e); return false; }
     }
     function startPendingCheck() {
         if (ST.pendingCheckInterval) clearInterval(ST.pendingCheckInterval);
@@ -518,7 +518,7 @@
             <button id="vidFullscreen">⛶</button>
         `;
         D.prevOv.appendChild(controlsDiv);
-        // Use requestAnimationFrame to ensure DOM is updated
+        // Wait for DOM to render the new elements
         requestAnimationFrame(() => {
             const playPause = $('#vidPlayPause');
             const back30 = $('#vidBack30');
