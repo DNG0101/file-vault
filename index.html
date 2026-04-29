@@ -2,8 +2,8 @@
 <html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>File Vault – Final</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <title>File Vault – Ultimate Gallery</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
@@ -159,7 +159,8 @@
         shareToken: null,
         pendingCheckInterval: null
     };
-    let activeUploads = new Set(); // prevent double upload
+    let activeUploadKeys = new Set();      // prevents double upload
+    let activeUploadControllers = new Map(); // key -> AbortController
     let cardData = new Map();
 
     const $ = id => document.getElementById(id);
@@ -227,7 +228,7 @@
     };
     function can(action) { return ST.isAdmin ? true : (roleRights[ST.role]?.[action] === true); }
 
-    // Auth
+    // Authentication
     async function fetchUserInfo() {
         if (!ST.token) return false;
         try {
@@ -289,6 +290,8 @@
             D.userUI.innerHTML = `<span>👤 ${ST.email} (${ST.role}) <button class="btn btn-sm btn-outline" id="btnUserLogout">🔒 Logout</button></span>`;
             const logoutBtn = $('btnUserLogout');
             if (logoutBtn) logoutBtn.onclick = () => {
+                for (const ctrl of activeUploadControllers.values()) ctrl.abort();
+                activeUploadControllers.clear(); activeUploadKeys.clear();
                 ST.token = null; localStorage.removeItem('vtoken'); showLogin(); toast('Logged out.');
             };
             D.dropzone.style.display = can('upload') ? '' : 'none';
@@ -328,7 +331,7 @@
     safeAddEvent(D.addUserBtn, 'click', async () => { const email=D.newUserEmail.value.trim(); if(!email) { toast('Enter email','error'); return; } await fetch(`${WORKER_BASE}/admin/add-user`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({email,role:'full'})}); toast(`User ${email} added`,'success'); D.newUserEmail.value=''; loadAllUsers(); loadPendingCount(); });
 
     function togglePanel(panel, loadFn) { if(panel) { panel.classList.toggle('hidden'); if(!panel.classList.contains('hidden')) loadFn(); } }
-    async function adminLogout() { if(confirm('Logout as admin?')) { ST.token = null; localStorage.removeItem('vtoken'); showLogin(); toast('Admin logged out'); } }
+    async function adminLogout() { if(confirm('Logout as admin?')) { for (const ctrl of activeUploadControllers.values()) ctrl.abort(); activeUploadControllers.clear(); activeUploadKeys.clear(); ST.token = null; localStorage.removeItem('vtoken'); showLogin(); toast('Admin logged out'); } }
     async function loadPendingCount() { if(!ST.isAdmin || !D.pendingBadge) return; const r=await fetch(`${WORKER_BASE}/admin/pending`,{headers:getAuthHeaders()}); const p=await r.json(); D.pendingBadge.textContent=p.length; D.pendingBadge.classList.toggle('hidden',p.length===0); }
     function loadPending() {
         fetch(`${WORKER_BASE}/admin/pending`,{headers:getAuthHeaders()}).then(r=>r.json()).then(users=>{
@@ -492,8 +495,8 @@
         } catch(err){ toast('Copy failed: '+err.message,'error'); }
     }
 
-    // Video player - robust setup with MutationObserver
-    let currentVideo = null, controlsTimeout = null, audioCtx = null, gainNode = null;
+    // Video player – robust control attachment
+    let currentVideo = null, controlsTimeout = null, audioCtx = null, gainNode = null, sourceNode = null;
     function setupVideoControls(video) {
         if(!video) return;
         currentVideo = video;
@@ -515,68 +518,80 @@
             <button id="vidFullscreen">⛶</button>
         `;
         D.prevOv.appendChild(controlsDiv);
-        // Wait for elements to be in DOM
-        const observer = new MutationObserver(() => {
-            const playPause = $('#vidPlayPause'); const back30 = $('#vidBack30'); const forward30 = $('#vidForward30');
-            const timeSpan = $('#vidTime'); const seekSlider = $('#vidSeek'); const volumeSlider = $('#vidVolume');
-            const volIcon = $('#vidVolIcon'); const brightnessSlider = $('#vidBrightness');
-            const aspectSelect = $('#vidAspect'); const fullscreenBtn = $('#vidFullscreen');
-            if(playPause && back30 && forward30 && timeSpan && seekSlider && volumeSlider && volIcon && brightnessSlider && aspectSelect && fullscreenBtn){
-                observer.disconnect();
-                function formatTime(sec){ if(isNaN(sec)) return '0:00'; const h=Math.floor(sec/3600), m=Math.floor((sec%3600)/60), s=Math.floor(sec%60); return h>0?`${h}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`:`${m}:${s.toString().padStart(2,'0')}`; }
-                function updateTime(){
-                    if(!video) return;
-                    const cur = video.currentTime, dur = video.duration || 0;
-                    seekSlider.value = (cur/dur)*100||0;
-                    timeSpan.textContent = `${formatTime(cur)} / ${formatTime(dur)}`;
-                }
-                video.addEventListener('timeupdate', updateTime);
-                video.addEventListener('loadedmetadata', updateTime);
-                video.addEventListener('play', ()=>playPause.textContent='⏸️');
-                video.addEventListener('pause', ()=>playPause.textContent='⏯️');
-                playPause.addEventListener('click', ()=>video.paused?video.play():video.pause());
-                back30.addEventListener('click', ()=>video.currentTime = Math.max(0, video.currentTime-30));
-                forward30.addEventListener('click', ()=>video.currentTime = Math.min(video.duration, video.currentTime+30));
-                seekSlider.addEventListener('input', ()=>{ if(video.duration) video.currentTime = (seekSlider.value/100)*video.duration; });
-                let webAudioEnabled = false;
-                volumeSlider.addEventListener('input', async () => {
-                    let val = volumeSlider.value;
-                    volIcon.textContent = val==0?'🔇':val<30?'🔉':val<100?'🔊':'🔊⬆';
-                    if(webAudioEnabled && gainNode) gainNode.gain.value = Math.min(val/100, 3);
-                    else video.volume = Math.min(val/100, 1);
-                });
-                video.addEventListener('play', async () => {
-                    if(!webAudioEnabled && typeof AudioContext !== 'undefined') {
-                        try {
-                            audioCtx = new AudioContext();
-                            gainNode = audioCtx.createGain();
-                            gainNode.connect(audioCtx.destination);
-                            const source = audioCtx.createMediaElementSource(video);
-                            source.connect(gainNode);
-                            gainNode.gain.value = Math.min(volumeSlider.value/100, 3);
-                            if(audioCtx.state === 'suspended') await audioCtx.resume();
-                            webAudioEnabled = true;
-                        } catch(e) { console.warn('Web Audio failed', e); }
-                    } else if(audioCtx && audioCtx.state === 'suspended') { await audioCtx.resume(); webAudioEnabled = true; }
-                });
-                document.addEventListener('click', ()=>{
-                    if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-                }, {once: true});
-                brightnessSlider.addEventListener('input', () => { video.style.filter = `brightness(${brightnessSlider.value/100})`; });
-                aspectSelect.addEventListener('change', () => { const asp = aspectSelect.value; video.style.aspectRatio = asp==='16:9'?'16/9':asp==='4:3'?'4/3':asp==='1:1'?'1/1':'auto'; });
-                fullscreenBtn.addEventListener('click', () => { if(document.fullscreenElement) document.exitFullscreen(); else video.parentElement?.requestFullscreen(); });
-                function hideControls(){ controlsDiv.style.opacity='0'; controlsDiv.style.pointerEvents='none'; }
-                function showControls(){ controlsDiv.style.opacity='1'; controlsDiv.style.pointerEvents='auto'; if(controlsTimeout) clearTimeout(controlsTimeout); controlsTimeout = setTimeout(hideControls, 3000); }
-                video.addEventListener('mousemove', showControls);
-                video.addEventListener('click', showControls);
-                controlsDiv.addEventListener('mouseenter', showControls);
-                controlsDiv.addEventListener('mouseleave', showControls);
-                showControls();
-                video.volume = Math.min(volumeSlider.value/100, 1);
+        // Use requestAnimationFrame to ensure DOM is updated
+        requestAnimationFrame(() => {
+            const playPause = $('#vidPlayPause');
+            const back30 = $('#vidBack30');
+            const forward30 = $('#vidForward30');
+            const timeSpan = $('#vidTime');
+            const seekSlider = $('#vidSeek');
+            const volumeSlider = $('#vidVolume');
+            const volIcon = $('#vidVolIcon');
+            const brightnessSlider = $('#vidBrightness');
+            const aspectSelect = $('#vidAspect');
+            const fullscreenBtn = $('#vidFullscreen');
+            if (!playPause || !back30 || !forward30 || !timeSpan || !seekSlider || !volumeSlider || !volIcon || !brightnessSlider || !aspectSelect || !fullscreenBtn) {
+                console.warn('Video controls missing, retrying in 200ms');
+                setTimeout(() => setupVideoControls(video), 200);
+                return;
             }
+            function formatTime(sec){ if(isNaN(sec)) return '0:00'; const h=Math.floor(sec/3600), m=Math.floor((sec%3600)/60), s=Math.floor(sec%60); return h>0?`${h}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`:`${m}:${s.toString().padStart(2,'0')}`; }
+            function updateTime(){
+                if(!video) return;
+                const cur = video.currentTime, dur = video.duration || 0;
+                seekSlider.value = (cur/dur)*100||0;
+                timeSpan.textContent = `${formatTime(cur)} / ${formatTime(dur)}`;
+            }
+            video.addEventListener('timeupdate', updateTime);
+            video.addEventListener('loadedmetadata', updateTime);
+            video.addEventListener('play', ()=>playPause.textContent='⏸️');
+            video.addEventListener('pause', ()=>playPause.textContent='⏯️');
+            playPause.addEventListener('click', ()=>video.paused?video.play():video.pause());
+            back30.addEventListener('click', ()=>video.currentTime = Math.max(0, video.currentTime-30));
+            forward30.addEventListener('click', ()=>video.currentTime = Math.min(video.duration, video.currentTime+30));
+            seekSlider.addEventListener('input', ()=>{ if(video.duration) video.currentTime = (seekSlider.value/100)*video.duration; });
+            
+            let webAudioEnabled = false;
+            volumeSlider.addEventListener('input', async () => {
+                let val = volumeSlider.value;
+                volIcon.textContent = val==0?'🔇':val<30?'🔉':val<100?'🔊':'🔊⬆';
+                if(webAudioEnabled && gainNode) {
+                    gainNode.gain.value = Math.min(val/100, 3);
+                } else {
+                    video.volume = Math.min(val/100, 1);
+                }
+            });
+            video.addEventListener('play', async () => {
+                if(!webAudioEnabled && typeof AudioContext !== 'undefined') {
+                    try {
+                        audioCtx = new AudioContext();
+                        gainNode = audioCtx.createGain();
+                        gainNode.connect(audioCtx.destination);
+                        sourceNode = audioCtx.createMediaElementSource(video);
+                        sourceNode.connect(gainNode);
+                        gainNode.gain.value = Math.min(volumeSlider.value/100, 3);
+                        if(audioCtx.state === 'suspended') await audioCtx.resume();
+                        webAudioEnabled = true;
+                    } catch(e) { console.warn('Web Audio failed', e); }
+                } else if(audioCtx && audioCtx.state === 'suspended') { await audioCtx.resume(); webAudioEnabled = true; }
+            });
+            document.addEventListener('click', ()=>{
+                if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+            }, {once: true});
+            
+            brightnessSlider.addEventListener('input', () => { video.style.filter = `brightness(${brightnessSlider.value/100})`; });
+            aspectSelect.addEventListener('change', () => { const asp = aspectSelect.value; video.style.aspectRatio = asp==='16:9'?'16/9':asp==='4:3'?'4/3':asp==='1:1'?'1/1':'auto'; });
+            fullscreenBtn.addEventListener('click', () => { if(document.fullscreenElement) document.exitFullscreen(); else video.parentElement?.requestFullscreen(); });
+            
+            function hideControls(){ controlsDiv.style.opacity='0'; controlsDiv.style.pointerEvents='none'; }
+            function showControls(){ controlsDiv.style.opacity='1'; controlsDiv.style.pointerEvents='auto'; if(controlsTimeout) clearTimeout(controlsTimeout); controlsTimeout = setTimeout(hideControls, 3000); }
+            video.addEventListener('mousemove', showControls);
+            video.addEventListener('click', showControls);
+            controlsDiv.addEventListener('mouseenter', showControls);
+            controlsDiv.addEventListener('mouseleave', showControls);
+            showControls();
+            video.volume = Math.min(volumeSlider.value/100, 1);
         });
-        observer.observe(controlsDiv, { childList: true, subtree: true });
-        setTimeout(() => observer.disconnect(), 5000);
     }
     function openPreview(pid, type, mime) {
         D.prevCont.innerHTML = '';
@@ -623,7 +638,7 @@
         const controls = document.querySelector('.video-controls');
         if(controls) controls.remove();
         if(controlsTimeout) clearTimeout(controlsTimeout);
-        if(audioCtx) { audioCtx.close(); audioCtx = null; gainNode = null; }
+        if(audioCtx) { audioCtx.close(); audioCtx = null; gainNode = null; sourceNode = null; }
         currentVideo = null;
     }
     safeAddEvent(D.btnCloseP, 'click', closePreview);
@@ -696,7 +711,6 @@
         }
         attachEvents(); updateBulkBar(); setupKeyboardNav();
     }
-
     function attachEvents(){
         if(!D.grid) return;
         D.grid.querySelectorAll('.card-checkbox').forEach(cb=>{ cb.removeEventListener('change', checkboxHandler); cb.addEventListener('change', checkboxHandler); });
@@ -749,11 +763,14 @@
     });
     async function uploadFile(file, existingPid = null){
         const key = existingPid || `${file.name}_${file.size}_${file.lastModified}`;
-        if(activeUploads.has(key)){ toast(`${file.name} already uploading.`,'info'); return; }
-        activeUploads.add(key);
-        // Disable file input temporarily to prevent double trigger
-        if(D.fileInp) D.fileInp.disabled = true;
+        if(activeUploadKeys.has(key)){ toast(`${file.name} already uploading.`,'info'); return; }
+        activeUploadKeys.add(key);
+        // Clear file input immediately to prevent duplicate selection
+        if(D.fileInp) D.fileInp.value = '';
+        const abortCtrl = new AbortController();
+        activeUploadControllers.set(key, abortCtrl);
         const progressDiv = document.createElement('div'); progressDiv.className = 'progress-item';
+        progressDiv.id = `up-${Date.now()}`;
         progressDiv.innerHTML = `<div class="progress-header"><span>${esc(file.name)}</span><span class="progress-percent">0%</span></div><div class="progress-bar"><div class="progress-fill" style="width:0%"></div></div>`;
         D.uploadProgressList.classList.remove('hidden');
         D.uploadProgressList.appendChild(progressDiv);
@@ -762,23 +779,25 @@
             if(!pid){
                 const init = await fetch(`${WORKER_BASE}/upload-init`,{
                     method:'POST', headers:{'Content-Type':'application/json',...getAuthHeaders()},
-                    body:JSON.stringify({fileName:file.name, fileSize:file.size, fileType:file.type||'application/octet-stream'})
+                    body:JSON.stringify({fileName:file.name, fileSize:file.size, fileType:file.type||'application/octet-stream'}),
+                    signal:abortCtrl.signal
                 });
                 if(!init.ok) throw new Error(await init.text());
                 const initData = await init.json();
                 pid = initData.publicId;
             }
-            const CHUNK = 5*1024*1024;
+            const CHUNK = 2*1024*1024;
             let uploaded = 0;
             const updatePercent = (p)=>{ const fill=progressDiv.querySelector('.progress-fill'); const span=progressDiv.querySelector('.progress-percent'); if(fill) fill.style.width=p+'%'; if(span) span.textContent=p+'%'; };
             while(uploaded < file.size){
+                if(abortCtrl.signal.aborted) throw new Error('Cancelled');
                 const end = Math.min(uploaded+CHUNK-1, file.size-1);
                 const chunk = file.slice(uploaded, end+1);
                 let retries=3, done=false;
                 while(retries-- && !done){
                     const chunkRes = await fetch(`${WORKER_BASE}/upload-chunk/${pid}`,{
                         method:'PUT', headers:{'Content-Range':`bytes ${uploaded}-${end}/${file.size}`, ...getAuthHeaders()},
-                        body:chunk
+                        body:chunk, signal:abortCtrl.signal
                     });
                     const data = await chunkRes.json();
                     if(chunkRes.ok){
@@ -789,7 +808,7 @@
                 }
                 if(done && uploaded>=file.size) break;
                 if(!done){
-                    const stat = await fetch(`${WORKER_BASE}/upload-status/${pid}`,{headers:getAuthHeaders()});
+                    const stat = await fetch(`${WORKER_BASE}/upload-status/${pid}`,{headers:getAuthHeaders(), signal:abortCtrl.signal});
                     if(stat.ok){ const s=await stat.json(); uploaded=s.uploadedBytes||uploaded; updatePercent(Math.round(uploaded/file.size*100)); }
                 }
             }
@@ -797,16 +816,15 @@
             if(D.uploadProgressList.children.length===0) D.uploadProgressList.classList.add('hidden');
             toast(`${file.name} uploaded successfully!`,'success');
             await fetchFiles();
-            if(D.fileInp) D.fileInp.value = '';
             const idx = pendingPaste.indexOf(file);
             if(idx !== -1) pendingPaste.splice(idx,1);
         } catch(err){
             progressDiv.remove();
             if(D.uploadProgressList.children.length===0) D.uploadProgressList.classList.add('hidden');
-            toast(`Upload failed: ${err.message}`,'error');
+            if(err.message !== 'Cancelled') toast(`Upload failed: ${err.message}`,'error');
         } finally {
-            activeUploads.delete(key);
-            if(D.fileInp) D.fileInp.disabled = false;
+            activeUploadControllers.delete(key);
+            activeUploadKeys.delete(key);
         }
     }
     function handleFiles(files){ for(const f of files) uploadFile(f); }
