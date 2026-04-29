@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
-    <title>File Vault – Active Session Edition</title>
+    <title>File Vault – Ultimate Gallery</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
@@ -143,7 +143,7 @@
 </div>
 <div id="toastContainer"></div>
 <script>
-    // ==================== GLOBALS & CONFIG ====================
+    // ==================== CONFIG ====================
     const WORKER_BASE = 'https://gdrive-files-api.donthulanithish53.workers.dev';
     let ST = {
         token: localStorage.getItem('vtoken'),
@@ -159,119 +159,10 @@
         shareToken: null,
         pendingCheckInterval: null
     };
-    let activeUploadKeys = new Set();
-    let activeUploadControllers = new Map();
+    let activeUploadKeys = new Set();      // prevents double upload for the same file
+    let activeUploadControllers = new Map(); // key -> AbortController
     let cardData = new Map();
 
-    // ==================== ACTIVITY & IDLE DETECTION ====================
-    let isActive = true;
-    let idleTimer = null;
-    let heartbeatInterval = null;
-    let sessionExpiredHandled = false;
-
-    const IDLE_TIMEOUT_MS = 5 * 60 * 1000;   // 5 minutes
-    const HEARTBEAT_INTERVAL_MS = 30 * 1000; // 30 seconds
-
-    function resetIdleTimer() {
-        if (!isActive) {
-            // User becomes active again after idle - restart heartbeat and re-validate session
-            isActive = true;
-            startHeartbeat();
-            sendHeartbeat().catch(() => {});
-        }
-        if (idleTimer) clearTimeout(idleTimer);
-        idleTimer = setTimeout(onIdle, IDLE_TIMEOUT_MS);
-    }
-
-    function onIdle() {
-        if (!ST.token) return; // already logged out
-        isActive = false;
-        stopHeartbeat();
-        toast('Inactivity detected. Please move the mouse or type to continue.', 'warn');
-        // After 5 more seconds, force logout if still inactive
-        setTimeout(() => {
-            if (!isActive && ST.token) {
-                toast('Logged out due to inactivity.', 'error');
-                logout();
-            }
-        }, 5000);
-    }
-
-    function startHeartbeat() {
-        if (heartbeatInterval) clearInterval(heartbeatInterval);
-        if (!ST.token) return;
-        heartbeatInterval = setInterval(() => {
-            if (isActive && ST.token) {
-                sendHeartbeat().catch(e => console.warn('Heartbeat failed', e));
-            } else {
-                if (heartbeatInterval) clearInterval(heartbeatInterval);
-            }
-        }, HEARTBEAT_INTERVAL_MS);
-    }
-
-    function stopHeartbeat() {
-        if (heartbeatInterval) {
-            clearInterval(heartbeatInterval);
-            heartbeatInterval = null;
-        }
-    }
-
-    async function sendHeartbeat() {
-        if (!ST.token) return;
-        try {
-            await fetch(`${WORKER_BASE}/heartbeat`, {
-                method: 'POST',
-                headers: getAuthHeaders()
-            });
-        } catch(e) {}
-    }
-
-    function logout() {
-        if (ST.token) {
-            const blob = new Blob([JSON.stringify({ utoken: ST.token })], { type: 'application/json' });
-            navigator.sendBeacon(`${WORKER_BASE}/end-session`, blob);
-        }
-        // Clear all timers
-        if (idleTimer) clearTimeout(idleTimer);
-        stopHeartbeat();
-        if (ST.pendingCheckInterval) clearInterval(ST.pendingCheckInterval);
-        ST.token = null;
-        localStorage.removeItem('vtoken');
-        showLogin();
-        toast('Logged out.');
-    }
-
-    function initActivityTracking() {
-        window.addEventListener('mousemove', resetIdleTimer);
-        window.addEventListener('click', resetIdleTimer);
-        window.addEventListener('keydown', resetIdleTimer);
-        window.addEventListener('scroll', resetIdleTimer);
-        document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible') resetIdleTimer();
-        });
-        resetIdleTimer(); // start timer
-    }
-
-    // ==================== FETCH WRAPPER (active & 401 handling) ====================
-    async function activeFetch(url, options = {}) {
-        if (!isActive && ST.token) {
-            toast('You are inactive. Please move the mouse to resume.', 'warn');
-            throw new Error('Inactive session');
-        }
-        if (sessionExpiredHandled) throw new Error('Session expired');
-        const headers = getAuthHeaders();
-        const mergedOptions = { ...options, headers: { ...options.headers, ...headers } };
-        const res = await fetch(url, mergedOptions);
-        if (res.status === 401 && !sessionExpiredHandled) {
-            sessionExpiredHandled = true;
-            toast('Session expired. Please login again.', 'error');
-            logout();
-            throw new Error('Session expired');
-        }
-        return res;
-    }
-
-    // ==================== DOM HELPERS ====================
     const $ = id => document.getElementById(id);
     const D = {
         userUI: $('userUI'), adminBar: $('adminBar'), dropzone: $('dropzone'), fileInp: $('fileInput'),
@@ -337,7 +228,7 @@
     };
     function can(action) { return ST.isAdmin ? true : (roleRights[ST.role]?.[action] === true); }
 
-    // Authentication & UI state
+    // Auth & UI
     async function fetchUserInfo() {
         if (!ST.token) return false;
         try {
@@ -352,19 +243,14 @@
                 toast('Access granted!', 'success');
             }
             return true;
-        } catch (e) { return false; }
+        } catch (e) { console.warn(e); return false; }
     }
     function startPendingCheck() {
         if (ST.pendingCheckInterval) clearInterval(ST.pendingCheckInterval);
-        ST.pendingCheckInterval = setInterval(async () => {
-            if (isActive && ST.token && !ST.approved) {
-                await fetchUserInfo();
-            }
-        }, 30000);
+        ST.pendingCheckInterval = setInterval(async () => { if (isActive && ST.token && !ST.approved) await fetchUserInfo(); }, 30000);
     }
     function showLogin() {
         if (ST.pendingCheckInterval) clearInterval(ST.pendingCheckInterval);
-        stopHeartbeat();
         D.adminBar.classList.add('hidden');
         D.userUI.innerHTML = '';
         D.grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;"><h2>Welcome to File Vault</h2><p>Sign in to access your files.</p><button class="btn btn-primary" id="btnLogin">🔑 Login with Google</button></div>`;
@@ -393,7 +279,6 @@
     }
     function showMain() {
         if (ST.pendingCheckInterval) clearInterval(ST.pendingCheckInterval);
-        startHeartbeat();
         document.querySelector('.hint-text').style.display = '';
         if (ST.isAdmin) {
             D.adminBar.classList.remove('hidden');
@@ -404,7 +289,7 @@
             D.adminBar.classList.add('hidden');
             D.userUI.innerHTML = `<span>👤 ${ST.email} (${ST.role}) <button class="btn btn-sm btn-outline" id="btnUserLogout">🔒 Logout</button></span>`;
             const logoutBtn = $('btnUserLogout');
-            if (logoutBtn) logoutBtn.onclick = () => logout();
+            if (logoutBtn) logoutBtn.onclick = () => { logout(); };
             D.dropzone.style.display = can('upload') ? '' : 'none';
         }
     }
@@ -416,7 +301,7 @@
 
     function safeAddEvent(el, ev, fn) { if (el) el.addEventListener(ev, fn); }
 
-    // Reset token button
+    // Reset token
     if (D.btnResetToken) D.btnResetToken.addEventListener('click', async () => {
         if (confirm('Reset admin token? You will need to login again.')) {
             await activeFetch(`${WORKER_BASE}/admin/reset-token`, { method:'POST', headers:getAuthHeaders() });
@@ -424,7 +309,7 @@
         }
     });
 
-    // Admin actions (sync, users, logs, etc.)
+    // Admin actions
     safeAddEvent(D.btnSync, 'click', async () => { toast('Syncing...','info'); try { await activeFetch(`${WORKER_BASE}/sync`,{method:'POST',headers:getAuthHeaders()}); await fetchFiles(); toast('Sync done','success'); } catch { toast('Sync failed','error'); } });
     safeAddEvent(D.btnAppr, 'click', () => togglePanel(D.pnlAppr, loadPending));
     safeAddEvent(D.btnAllUsers, 'click', () => togglePanel(D.pnlUsers, loadAllUsers));
@@ -605,7 +490,7 @@
         } catch(err){ toast('Copy failed: '+err.message,'error'); }
     }
 
-    // Video player (same as before, but no activeFetch needed for streaming)
+    // Video player (same as before)
     let currentVideo = null, controlsTimeout = null, audioCtx = null, gainNode = null, sourceNode = null;
     function setupVideoControls(video) {
         if(!video) return;
@@ -744,7 +629,7 @@
     safeAddEvent(D.btnCloseP, 'click', closePreview);
     safeAddEvent(D.btnFull, 'click', () => { if(document.fullscreenElement) document.exitFullscreen(); else if(D.prevOv) D.prevOv.requestFullscreen(); });
 
-    // Render files
+    // Render files (same as before)
     function renderFiles(){
         if(!D.grid) return;
         let list = [...ST.files];
@@ -848,7 +733,100 @@
     }
     async function deleteFile(pid){ if(!confirm('Delete?')) return; await activeFetch(`${WORKER_BASE}/delete`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({publicId:pid})}); await fetchFiles(); toast('Deleted'); }
 
-    // Upload (single request, with double‑prevention)
+    // ==================== ACTIVITY & IDLE DETECTION ====================
+    let isActive = true;
+    let idleTimer = null;
+    let heartbeatInterval = null;
+    let sessionExpiredHandled = false;
+    const IDLE_TIMEOUT_MS = 5 * 60 * 1000;
+    const HEARTBEAT_INTERVAL_MS = 30 * 1000;
+
+    function resetIdleTimer() {
+        if (!isActive) {
+            isActive = true;
+            startHeartbeat();
+            sendHeartbeat().catch(()=>{});
+        }
+        if (idleTimer) clearTimeout(idleTimer);
+        idleTimer = setTimeout(onIdle, IDLE_TIMEOUT_MS);
+    }
+    function onIdle() {
+        if (!ST.token) return;
+        isActive = false;
+        stopHeartbeat();
+        toast('Inactivity detected. Please move the mouse or type to continue.', 'warn');
+        setTimeout(() => {
+            if (!isActive && ST.token) {
+                toast('Logged out due to inactivity.', 'error');
+                logout();
+            }
+        }, 5000);
+    }
+    function startHeartbeat() {
+        if (heartbeatInterval) clearInterval(heartbeatInterval);
+        if (!ST.token) return;
+        heartbeatInterval = setInterval(() => {
+            if (isActive && ST.token) sendHeartbeat().catch(e=>console.warn);
+            else if (heartbeatInterval) clearInterval(heartbeatInterval);
+        }, HEARTBEAT_INTERVAL_MS);
+    }
+    function stopHeartbeat() {
+        if (heartbeatInterval) clearInterval(heartbeatInterval);
+        heartbeatInterval = null;
+    }
+    async function sendHeartbeat() {
+        if (!ST.token) return;
+        try {
+            await fetch(`${WORKER_BASE}/heartbeat`, { method:'POST', headers:getAuthHeaders() });
+        } catch(e) {}
+    }
+    function initActivityTracking() {
+        window.addEventListener('mousemove', resetIdleTimer);
+        window.addEventListener('click', resetIdleTimer);
+        window.addEventListener('keydown', resetIdleTimer);
+        window.addEventListener('scroll', resetIdleTimer);
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') resetIdleTimer();
+        });
+        resetIdleTimer();
+    }
+    function logout() {
+        if (ST.token) {
+            const blob = new Blob([JSON.stringify({ utoken: ST.token })], { type:'application/json' });
+            navigator.sendBeacon(`${WORKER_BASE}/end-session`, blob);
+        }
+        if (idleTimer) clearTimeout(idleTimer);
+        stopHeartbeat();
+        if (ST.pendingCheckInterval) clearInterval(ST.pendingCheckInterval);
+        ST.token = null;
+        localStorage.removeItem('vtoken');
+        showLogin();
+        toast('Logged out.');
+    }
+
+    // ==================== ACTIVE FETCH WRAPPER ====================
+    async function activeFetch(url, options = {}) {
+        // Skip inactivity check for upload-chunk requests (they can be long)
+        if (!url.includes('/upload-chunk/')) {
+            if (!isActive && ST.token) {
+                toast('You are inactive. Please move the mouse to resume.', 'warn');
+                throw new Error('Inactive session');
+            }
+        }
+        if (sessionExpiredHandled) throw new Error('Session expired');
+        const headers = getAuthHeaders();
+        const mergedOptions = { ...options, headers: { ...options.headers, ...headers } };
+        const res = await fetch(url, mergedOptions);
+        if (res.status === 401 && !sessionExpiredHandled) {
+            sessionExpiredHandled = true;
+            toast('Session expired. Please login again.', 'error');
+            logout();
+            throw new Error('Session expired');
+        }
+        return res;
+    }
+
+    // ==================== UPLOAD WITH DUAL-PREVENTION ====================
     let pendingPaste = [];
     document.addEventListener('paste',(e)=>{
         const items = e.clipboardData.items;
@@ -865,6 +843,7 @@
         const key = existingPid || `${file.name}_${file.size}_${file.lastModified}`;
         if(activeUploadKeys.has(key)){ toast(`${file.name} already uploading.`,'info'); return; }
         activeUploadKeys.add(key);
+        // Immediately clear the file input to prevent duplicate selection from the same picker
         if(D.fileInp) D.fileInp.value = '';
         const abortCtrl = new AbortController();
         activeUploadControllers.set(key, abortCtrl);
