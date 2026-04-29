@@ -173,7 +173,7 @@
         isAdmin: false,
         approved: false,
         role: null,
-        filesMeta: null,          // { files, etag, ts }
+        filesMeta: null,
         selected: new Set(),
         sort: localStorage.getItem('sort') || 'newest',
         query: '',
@@ -184,10 +184,9 @@
     };
     let uploadQueue = [];
     let isUploading = false;
-    let activeUploadControllers = new Map(); // key -> AbortController
-    let cardData = new Map(); // for real-time updates (comments/ticks)
+    let activeUploadControllers = new Map();
+    let cardData = new Map();
 
-    // DOM shortcuts
     const $ = id => document.getElementById(id);
     const D = {
         userUI: $('userUI'), adminBar: $('adminBar'), dropzone: $('dropzone'), fileInp: $('fileInput'),
@@ -208,12 +207,9 @@
         newUserEmail: $('newUserEmail'), btnResetToken: $('btnResetToken')
     };
 
-    // ==================== API HELPERS (NO TOKEN IN URL) ====================
     function getAuthHeaders() {
         const headers = { 'Content-Type': 'application/json' };
-        if (ST.token) {
-            headers[ST.isAdmin ? 'X-Admin-Token' : 'X-User-Token'] = ST.token;
-        }
+        if (ST.token) headers[ST.isAdmin ? 'X-Admin-Token' : 'X-User-Token'] = ST.token;
         return headers;
     }
     function getDownloadUrl(pid) { return `${WORKER_BASE}/download/${pid}`; }
@@ -226,12 +222,11 @@
         D.toastBox.appendChild(el);
         setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 3000);
     }
-
     async function apiFetch(endpoint, options = {}) {
         const headers = getAuthHeaders();
         const res = await fetch(`${WORKER_BASE}${endpoint}`, {
             ...options,
-            headers: { ...headers, ...options.headers }
+            headers: { ...headers, ...(options.headers || {}) }
         });
         if (res.status === 401) {
             toast('Session expired. Please login again.', 'error');
@@ -242,7 +237,7 @@
         return res;
     }
 
-    // ==================== RBAC (single source – backend role) ====================
+    // RBAC
     const roleRights = {
         admin: { upload: true, delete: true, download: true, preview: true, play: true, copy: true, tick: true, comment: true },
         full:   { upload: true, delete: true, download: true, preview: true, play: true, copy: true, tick: true, comment: true },
@@ -254,17 +249,14 @@
     };
     function can(action) { return ST.isAdmin ? true : (roleRights[ST.role]?.[action] === true); }
 
-    // ==================== AUTH & UI STATE ====================
+    // Auth & UI
     async function fetchUserInfo() {
         if (!ST.token) return false;
         try {
             const r = await apiFetch(`/user-info`);
             const i = await r.json();
             const wasApproved = ST.approved;
-            ST.email = i.email;
-            ST.isAdmin = i.isAdmin === true;
-            ST.approved = i.approved;
-            ST.role = i.role;
+            ST.email = i.email; ST.isAdmin = i.isAdmin === true; ST.approved = i.approved; ST.role = i.role;
             if (!wasApproved && ST.approved) {
                 clearPendingCheck();
                 render();
@@ -281,9 +273,7 @@
     }
     function startPendingCheck() {
         clearPendingCheck();
-        ST.pendingCheckInterval = setInterval(async () => {
-            await fetchUserInfo();
-        }, 30000);
+        ST.pendingCheckInterval = setInterval(() => { fetchUserInfo(); }, 30000);
     }
     function logout() {
         clearPendingCheck();
@@ -322,10 +312,7 @@
         if (selfRevokeBtn) selfRevokeBtn.onclick = async () => {
             if (!confirm('Cancel request?')) return;
             await apiFetch(`/user-revoke-self`, { method: 'POST', body: JSON.stringify({ utoken: ST.token }) });
-            ST.token = null;
-            localStorage.removeItem('vtoken');
-            showLogin();
-            toast('Request cancelled.');
+            ST.token = null; localStorage.removeItem('vtoken'); showLogin(); toast('Request cancelled.');
         };
         startPendingCheck();
     }
@@ -351,7 +338,7 @@
         else { showPending(); }
     }
 
-    // ==================== FILE LIST WITH ETAG CACHING ====================
+    // File list with ETag caching
     async function fetchFiles() {
         D.grid.innerHTML = '<div class="loading">Loading files...</div>';
         try {
@@ -373,7 +360,6 @@
         }
     }
 
-    // ==================== HELPER FUNCTIONS ====================
     const esc = s => { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
     const fmtSz = b => { if (!b) return '0 B'; const u = ['B','KB','MB','GB']; let i=0,s=b; while(s>=1024 && i<3) { s/=1024; i++; } return s.toFixed(1)+' '+u[i]; };
     const prevType = m => {
@@ -399,7 +385,7 @@
         return '<div style="font-size:3rem;">📄</div>';
     }
 
-    // ==================== COMMENTS & TICKS (REAL-TIME) ====================
+    // Comments & ticks (real-time)
     async function loadCardData(pid) {
         const [commentsRes, tickRes] = await Promise.all([
             apiFetch(`/comment/list?fileId=${pid}`),
@@ -510,7 +496,7 @@
         }
     }
 
-    // ==================== VIDEO PREVIEW (STANDARD CONTROLS) ====================
+    // Video preview (standard controls)
     function openPreview(pid, type, mime) {
         D.prevCont.innerHTML = '';
         const url = getPreviewUrl(pid);
@@ -553,10 +539,11 @@
         D.prevOv.classList.add('hidden');
         if (document.fullscreenElement) document.exitFullscreen();
     }
+    function safeAddEvent(el, ev, fn) { if (el) el.addEventListener(ev, fn); }
     safeAddEvent(D.btnCloseP, 'click', closePreview);
     safeAddEvent(D.btnFull, 'click', () => { if (document.fullscreenElement) document.exitFullscreen(); else if (D.prevOv) D.prevOv.requestFullscreen(); });
 
-    // ==================== RENDER FILES (USING /files-with-meta) ====================
+    // Render files using /files-with-meta data
     function renderFiles() {
         if (!D.grid || !ST.filesMeta) return;
         let list = [...ST.filesMeta.files];
@@ -603,7 +590,6 @@
                 card.tabIndex = 0;
                 card.innerHTML = `<div class="card-checkbox"><input type="checkbox" class="card-checkbox" data-id="${f.publicId}" ${ST.selected.has(f.publicId) ? 'checked' : ''}></div><div class="thumbnail">${thumbnailHtml}</div><div class="file-name">${esc(f.name)}</div><div class="file-meta">${fmtSz(f.size)} · ${new Date(f.createdAt).toLocaleString()}</div>${upBy}<div class="actions">${actionsHtml.join('')}<button class="tick-btn" data-action="tick" data-id="${f.publicId}"><span class="tooltip"></span></button><span class="tick-count">${f.tickCount || 0}</span><div class="comment-section"><div class="comment-header"><span class="comment-icon">💬</span><span class="comment-count">${f.commentCount || 0}</span></div><div class="comment-list"></div><div class="comment-form"><input type="text" placeholder="Add a comment..."><button class="btn-xs btn-outline post-comment">Post</button></div></div></div>`;
                 gridDiv.appendChild(card);
-                // Load real-time comment/tick data (initial from meta, but we still load full comments for editing)
                 (async () => {
                     const data = await loadCardData(f.publicId);
                     cardData.set(f.publicId, data);
@@ -648,8 +634,6 @@
         setupKeyboardNav();
     }
 
-    // ==================== EVENT HANDLERS ====================
-    function safeAddEvent(el, ev, fn) { if (el) el.addEventListener(ev, fn); }
     function attachEvents() {
         if (!D.grid) return;
         D.grid.querySelectorAll('.card-checkbox').forEach(cb => {
@@ -710,7 +694,7 @@
     async function renameFile(pid) { const f = ST.filesMeta.files.find(f => f.publicId === pid); if (!f) return; const newName = prompt('New name:', f.name); if (!newName || newName === f.name) return; await apiFetch(`/rename`, { method: 'POST', body: JSON.stringify({ publicId: pid, newName }) }); await fetchFiles(); toast('Renamed'); }
     function replaceFile(pid) { const inp = document.createElement('input'); inp.type = 'file'; inp.onchange = async () => { const file = inp.files[0]; if (!file) return; const init = await apiFetch(`/update`, { method: 'POST', body: JSON.stringify({ publicId: pid, fileName: file.name, fileSize: file.size, fileType: file.type || 'application/octet-stream' }) }); const data = await init.json(); await uploadFile(file, data.publicId); await fetchFiles(); }; inp.click(); }
 
-    // ==================== UPLOAD QUEUE (no double upload) ====================
+    // Upload queue (prevents double upload)
     let pendingPaste = [];
     document.addEventListener('paste', (e) => {
         const items = e.clipboardData.items;
@@ -833,7 +817,7 @@
     }
     if (D.fileInp) D.fileInp.addEventListener('change', e => handleFiles(e.target.files));
 
-    // ==================== KEYBOARD NAVIGATION ====================
+    // Keyboard navigation
     function setupKeyboardNav() {
         const cards = Array.from(document.querySelectorAll('.card'));
         if (cards.length === 0) return;
@@ -855,7 +839,7 @@
     if (D.search) D.search.addEventListener('input', () => { ST.query = D.search.value.toLowerCase(); renderFiles(); });
     if (D.sortSel) D.sortSel.addEventListener('change', () => { ST.sort = D.sortSel.value; localStorage.setItem('sort', ST.sort); renderFiles(); D.sortSel.value = ST.sort; });
 
-    // ==================== DARK MODE ====================
+    // Dark mode
     (function () {
         if (ST.dark) document.documentElement.setAttribute('data-theme', 'dark');
         if (D.btnDark) D.btnDark.addEventListener('click', () => {
@@ -865,8 +849,7 @@
         });
     })();
 
-    // ==================== ADMIN PANELS (full implementations) ====================
-    // (to save space, but I'll include key ones, assuming they work with apiFetch)
+    // Admin panels (simplified – all use apiFetch)
     async function loadPendingCount() {
         if (!ST.isAdmin || !D.pendingBadge) return;
         try {
@@ -976,7 +959,7 @@
         }
     });
 
-    // ==================== SHARE PREVIEW ====================
+    // Share preview
     async function showSharePreview() {
         const res = await fetch(`${WORKER_BASE}/share/verify?token=${ST.shareToken}`, { headers: getAuthHeaders() });
         if (!res.ok) { toast('Invalid share link', 'error'); showLogin(); return; }
@@ -990,7 +973,6 @@
         D.userUI.innerHTML = '';
     }
 
-    // ==================== INIT ====================
     async function init() {
         const p = new URLSearchParams(location.search);
         const utoken = p.get('utoken');
@@ -1008,8 +990,8 @@
             localStorage.setItem('vtoken', utoken);
             history.replaceState({}, '', location.pathname);
         }
-        if (ST.token && await fetchUserInfo()) { render(); }
-        else { showLogin(); }
+        if (ST.token && await fetchUserInfo()) render();
+        else showLogin();
     }
     init();
 </script>
