@@ -87,6 +87,7 @@
         @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         @media (max-width: 600px) { body { padding: 10px; } .file-grid { grid-template-columns: 1fr; } }
         .loading { text-align: center; padding: 40px; color: var(--text-secondary); }
+        input:disabled, button:disabled { opacity: 0.6; cursor: not-allowed; }
     </style>
 </head>
 <body>
@@ -123,7 +124,7 @@
     </div>
     <div class="bulk-bar hidden" id="bulkBar"><span id="bulkCount">0 selected</span> <button id="btnBulkDelete">🗑 Delete Selected</button> <button id="btnBulkCancel">✕</button></div>
     <div class="hint-text"><kbd>Ctrl+V</kbd> paste | <kbd>Ctrl+U</kbd> upload | <kbd>Ctrl+F</kbd> search | <kbd>Esc</kbd> close | <kbd>▲▼◀▶</kbd> navigate | <kbd>Enter</kbd> select</div>
-    <div class="dropzone" id="dropzone"><p>📂 Drop files here or click to browse</p><input type="file" id="fileInput" multiple></div>
+    <div class="dropzone" id="dropzone"><p>📂 Drop files here or click to browse</p><input type="file" id="fileInput" multiple disabled></div>
     <div id="uploadProgressList" class="progress-box hidden"></div>
     <div id="fileGrid"><div class="loading">Loading files...</div></div>
 </div>
@@ -149,7 +150,7 @@
         shareToken: null,
         pendingCheckInterval: null
     };
-    let isUploading = false;      // prevents double upload
+    let isUploading = false;           // Global upload lock
     let activeUploadControllers = new Map();
     let cardData = new Map();
 
@@ -221,7 +222,7 @@
     };
     function can(action) { return ST.isAdmin ? true : (roleRights[ST.role]?.[action] === true); }
 
-    // Authentication
+    // Authentication & UI
     async function fetchUserInfo() {
         if (!ST.token) return false;
         try {
@@ -255,6 +256,7 @@
         };
     }
     function showPending() {
+        if (ST.pendingCheckInterval) clearInterval(ST.pendingCheckInterval);
         D.adminBar.classList.add('hidden');
         D.userUI.innerHTML = '';
         D.dropzone.style.display = 'none';
@@ -484,7 +486,7 @@
         } catch(err){ toast('Copy failed: '+err.message,'error'); }
     }
 
-    // Video player (standard controls, CORS handled by worker)
+    // Video player (standard controls)
     function openPreview(pid, type, mime) {
         D.prevCont.innerHTML = '';
         const url = getPreviewUrl(pid);
@@ -635,7 +637,7 @@
     }
     async function deleteFile(pid){ if(!confirm('Delete?')) return; await fetch(`${WORKER_BASE}/delete`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({publicId:pid})}); await fetchFiles(); toast('Deleted'); }
 
-    // Upload – with simple flag to prevent double upload
+    // ==================== UPLOAD WITH STRICT LOCK ====================
     let pendingPaste = [];
     document.addEventListener('paste',(e)=>{
         const items = e.clipboardData.items;
@@ -643,16 +645,23 @@
         if(pendingPaste.length) toast(`${pendingPaste.length} file(s) pasted. Click Send.`,'success');
     });
     safeAddEvent(D.sendPasteBtn,'click',async()=>{
+        if(isUploading) { toast('Upload already in progress. Please wait.','warn'); return; }
         if(!pendingPaste.length){ toast('No pasted files.','info'); return; }
         toast(`Uploading ${pendingPaste.length} files...`,'info');
-        for(const file of pendingPaste){
-            await uploadFile(file);
-        }
+        for(const file of pendingPaste) await uploadFile(file);
         pendingPaste = []; D.pasteInput.value = ''; toast('All uploaded.','success');
     });
     async function uploadFile(file, existingPid = null){
-        if(isUploading) { toast('An upload is already in progress. Please wait.','warn'); return; }
+        if(isUploading) { toast('Upload already in progress. Please wait.','warn'); return; }
         isUploading = true;
+
+        // Immediately disable the file input to prevent any new selection during upload
+        if(D.fileInp) {
+            D.fileInp.disabled = true;
+            D.fileInp.value = '';  // clear any pending selection
+        }
+        // Also disable the dropzone style? Not necessary but we can show disabled state.
+
         const key = existingPid || `${file.name}_${file.size}_${file.lastModified}`;
         const abortCtrl = new AbortController();
         activeUploadControllers.set(key, abortCtrl);
@@ -703,8 +712,7 @@
             if(D.uploadProgressList.children.length===0) D.uploadProgressList.classList.add('hidden');
             toast(`${file.name} uploaded successfully!`,'success');
             await fetchFiles();
-            // Clear file input to prevent double upload
-            if(D.fileInp) D.fileInp.value = '';
+            // Remove from pending paste array if it came from paste
             const idx = pendingPaste.indexOf(file);
             if(idx !== -1) pendingPaste.splice(idx,1);
         } catch(err){
@@ -713,20 +721,40 @@
             if(err.message !== 'Cancelled') toast(`Upload failed: ${err.message}`,'error');
         } finally {
             activeUploadControllers.delete(key);
+            // Re-enable the file input
+            if(D.fileInp) D.fileInp.disabled = false;
             isUploading = false;
         }
     }
-    function handleFiles(files){ if(!isUploading) for(const f of files) uploadFile(f); else toast('Upload already in progress','warn'); }
+    function handleFiles(files){
+        if(isUploading) { toast('Upload already in progress. Please wait.','warn'); return; }
+        if(files.length === 0) return;
+        // Take the first file only (or loop? We'll take the first to prevent batch confusion)
+        const file = files[0];
+        uploadFile(file);
+        // Clear input value to avoid re-triggering the same file
+        if(D.fileInp) D.fileInp.value = '';
+    }
 
     // Drag & drop
     if(D.dropzone){
         ['dragenter','dragover','dragleave','drop'].forEach(ev=>D.dropzone.addEventListener(ev,e=>e.preventDefault()));
         D.dropzone.addEventListener('dragover',()=>D.dropzone.classList.add('dragover'));
         D.dropzone.addEventListener('dragleave',()=>D.dropzone.classList.remove('dragover'));
-        D.dropzone.addEventListener('drop',e=>{ D.dropzone.classList.remove('dragover'); const files=e.dataTransfer.files; if(files.length) handleFiles(files); });
-        D.dropzone.addEventListener('click',()=>D.fileInp.click());
+        D.dropzone.addEventListener('drop',e=>{
+            D.dropzone.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if(files.length) handleFiles(files);
+        });
+        D.dropzone.addEventListener('click',()=>{
+            if(!isUploading && D.fileInp) D.fileInp.click();
+        });
     }
-    if(D.fileInp) D.fileInp.addEventListener('change',e=>handleFiles(e.target.files));
+    if(D.fileInp) D.fileInp.addEventListener('change',e=>{
+        if(e.target.files.length) handleFiles(e.target.files);
+        // Clear input value after handling to prevent duplicate
+        D.fileInp.value = '';
+    });
 
     // Keyboard navigation
     function setupKeyboardNav(){
