@@ -3,16 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>File Vault – Stable Edition</title>
+    <title>File Vault – Final</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
-            --bg: #f8fafc; --card-bg: #ffffff; --text: #1e293b; --text-secondary: #64748b;
-            --border: #e2e8f0; --accent: #3b82f6; --danger: #ef4444; --success: #10b981;
-            --warn: #f59e0b; --purple: #8b5cf6; --radius: 14px; --shadow: 0 4px 12px rgba(0,0,0,0.05);
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --accent: #3b82f6;
+            --danger: #ef4444;
+            --success: #10b981;
+            --warn: #f59e0b;
+            --purple: #8b5cf6;
+            --radius: 14px;
+            --shadow: 0 4px 12px rgba(0,0,0,0.05);
         }
         [data-theme="dark"] {
-            --bg: #0f172a; --card-bg: #1e293b; --text: #e2e8f0; --text-secondary: #94a3b8;
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --text: #e2e8f0;
+            --text-secondary: #94a3b8;
             --border: #334155;
         }
         body { font-family: system-ui, -apple-system, 'Inter', sans-serif; background: var(--bg); color: var(--text); padding: 20px; transition: background 0.2s; }
@@ -65,7 +77,7 @@
         .preview-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 1000; display: flex; justify-content: center; align-items: center; flex-direction: column; }
         .preview-overlay.hidden { display: none; }
         .preview-container { width: 90%; height: 85%; display: flex; align-items: center; justify-content: center; }
-        .preview-container video, .preview-container audio, .preview-container img { max-width: 100%; max-height: 100%; outline: none; background: #000; }
+        .preview-container video, .preview-container audio, .preview-container iframe, .preview-container img { max-width: 100%; max-height: 100%; outline: none; background: #000; }
         .video-controls {
             position: absolute; bottom: 20px; left: 20px; right: 20px;
             background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
@@ -94,7 +106,6 @@
         <div class="header-right">
             <button class="btn-icon" id="btnDarkMode">🌓</button>
             <span id="userUI"></span>
-            <button id="btnRefreshPerms" class="btn-sm btn-outline hidden">🔄 Refresh Permissions</button>
         </div>
     </div>
     <div class="admin-bar hidden" id="adminBar">
@@ -148,8 +159,7 @@
         shareToken: null,
         pendingCheckInterval: null
     };
-    let activeUploadKeys = new Set();
-    let activeUploadControllers = new Map();
+    let activeUploads = new Set(); // prevent double upload
     let cardData = new Map();
 
     const $ = id => document.getElementById(id);
@@ -165,8 +175,7 @@
         pendingBadge: $('pendingBadge'), btnClearLogs: $('btnClearLogs'), btnBulkDelete: $('btnBulkDelete'), btnBulkCancel: $('btnBulkCancel'),
         refreshFilesBtn: $('refreshFilesBtn'), refreshPendingBtn: $('refreshPendingBtn'), refreshUsersBtn: $('refreshUsersBtn'),
         refreshLogsBtn: $('refreshLogsBtn'), refreshAnalyticsBtn: $('refreshAnalyticsBtn'), pasteInput: $('pasteInput'),
-        sendPasteBtn: $('sendPasteBtn'), addUserBtn: $('addUserBtn'), newUserEmail: $('newUserEmail'), btnResetToken: $('btnResetToken'),
-        btnRefreshPerms: $('btnRefreshPerms')
+        sendPasteBtn: $('sendPasteBtn'), addUserBtn: $('addUserBtn'), newUserEmail: $('newUserEmail'), btnResetToken: $('btnResetToken')
     };
 
     function getAuthHeaders() {
@@ -218,19 +227,7 @@
     };
     function can(action) { return ST.isAdmin ? true : (roleRights[ST.role]?.[action] === true); }
 
-    // Force refresh permissions
-    async function refreshPermissions() {
-        const success = await fetchUserInfo();
-        if (success) {
-            toast('Permissions refreshed', 'success');
-            renderFiles(); // re-render to reflect new role
-            if (ST.isAdmin) loadAllUsers(); // refresh user list if admin
-        } else {
-            toast('Failed to refresh permissions', 'error');
-        }
-    }
-
-    // Authentication
+    // Auth
     async function fetchUserInfo() {
         if (!ST.token) return false;
         try {
@@ -244,8 +241,6 @@
                 render();
                 toast('Access granted!', 'success');
             }
-            // Update refresh button visibility
-            if (D.btnRefreshPerms) D.btnRefreshPerms.classList.toggle('hidden', !ST.isAdmin && ST.approved);
             return true;
         } catch (e) { return false; }
     }
@@ -294,13 +289,10 @@
             D.userUI.innerHTML = `<span>👤 ${ST.email} (${ST.role}) <button class="btn btn-sm btn-outline" id="btnUserLogout">🔒 Logout</button></span>`;
             const logoutBtn = $('btnUserLogout');
             if (logoutBtn) logoutBtn.onclick = () => {
-                for (const ctrl of activeUploadControllers.values()) ctrl.abort();
-                activeUploadControllers.clear(); activeUploadKeys.clear();
                 ST.token = null; localStorage.removeItem('vtoken'); showLogin(); toast('Logged out.');
             };
             D.dropzone.style.display = can('upload') ? '' : 'none';
         }
-        if (D.btnRefreshPerms) D.btnRefreshPerms.classList.toggle('hidden', !ST.isAdmin && ST.approved);
     }
     function render() {
         if (!ST.email) { showLogin(); return; }
@@ -317,7 +309,6 @@
             ST.token = null; localStorage.removeItem('vtoken'); showLogin(); toast('Token reset. Please login again.', 'success');
         }
     });
-    if (D.btnRefreshPerms) D.btnRefreshPerms.addEventListener('click', refreshPermissions);
 
     // Admin actions
     safeAddEvent(D.btnSync, 'click', async () => { toast('Syncing...','info'); try { await fetch(`${WORKER_BASE}/sync`,{method:'POST',headers:getAuthHeaders()}); await fetchFiles(); toast('Sync done','success'); } catch { toast('Sync failed','error'); } });
@@ -337,7 +328,7 @@
     safeAddEvent(D.addUserBtn, 'click', async () => { const email=D.newUserEmail.value.trim(); if(!email) { toast('Enter email','error'); return; } await fetch(`${WORKER_BASE}/admin/add-user`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({email,role:'full'})}); toast(`User ${email} added`,'success'); D.newUserEmail.value=''; loadAllUsers(); loadPendingCount(); });
 
     function togglePanel(panel, loadFn) { if(panel) { panel.classList.toggle('hidden'); if(!panel.classList.contains('hidden')) loadFn(); } }
-    async function adminLogout() { if(confirm('Logout as admin?')) { for (const ctrl of activeUploadControllers.values()) ctrl.abort(); activeUploadControllers.clear(); activeUploadKeys.clear(); ST.token = null; localStorage.removeItem('vtoken'); showLogin(); toast('Admin logged out'); } }
+    async function adminLogout() { if(confirm('Logout as admin?')) { ST.token = null; localStorage.removeItem('vtoken'); showLogin(); toast('Admin logged out'); } }
     async function loadPendingCount() { if(!ST.isAdmin || !D.pendingBadge) return; const r=await fetch(`${WORKER_BASE}/admin/pending`,{headers:getAuthHeaders()}); const p=await r.json(); D.pendingBadge.textContent=p.length; D.pendingBadge.classList.toggle('hidden',p.length===0); }
     function loadPending() {
         fetch(`${WORKER_BASE}/admin/pending`,{headers:getAuthHeaders()}).then(r=>r.json()).then(users=>{
@@ -384,14 +375,14 @@
                     await fetch(`${WORKER_BASE}/admin/make-subadmin`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({email,makeAdmin:true})});
                     toast(`${email} promoted to sub‑admin.`,'success');
                     await loadAllUsers();
-                    await refreshPermissions();
+                    await fetchUserInfo();
                     return;
                 }
                 if(action==='revokeadmin'){
                     await fetch(`${WORKER_BASE}/admin/make-subadmin`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({email,makeAdmin:false})});
                     toast(`${email} sub‑admin rights revoked.`,'success');
                     await loadAllUsers();
-                    await refreshPermissions();
+                    await fetchUserInfo();
                     return;
                 }
                 const role = btn.parentElement.querySelector(`.role-sel-${email}`)?.value || 'full';
@@ -401,12 +392,12 @@
                     await loadAllUsers();
                     await loadPending();
                     await loadPendingCount();
-                    await refreshPermissions();
+                    await fetchUserInfo();
                 }
                 else if(action==='update'){
                     await fetch(`${WORKER_BASE}/admin/update-role`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({email,role})});
                     toast(`${email} role updated to ${role}`);
-                    await refreshPermissions();
+                    await fetchUserInfo();
                     await fetchFiles();
                     await loadAllUsers();
                 }
@@ -416,7 +407,7 @@
                     await loadAllUsers();
                     await loadPending();
                     await loadPendingCount();
-                    await refreshPermissions();
+                    await fetchUserInfo();
                 }
             });
         });
@@ -501,17 +492,9 @@
         } catch(err){ toast('Copy failed: '+err.message,'error'); }
     }
 
-    // Video player with robust waiter
-    let currentVideo = null, controlsTimeout = null, audioCtx = null, gainNode = null, sourceNode = null;
-    async function waitForElements(ids, timeout = 5000) {
-        const start = Date.now();
-        while (Date.now() - start < timeout) {
-            if (ids.every(id => document.getElementById(id))) return true;
-            await new Promise(r => setTimeout(r, 200));
-        }
-        return false;
-    }
-    async function setupVideoControls(video) {
+    // Video player - robust setup with MutationObserver
+    let currentVideo = null, controlsTimeout = null, audioCtx = null, gainNode = null;
+    function setupVideoControls(video) {
         if(!video) return;
         currentVideo = video;
         const existing = document.querySelector('.video-controls');
@@ -529,62 +512,71 @@
             <input type="range" id="vidBrightness" min="0" max="200" value="100" style="width:80px">
             <span>☀️</span>
             <select id="vidAspect"><option value="auto">Auto</option><option value="16:9">16:9</option><option value="4:3">4:3</option><option value="1:1">1:1</option></select>
-            <button id="vidFullscreen">⛶</button>`;
+            <button id="vidFullscreen">⛶</button>
+        `;
         D.prevOv.appendChild(controlsDiv);
-        const ok = await waitForElements(['vidPlayPause','vidBack30','vidForward30','vidTime','vidSeek','vidVolume','vidVolIcon','vidBrightness','vidAspect','vidFullscreen'], 3000);
-        if (!ok) { console.warn('Failed to create video controls'); return; }
-        const playPause = $('#vidPlayPause'), back30 = $('#vidBack30'), forward30 = $('#vidForward30'), timeSpan = $('#vidTime'), seekSlider = $('#vidSeek');
-        const volumeSlider = $('#vidVolume'), volIcon = $('#vidVolIcon'), brightnessSlider = $('#vidBrightness'), aspectSelect = $('#vidAspect'), fullscreenBtn = $('#vidFullscreen');
-        function formatTime(sec){ if(isNaN(sec)) return '0:00'; const h=Math.floor(sec/3600), m=Math.floor((sec%3600)/60), s=Math.floor(sec%60); return h>0?`${h}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`:`${m}:${s.toString().padStart(2,'0')}`; }
-        function updateTime(){
-            if(!video) return;
-            const cur = video.currentTime, dur = video.duration || 0;
-            if(seekSlider) seekSlider.value = (cur/dur)*100||0;
-            if(timeSpan) timeSpan.textContent = `${formatTime(cur)} / ${formatTime(dur)}`;
-        }
-        video.addEventListener('timeupdate', updateTime);
-        video.addEventListener('loadedmetadata', updateTime);
-        video.addEventListener('play', ()=>playPause.textContent='⏸️');
-        video.addEventListener('pause', ()=>playPause.textContent='⏯️');
-        playPause.addEventListener('click', ()=>video.paused?video.play():video.pause());
-        back30.addEventListener('click', ()=>video.currentTime = Math.max(0, video.currentTime-30));
-        forward30.addEventListener('click', ()=>video.currentTime = Math.min(video.duration, video.currentTime+30));
-        seekSlider.addEventListener('input', ()=>{ if(video.duration) video.currentTime = (seekSlider.value/100)*video.duration; });
-        let webAudioEnabled = false;
-        volumeSlider.addEventListener('input', async () => {
-            let val = volumeSlider.value;
-            volIcon.textContent = val==0?'🔇':val<30?'🔉':val<100?'🔊':'🔊⬆';
-            if(webAudioEnabled && gainNode) gainNode.gain.value = Math.min(val/100, 3);
-            else video.volume = Math.min(val/100, 1);
+        // Wait for elements to be in DOM
+        const observer = new MutationObserver(() => {
+            const playPause = $('#vidPlayPause'); const back30 = $('#vidBack30'); const forward30 = $('#vidForward30');
+            const timeSpan = $('#vidTime'); const seekSlider = $('#vidSeek'); const volumeSlider = $('#vidVolume');
+            const volIcon = $('#vidVolIcon'); const brightnessSlider = $('#vidBrightness');
+            const aspectSelect = $('#vidAspect'); const fullscreenBtn = $('#vidFullscreen');
+            if(playPause && back30 && forward30 && timeSpan && seekSlider && volumeSlider && volIcon && brightnessSlider && aspectSelect && fullscreenBtn){
+                observer.disconnect();
+                function formatTime(sec){ if(isNaN(sec)) return '0:00'; const h=Math.floor(sec/3600), m=Math.floor((sec%3600)/60), s=Math.floor(sec%60); return h>0?`${h}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`:`${m}:${s.toString().padStart(2,'0')}`; }
+                function updateTime(){
+                    if(!video) return;
+                    const cur = video.currentTime, dur = video.duration || 0;
+                    seekSlider.value = (cur/dur)*100||0;
+                    timeSpan.textContent = `${formatTime(cur)} / ${formatTime(dur)}`;
+                }
+                video.addEventListener('timeupdate', updateTime);
+                video.addEventListener('loadedmetadata', updateTime);
+                video.addEventListener('play', ()=>playPause.textContent='⏸️');
+                video.addEventListener('pause', ()=>playPause.textContent='⏯️');
+                playPause.addEventListener('click', ()=>video.paused?video.play():video.pause());
+                back30.addEventListener('click', ()=>video.currentTime = Math.max(0, video.currentTime-30));
+                forward30.addEventListener('click', ()=>video.currentTime = Math.min(video.duration, video.currentTime+30));
+                seekSlider.addEventListener('input', ()=>{ if(video.duration) video.currentTime = (seekSlider.value/100)*video.duration; });
+                let webAudioEnabled = false;
+                volumeSlider.addEventListener('input', async () => {
+                    let val = volumeSlider.value;
+                    volIcon.textContent = val==0?'🔇':val<30?'🔉':val<100?'🔊':'🔊⬆';
+                    if(webAudioEnabled && gainNode) gainNode.gain.value = Math.min(val/100, 3);
+                    else video.volume = Math.min(val/100, 1);
+                });
+                video.addEventListener('play', async () => {
+                    if(!webAudioEnabled && typeof AudioContext !== 'undefined') {
+                        try {
+                            audioCtx = new AudioContext();
+                            gainNode = audioCtx.createGain();
+                            gainNode.connect(audioCtx.destination);
+                            const source = audioCtx.createMediaElementSource(video);
+                            source.connect(gainNode);
+                            gainNode.gain.value = Math.min(volumeSlider.value/100, 3);
+                            if(audioCtx.state === 'suspended') await audioCtx.resume();
+                            webAudioEnabled = true;
+                        } catch(e) { console.warn('Web Audio failed', e); }
+                    } else if(audioCtx && audioCtx.state === 'suspended') { await audioCtx.resume(); webAudioEnabled = true; }
+                });
+                document.addEventListener('click', ()=>{
+                    if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+                }, {once: true});
+                brightnessSlider.addEventListener('input', () => { video.style.filter = `brightness(${brightnessSlider.value/100})`; });
+                aspectSelect.addEventListener('change', () => { const asp = aspectSelect.value; video.style.aspectRatio = asp==='16:9'?'16/9':asp==='4:3'?'4/3':asp==='1:1'?'1/1':'auto'; });
+                fullscreenBtn.addEventListener('click', () => { if(document.fullscreenElement) document.exitFullscreen(); else video.parentElement?.requestFullscreen(); });
+                function hideControls(){ controlsDiv.style.opacity='0'; controlsDiv.style.pointerEvents='none'; }
+                function showControls(){ controlsDiv.style.opacity='1'; controlsDiv.style.pointerEvents='auto'; if(controlsTimeout) clearTimeout(controlsTimeout); controlsTimeout = setTimeout(hideControls, 3000); }
+                video.addEventListener('mousemove', showControls);
+                video.addEventListener('click', showControls);
+                controlsDiv.addEventListener('mouseenter', showControls);
+                controlsDiv.addEventListener('mouseleave', showControls);
+                showControls();
+                video.volume = Math.min(volumeSlider.value/100, 1);
+            }
         });
-        video.addEventListener('play', async () => {
-            if(!webAudioEnabled && typeof AudioContext !== 'undefined') {
-                try {
-                    audioCtx = new AudioContext();
-                    gainNode = audioCtx.createGain();
-                    gainNode.connect(audioCtx.destination);
-                    sourceNode = audioCtx.createMediaElementSource(video);
-                    sourceNode.connect(gainNode);
-                    gainNode.gain.value = Math.min(volumeSlider.value/100, 3);
-                    if(audioCtx.state === 'suspended') await audioCtx.resume();
-                    webAudioEnabled = true;
-                } catch(e) { console.warn('Web Audio failed', e); }
-            } else if(audioCtx && audioCtx.state === 'suspended') { await audioCtx.resume(); webAudioEnabled = true; }
-        });
-        document.addEventListener('click', ()=>{
-            if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-        }, {once: true});
-        brightnessSlider.addEventListener('input', () => { video.style.filter = `brightness(${brightnessSlider.value/100})`; });
-        aspectSelect.addEventListener('change', () => { const asp = aspectSelect.value; video.style.aspectRatio = asp==='16:9'?'16/9':asp==='4:3'?'4/3':asp==='1:1'?'1/1':'auto'; });
-        fullscreenBtn.addEventListener('click', () => { if(document.fullscreenElement) document.exitFullscreen(); else video.parentElement?.requestFullscreen(); });
-        function hideControls(){ controlsDiv.style.opacity='0'; controlsDiv.style.pointerEvents='none'; }
-        function showControls(){ controlsDiv.style.opacity='1'; controlsDiv.style.pointerEvents='auto'; if(controlsTimeout) clearTimeout(controlsTimeout); controlsTimeout = setTimeout(hideControls, 3000); }
-        video.addEventListener('mousemove', showControls);
-        video.addEventListener('click', showControls);
-        controlsDiv.addEventListener('mouseenter', showControls);
-        controlsDiv.addEventListener('mouseleave', showControls);
-        showControls();
-        video.volume = Math.min(volumeSlider.value/100, 1);
+        observer.observe(controlsDiv, { childList: true, subtree: true });
+        setTimeout(() => observer.disconnect(), 5000);
     }
     function openPreview(pid, type, mime) {
         D.prevCont.innerHTML = '';
@@ -592,9 +584,14 @@
         let element;
         if(type === 'video'){
             const video = document.createElement('video');
-            video.src = url; video.autoplay = true; video.controls = false;
-            video.style.width = '100%'; video.style.height = '100%'; video.style.objectFit = 'contain';
-            video.style.backgroundColor = '#000'; video.crossOrigin = "anonymous";
+            video.src = url;
+            video.autoplay = true;
+            video.controls = false;
+            video.style.width = '100%';
+            video.style.height = '100%';
+            video.style.objectFit = 'contain';
+            video.style.backgroundColor = '#000';
+            video.crossOrigin = "anonymous";
             element = video;
         } else if(type === 'audio'){
             const audio = document.createElement('audio');
@@ -626,7 +623,7 @@
         const controls = document.querySelector('.video-controls');
         if(controls) controls.remove();
         if(controlsTimeout) clearTimeout(controlsTimeout);
-        if(audioCtx) { audioCtx.close(); audioCtx = null; gainNode = null; sourceNode = null; }
+        if(audioCtx) { audioCtx.close(); audioCtx = null; gainNode = null; }
         currentVideo = null;
     }
     safeAddEvent(D.btnCloseP, 'click', closePreview);
@@ -699,6 +696,7 @@
         }
         attachEvents(); updateBulkBar(); setupKeyboardNav();
     }
+
     function attachEvents(){
         if(!D.grid) return;
         D.grid.querySelectorAll('.card-checkbox').forEach(cb=>{ cb.removeEventListener('change', checkboxHandler); cb.addEventListener('change', checkboxHandler); });
@@ -736,7 +734,7 @@
     }
     async function deleteFile(pid){ if(!confirm('Delete?')) return; await fetch(`${WORKER_BASE}/delete`,{method:'POST',headers:{'Content-Type':'application/json',...getAuthHeaders()},body:JSON.stringify({publicId:pid})}); await fetchFiles(); toast('Deleted'); }
 
-    // Upload
+    // Upload – single request, no double
     let pendingPaste = [];
     document.addEventListener('paste',(e)=>{
         const items = e.clipboardData.items;
@@ -751,12 +749,11 @@
     });
     async function uploadFile(file, existingPid = null){
         const key = existingPid || `${file.name}_${file.size}_${file.lastModified}`;
-        if(activeUploadKeys.has(key)){ toast(`${file.name} already uploading.`,'info'); return; }
-        activeUploadKeys.add(key);
-        const abortCtrl = new AbortController();
-        activeUploadControllers.set(key, abortCtrl);
+        if(activeUploads.has(key)){ toast(`${file.name} already uploading.`,'info'); return; }
+        activeUploads.add(key);
+        // Disable file input temporarily to prevent double trigger
+        if(D.fileInp) D.fileInp.disabled = true;
         const progressDiv = document.createElement('div'); progressDiv.className = 'progress-item';
-        progressDiv.id = `up-${Date.now()}`;
         progressDiv.innerHTML = `<div class="progress-header"><span>${esc(file.name)}</span><span class="progress-percent">0%</span></div><div class="progress-bar"><div class="progress-fill" style="width:0%"></div></div>`;
         D.uploadProgressList.classList.remove('hidden');
         D.uploadProgressList.appendChild(progressDiv);
@@ -765,25 +762,23 @@
             if(!pid){
                 const init = await fetch(`${WORKER_BASE}/upload-init`,{
                     method:'POST', headers:{'Content-Type':'application/json',...getAuthHeaders()},
-                    body:JSON.stringify({fileName:file.name, fileSize:file.size, fileType:file.type||'application/octet-stream'}),
-                    signal:abortCtrl.signal
+                    body:JSON.stringify({fileName:file.name, fileSize:file.size, fileType:file.type||'application/octet-stream'})
                 });
                 if(!init.ok) throw new Error(await init.text());
                 const initData = await init.json();
                 pid = initData.publicId;
             }
-            const CHUNK = 2*1024*1024;
+            const CHUNK = 5*1024*1024;
             let uploaded = 0;
             const updatePercent = (p)=>{ const fill=progressDiv.querySelector('.progress-fill'); const span=progressDiv.querySelector('.progress-percent'); if(fill) fill.style.width=p+'%'; if(span) span.textContent=p+'%'; };
             while(uploaded < file.size){
-                if(abortCtrl.signal.aborted) throw new Error('Cancelled');
                 const end = Math.min(uploaded+CHUNK-1, file.size-1);
                 const chunk = file.slice(uploaded, end+1);
                 let retries=3, done=false;
                 while(retries-- && !done){
                     const chunkRes = await fetch(`${WORKER_BASE}/upload-chunk/${pid}`,{
                         method:'PUT', headers:{'Content-Range':`bytes ${uploaded}-${end}/${file.size}`, ...getAuthHeaders()},
-                        body:chunk, signal:abortCtrl.signal
+                        body:chunk
                     });
                     const data = await chunkRes.json();
                     if(chunkRes.ok){
@@ -794,7 +789,7 @@
                 }
                 if(done && uploaded>=file.size) break;
                 if(!done){
-                    const stat = await fetch(`${WORKER_BASE}/upload-status/${pid}`,{headers:getAuthHeaders(), signal:abortCtrl.signal});
+                    const stat = await fetch(`${WORKER_BASE}/upload-status/${pid}`,{headers:getAuthHeaders()});
                     if(stat.ok){ const s=await stat.json(); uploaded=s.uploadedBytes||uploaded; updatePercent(Math.round(uploaded/file.size*100)); }
                 }
             }
@@ -808,10 +803,10 @@
         } catch(err){
             progressDiv.remove();
             if(D.uploadProgressList.children.length===0) D.uploadProgressList.classList.add('hidden');
-            if(err.message !== 'Cancelled') toast(`Upload failed: ${err.message}`,'error');
+            toast(`Upload failed: ${err.message}`,'error');
         } finally {
-            activeUploadControllers.delete(key);
-            activeUploadKeys.delete(key);
+            activeUploads.delete(key);
+            if(D.fileInp) D.fileInp.disabled = false;
         }
     }
     function handleFiles(files){ for(const f of files) uploadFile(f); }
