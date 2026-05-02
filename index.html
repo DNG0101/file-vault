@@ -582,13 +582,24 @@ function can(action, file = null) {
 // ==================== RENDER / MAIN FLOW ====================
 
 async function init() {
-    // Handle OAuth callback token
-    const params = new URLSearchParams(location.search);
-    const cbToken = params.get('token');
-    const cbError = params.get('error');
+    // Handle OAuth callback params
+    const params     = new URLSearchParams(location.search);
+    const cbToken    = params.get('token');
+    const cbError    = params.get('error');
+    const cbAuthErr  = params.get('auth_error');
 
-    if (cbError === 'not_admin') { toast('That account is not an admin.', 'error'); }
-    if (cbError === 'revoked')   { toast('Your access has been revoked.', 'error'); }
+    const AUTH_ERR_MSGS = {
+        no_code:               'Login cancelled or no code received.',
+        token_exchange_failed: 'Could not exchange login code — please try again.',
+        email_fetch_failed:    'Could not retrieve your email from Google.',
+        rate_limited:          'Too many login attempts. Please wait a minute.',
+        revoked:               'Your access has been revoked by an admin.',
+        not_admin:             'That Google account does not have admin access.',
+    };
+
+    if (cbAuthErr) toast(AUTH_ERR_MSGS[cbAuthErr] || `Auth error: ${cbAuthErr}`, 'error', 6000);
+    if (cbError === 'revoked')   toast('Your access has been revoked.', 'error', 6000);
+    if (cbError === 'not_admin') toast('That account is not an admin.', 'error', 6000);
 
     if (cbToken) {
         ST.token = cbToken;
