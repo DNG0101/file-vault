@@ -104,9 +104,9 @@
 
         /* ── Visibility badges ── */
         .vis-badge { padding:2px 6px; border-radius:6px; font-size:0.62rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
-        .vis-owner_only { background:var(--vis-owner); color:var(--vis-owner-text); }
-        .vis-all_approved { background:var(--vis-all); color:var(--vis-all-text); }
-        .vis-public { background:var(--vis-public); color:var(--vis-public-text); }
+        .vis-owner_only  { background:var(--vis-owner);  color:var(--vis-owner-text); }
+        .vis-all_approved{ background:var(--vis-all);    color:var(--vis-all-text); }
+        .vis-public      { background:var(--vis-public); color:var(--vis-public-text); }
 
         /* ── Card actions ── */
         .actions { display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; }
@@ -169,6 +169,20 @@
         .preview-nav { position:absolute; top:50%; transform:translateY(-50%); background:rgba(255,255,255,.15); border:none; color:#fff; font-size:1.5rem; padding:10px 14px; border-radius:10px; cursor:pointer; backdrop-filter:blur(4px); }
         .preview-nav.prev { left:10px; }
         .preview-nav.next { right:10px; }
+        .preview-filename { position:absolute; bottom:16px; left:50%; transform:translateX(-50%); color:rgba(255,255,255,.7); font-size:0.8rem; background:rgba(0,0,0,.4); padding:4px 12px; border-radius:20px; max-width:80%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+        /* ── Command Palette ── */
+        .cmd-overlay { position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:2000; display:flex; align-items:flex-start; justify-content:center; padding-top:12vh; }
+        .cmd-overlay.hidden { display:none; }
+        .cmd-box { background:var(--card-bg); border-radius:16px; width:100%; max-width:560px; overflow:hidden; box-shadow:0 24px 60px rgba(0,0,0,.35); }
+        .cmd-input { width:100%; padding:14px 18px; border:none; background:transparent; color:var(--text); font-size:1rem; outline:none; border-bottom:1px solid var(--border); }
+        .cmd-results { max-height:320px; overflow-y:auto; }
+        .cmd-item { padding:10px 18px; cursor:pointer; display:flex; align-items:center; gap:10px; font-size:0.9rem; }
+        .cmd-item:hover,.cmd-item.active { background:color-mix(in srgb,var(--accent) 10%,var(--card-bg)); }
+        .cmd-item-icon { font-size:1.1rem; flex-shrink:0; }
+        .cmd-item-label { flex:1; }
+        .cmd-item-hint { font-size:0.72rem; color:var(--text-secondary); }
+        .cmd-empty { padding:20px; text-align:center; color:var(--text-secondary); font-size:0.9rem; }
 
         /* ── Toast ── */
         #toastContainer { position:fixed; bottom:20px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:7px; pointer-events:none; }
@@ -201,6 +215,11 @@
         /* ── Inline inputs ── */
         .inline-input { padding:5px 9px; border:1px solid var(--border); border-radius:8px; background:var(--card-bg); color:var(--text); font-size:0.82rem; }
         select.inline-input { cursor:pointer; }
+
+        /* ── URL upload bar ── */
+        .url-bar { display:flex; gap:8px; margin-bottom:14px; }
+        .url-bar input { flex:1; padding:7px 12px; border:1px solid var(--border); border-radius:10px; background:var(--card-bg); color:var(--text); font-size:0.85rem; }
+        .url-bar input:focus { outline:none; border-color:var(--accent); }
     </style>
 </head>
 <body>
@@ -210,7 +229,8 @@
     <div class="header">
         <h1>📁 File Vault</h1>
         <div class="header-right">
-            <button class="btn-icon" id="btnDarkMode" title="Toggle dark mode">🌓</button>
+            <button class="btn-icon" id="btnCmdPalette" title="Command palette (Ctrl+K)">⌘</button>
+            <button class="btn-icon" id="btnDarkMode" title="Toggle dark mode (Ctrl+D)">🌓</button>
             <div id="userUI"></div>
         </div>
     </div>
@@ -226,7 +246,7 @@
         <button class="btn btn-sm" id="btnAnalytics">📊 Analytics</button>
         <button class="btn btn-sm" id="btnShareManager">🔗 Shares</button>
         <button class="btn btn-sm btn-danger" id="btnAdminLogout">🔒 Logout</button>
-        <button class="btn btn-sm" id="btnResetToken" style="background:rgba(249,115,22,.8);">🔄 Reset Token</button>
+        <button class="btn btn-sm" id="btnResetToken" style="background:rgba(249,115,22,.8);">🔑 Reset Token</button>
     </div>
 
     <!-- Panels -->
@@ -235,6 +255,7 @@
         <div id="approvalList"><div class="loading">Loading…</div></div>
         <div class="panel-actions">
             <button class="btn btn-sm btn-outline" id="refreshPendingBtn">🔄 Refresh</button>
+            <button class="btn btn-sm btn-outline" id="closeApprovalBtn">✕ Close</button>
         </div>
     </div>
 
@@ -242,7 +263,7 @@
         <h3>User Management</h3>
         <div id="usersList"><div class="loading">Loading…</div></div>
         <div class="panel-actions" style="margin-top:14px;">
-            <input type="text" class="inline-input" id="newUserEmail" placeholder="user@example.com" style="flex:1;min-width:180px;">
+            <input type="text" class="inline-input" id="newUserEmail" placeholder="user@example.com" style="flex:1;min-width:180px;" autocomplete="off">
             <select class="inline-input" id="newUserRole">
                 <option value="full">full</option>
                 <option value="delete">delete</option>
@@ -253,6 +274,7 @@
             </select>
             <button id="addUserBtn" class="btn btn-sm btn-primary">➕ Add User</button>
             <button class="btn btn-sm btn-outline" id="refreshUsersBtn">🔄 Refresh</button>
+            <button class="btn btn-sm btn-outline" id="closeUsersBtn">✕ Close</button>
         </div>
         <details style="margin-top:12px;">
             <summary style="cursor:pointer;font-size:0.8rem;color:var(--text-secondary);">📋 Role capability matrix</summary>
@@ -281,6 +303,7 @@
         <div class="panel-actions">
             <button class="btn btn-sm btn-danger" id="btnClearLogs">🗑 Clear Logs</button>
             <button class="btn btn-sm btn-outline" id="refreshLogsBtn">🔄 Refresh</button>
+            <button class="btn btn-sm btn-outline" id="closeLogsBtn">✕ Close</button>
         </div>
     </div>
 
@@ -289,12 +312,17 @@
         <div id="analyticsContent"></div>
         <div class="panel-actions">
             <button class="btn btn-sm btn-outline" id="refreshAnalyticsBtn">🔄 Refresh</button>
+            <button class="btn btn-sm btn-outline" id="closeAnalyticsBtn">✕ Close</button>
         </div>
     </div>
 
     <div class="panel hidden" id="sharePanel">
         <h3>Share Links</h3>
-        <div id="shareContent"></div>
+        <div id="shareContent"><div class="loading">Loading…</div></div>
+        <div class="panel-actions">
+            <button class="btn btn-sm btn-outline" id="refreshSharesBtn">🔄 Refresh</button>
+            <button class="btn btn-sm btn-outline" id="closeSharesBtn">✕ Close</button>
+        </div>
     </div>
 
     <div class="panel hidden" id="adminFilesPanel">
@@ -302,6 +330,7 @@
         <div id="adminFilesList"><div class="loading">Loading…</div></div>
         <div class="panel-actions">
             <button class="btn btn-sm btn-outline" id="refreshAdminFilesBtn">🔄 Refresh</button>
+            <button class="btn btn-sm btn-outline" id="closeAdminFilesBtn">✕ Close</button>
         </div>
     </div>
 
@@ -327,10 +356,10 @@
         <button class="btn btn-sm btn-outline" id="refreshFilesBtn">🔄 Refresh</button>
     </div>
 
-    <!-- Paste box -->
-    <div style="display:flex;gap:8px;margin-bottom:14px;">
-        <input type="text" class="inline-input" id="pasteInput" placeholder="Paste a URL or text here… (Ctrl+V)" style="flex:1;">
-        <button class="btn btn-sm btn-primary" id="sendPasteBtn">📤 Send</button>
+    <!-- URL upload bar (upload only) -->
+    <div class="url-bar hidden" id="urlBar">
+        <input type="text" id="urlInput" placeholder="Paste a URL to upload from remote… (Ctrl+V)" autocomplete="off">
+        <button class="btn btn-sm btn-primary" id="btnUrlUpload">📥 Upload URL</button>
     </div>
 
     <!-- Bulk bar -->
@@ -341,9 +370,8 @@
     </div>
 
     <!-- Keyboard hints -->
-    <div class="kbd-hint">
-        <kbd>Ctrl+V</kbd> paste &nbsp; <kbd>Ctrl+U</kbd> upload &nbsp; <kbd>Ctrl+F</kbd> search &nbsp; <kbd>Esc</kbd> close &nbsp;
-        <kbd>←</kbd><kbd>→</kbd> navigate preview &nbsp; <kbd>Space</kbd> play/pause
+    <div class="kbd-hint" id="kbdHints" style="display:none;">
+        <kbd>Ctrl+K</kbd> commands &nbsp; <kbd>Ctrl+F</kbd> search &nbsp; <kbd>Ctrl+U</kbd> upload &nbsp; <kbd>Ctrl+V</kbd> paste URL &nbsp; <kbd>Esc</kbd> close &nbsp; <kbd>←</kbd><kbd>→</kbd> preview nav &nbsp; <kbd>Space</kbd> play/pause
     </div>
 
     <!-- Dropzone (upload only) -->
@@ -359,16 +387,25 @@
     <!-- File grid -->
     <div id="fileGrid"></div>
 
-</div><!-- /container -->
+</div>
 
 <!-- Preview overlay -->
 <div class="preview-overlay hidden" id="previewOverlay">
-    <button class="preview-nav prev" id="btnPrevFile">‹</button>
+    <button class="preview-nav prev" id="btnPrevFile" title="Previous (←)">‹</button>
     <div class="preview-container" id="previewContainer"></div>
-    <button class="preview-nav next" id="btnNextFile">›</button>
+    <button class="preview-nav next" id="btnNextFile" title="Next (→)">›</button>
     <div class="preview-toolbar">
         <button id="btnFullscreen">⛶ Fullscreen</button>
         <button id="btnClosePreview">✕ Close</button>
+    </div>
+    <div class="preview-filename" id="previewFilename"></div>
+</div>
+
+<!-- Command Palette -->
+<div class="cmd-overlay hidden" id="cmdOverlay">
+    <div class="cmd-box">
+        <input type="text" class="cmd-input" id="cmdInput" placeholder="Search files or type a command…" autocomplete="off">
+        <div class="cmd-results" id="cmdResults"></div>
     </div>
 </div>
 
@@ -379,6 +416,7 @@
 'use strict';
 
 // ==================== CONFIG ====================
+// Replace with your worker domain
 const WORKER_BASE = 'https://gdrive-files-api.donthulanithish53.workers.dev';
 
 // ==================== UTILITIES ====================
@@ -388,12 +426,6 @@ function debounce(fn, ms) {
     return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), ms); };
 }
 
-function throttle(fn, ms) {
-    let last = 0;
-    return (...args) => { const now = Date.now(); if (now - last >= ms) { last = now; fn(...args); } };
-}
-
-// Request deduplication: one in-flight request per "slot"
 class RequestSlot {
     constructor() { this._ctrl = null; }
     abort() { if (this._ctrl) { this._ctrl.abort(); this._ctrl = null; } }
@@ -412,7 +444,8 @@ const SLOTS = {
 };
 
 const $ = id => document.getElementById(id);
-const esc = s => { const d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; };
+// Safe HTML-escape: never use innerHTML with raw user data — always use esc() first
+const esc = s => { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; };
 
 function fmtSize(b) {
     if (!b || b === 0) return '0 B';
@@ -433,7 +466,7 @@ function fmtRelative(ts) {
     const mins = Math.floor(diff / 60000);
     if (mins < 1)   return 'just now';
     if (mins < 60)  return `${mins}m ago`;
-    const hrs = Math.floor(mins / 60);
+    const hrs  = Math.floor(mins / 60);
     if (hrs < 24)   return `${hrs}h ago`;
     const days = Math.floor(hrs / 24);
     return `${days}d ago`;
@@ -441,14 +474,14 @@ function fmtRelative(ts) {
 
 function mediaType(mime) {
     if (!mime) return 'other';
-    if (mime.startsWith('video'))                                    return 'video';
-    if (mime.startsWith('audio'))                                    return 'audio';
-    if (mime.startsWith('image'))                                    return 'image';
-    if (mime === 'application/pdf')                                  return 'pdf';
-    if (mime.includes('word') || mime.includes('document'))         return 'word';
-    if (mime.includes('spreadsheet') || mime.includes('excel'))     return 'excel';
-    if (mime.includes('presentation') || mime.includes('powerpoint')) return 'ppt';
-    if (mime.startsWith('text'))                                     return 'text';
+    if (mime.startsWith('video'))                                       return 'video';
+    if (mime.startsWith('audio'))                                       return 'audio';
+    if (mime.startsWith('image'))                                       return 'image';
+    if (mime === 'application/pdf')                                     return 'pdf';
+    if (mime.includes('word') || mime.includes('document'))            return 'word';
+    if (mime.includes('spreadsheet') || mime.includes('excel'))        return 'excel';
+    if (mime.includes('presentation') || mime.includes('powerpoint'))  return 'ppt';
+    if (mime.startsWith('text'))                                        return 'text';
     return 'other';
 }
 
@@ -457,32 +490,32 @@ const MIME_EMOJI = { video:'🎬', audio:'🎵', image:'🖼️', pdf:'📄', wo
 // ==================== STATE ====================
 
 let ST = {
-    token:      localStorage.getItem('vtoken'),
-    email:      null,
-    isAdmin:    false,
-    isSuperAdmin: false,
-    approved:   false,
-    role:       null,
-    filesMeta:  null,
-    myFilesMeta:null,
-    selected:   new Set(),
-    sort:       localStorage.getItem('sort')   || 'newest',
-    filter:     localStorage.getItem('filter') || 'all',
-    query:      '',
-    dark:       localStorage.getItem('darkMode') === 'true',
-    filesEtag:  null,
-    previewList:null,
-    previewIdx: 0,
+    token:          localStorage.getItem('vtoken'),
+    email:          null,
+    isAdmin:        false,
+    isSuperAdmin:   false,
+    approved:       false,
+    role:           null,
+    filesMeta:      null,
+    myFilesMeta:    null,
+    selected:       new Set(),
+    sort:           localStorage.getItem('sort')   || 'newest',
+    filter:         localStorage.getItem('filter') || 'all',
+    query:          '',
+    dark:           localStorage.getItem('darkMode') === 'true',
+    filesEtag:      null,
+    previewList:    [],
+    previewIdx:     0,
     heartbeatTimer: null,
     pendingTimer:   null,
     pendingBackoff: 30000,
-    isVisible:  true,
+    isVisible:      true,
 };
 
-let uploadQueue         = [];
-let isUploading         = false;
-let cardData            = new Map();
-let commentOpenSet      = new Set();
+let uploadQueue    = [];
+let isUploading    = false;
+let cardData       = new Map();
+let commentOpenSet = new Set();
 
 // ==================== DOM refs ====================
 
@@ -501,18 +534,27 @@ const D = {
     bulkBar:       $('bulkBar'),
     bulkCnt:       $('bulkCount'),
     toastBox:      $('toastContainer'),
+    urlBar:        $('urlBar'),
+    urlInput:      $('urlInput'),
+    cmdOverlay:    $('cmdOverlay'),
+    cmdInput:      $('cmdInput'),
+    cmdResults:    $('cmdResults'),
 };
 
-// ==================== INIT ====================
+// ==================== THEME ====================
 
 function applyTheme() {
     document.documentElement.setAttribute('data-theme', ST.dark ? 'dark' : 'light');
 }
-
 applyTheme();
+if (ST.sort)   D.sortSel.value   = ST.sort;
+if (ST.filter) D.filterSel.value = ST.filter;
 
-if (ST.sort) $('sortSelect').value = ST.sort;
-if (ST.filter) $('filterSelect').value = ST.filter;
+$('btnDarkMode').onclick = () => {
+    ST.dark = !ST.dark;
+    localStorage.setItem('darkMode', String(ST.dark));
+    applyTheme();
+};
 
 // ==================== TOAST ====================
 
@@ -521,7 +563,10 @@ function toast(msg, type = 'info', duration = 3500) {
     el.className = `toast ${type}`;
     el.textContent = msg;
     D.toastBox.appendChild(el);
-    const remove = () => { el.style.opacity = '0'; el.style.transform = 'translateX(110%)'; el.style.transition = '.25s'; setTimeout(() => el.remove(), 260); };
+    const remove = () => {
+        el.style.opacity = '0'; el.style.transform = 'translateX(110%)';
+        el.style.transition = '.25s'; setTimeout(() => el.remove(), 260);
+    };
     const t = setTimeout(remove, duration);
     el.onclick = () => { clearTimeout(t); remove(); };
 }
@@ -541,7 +586,8 @@ function mediaUrl(pid, mode = 'video') {
 // ==================== API FETCH ====================
 
 async function apiFetch(endpoint, options = {}, signal = null) {
-    const res = await fetch(`${WORKER_BASE}${endpoint}`, {
+    const url = endpoint.startsWith('http') ? endpoint : `${WORKER_BASE}${endpoint}`;
+    const res = await fetch(url, {
         ...options,
         signal,
         headers: { ...authHeaders(), ...(options.headers || {}) },
@@ -561,32 +607,181 @@ async function apiFetch(endpoint, options = {}, signal = null) {
 const ROLE_RANK = { super_admin:99, admin:10, full:6, delete:5, upload:4, download:3, read:2, none:0 };
 
 const ROLE_RIGHTS = {
-    admin:    { upload:true,  delete:true,  download:true,  preview:true,  copy:true,  tick:true,  comment:true,  share:true,  rename:true,  visibility:true },
-    full:     { upload:true,  delete:true,  download:true,  preview:true,  copy:true,  tick:true,  comment:true,  share:true,  rename:true,  visibility:false },
-    delete:   { upload:false, delete:true,  download:true,  preview:true,  copy:true,  tick:true,  comment:true,  share:true,  rename:false, visibility:false },
-    upload:   { upload:true,  delete:false, download:true,  preview:true,  copy:true,  tick:true,  comment:true,  share:true,  rename:true,  visibility:false },
-    download: { upload:false, delete:false, download:true,  preview:true,  copy:true,  tick:true,  comment:true,  share:true,  rename:false, visibility:false },
-    read:     { upload:false, delete:false, download:false, preview:true,  copy:false, tick:true,  comment:true,  share:false, rename:false, visibility:false },
-    none:     { upload:false, delete:false, download:false, preview:false, copy:false, tick:false, comment:false, share:false, rename:false, visibility:false },
+    admin:    { upload:true,  delete:true,  download:true,  preview:true,  copy:true,  tick:true,  comment:true,  share:true,  rename:true  },
+    full:     { upload:true,  delete:true,  download:true,  preview:true,  copy:true,  tick:true,  comment:true,  share:true,  rename:true  },
+    delete:   { upload:false, delete:true,  download:true,  preview:true,  copy:true,  tick:true,  comment:true,  share:true,  rename:false },
+    upload:   { upload:true,  delete:false, download:true,  preview:true,  copy:true,  tick:true,  comment:true,  share:true,  rename:true  },
+    download: { upload:false, delete:false, download:true,  preview:true,  copy:true,  tick:true,  comment:true,  share:true,  rename:false },
+    read:     { upload:false, delete:false, download:false, preview:true,  copy:false, tick:true,  comment:true,  share:false, rename:false },
+    none:     { upload:false, delete:false, download:false, preview:false, copy:false, tick:false, comment:false, share:false, rename:false },
 };
 
 function can(action, file = null) {
     if (ST.isAdmin) return true;
     const rights = ROLE_RIGHTS[ST.role] || ROLE_RIGHTS.none;
     if (!rights[action]) return false;
-    // Delete/rename are owner-scoped for non-admins
     if ((action === 'delete' || action === 'rename') && file && file.uploadedBy !== ST.email) return false;
     return true;
 }
 
-// ==================== RENDER / MAIN FLOW ====================
+// ==================== COMMAND PALETTE ====================
+
+const CMD_ACTIONS = [
+    { icon:'🔄', label:'Sync Drive', hint:'Admin', fn: () => syncDrive() },
+    { icon:'👥', label:'Pending Approvals', hint:'Admin', fn: () => { openPanel('approval'); loadPendingUsers(); } },
+    { icon:'👤', label:'Manage Users', hint:'Admin', fn: () => { openPanel('users'); loadAllUsers(); } },
+    { icon:'📋', label:'Audit Logs', hint:'Admin', fn: () => { openPanel('logs'); loadLogs(); } },
+    { icon:'📊', label:'Analytics', hint:'Admin', fn: () => { openPanel('analytics'); loadAnalytics(); } },
+    { icon:'🔗', label:'Share Manager', hint:'Admin', fn: () => { openPanel('shares'); loadShares(); } },
+    { icon:'📂', label:'All Files (Admin)', hint:'Admin', fn: () => { openPanel('adminFiles'); loadAdminFiles(); } },
+    { icon:'🔑', label:'Reset Drive Token', hint:'Admin', fn: () => resetToken() },
+    { icon:'🌓', label:'Toggle Dark Mode', hint:'', fn: () => { ST.dark = !ST.dark; localStorage.setItem('darkMode', String(ST.dark)); applyTheme(); } },
+    { icon:'🔒', label:'Logout', hint:'', fn: () => logout() },
+    { icon:'🔄', label:'Refresh Files', hint:'', fn: () => fetchFiles() },
+];
+
+let cmdIdx = 0;
+
+function openCmdPalette() {
+    D.cmdOverlay.classList.remove('hidden');
+    D.cmdInput.value = '';
+    D.cmdInput.focus();
+    renderCmdResults('');
+    cmdIdx = 0;
+}
+
+function closeCmdPalette() {
+    D.cmdOverlay.classList.add('hidden');
+}
+
+function renderCmdResults(query) {
+    const q = query.toLowerCase().trim();
+
+    let items = [];
+
+    // File matches
+    if (q.length >= 1 && ST.filesMeta) {
+        const matches = ST.filesMeta.filter(f => (f.name || '').toLowerCase().includes(q)).slice(0, 5);
+        items = items.concat(matches.map(f => ({
+            icon:  MIME_EMOJI[mediaType(f.mimeType)] || '📦',
+            label: f.name,
+            hint:  fmtSize(f.size),
+            fn:    () => openPreview(f.publicId),
+        })));
+    }
+
+    // Command matches
+    const adminCmds = CMD_ACTIONS.filter(c => !c.hint.includes('Admin') || ST.isAdmin);
+    const cmdMatches = q
+        ? adminCmds.filter(c => c.label.toLowerCase().includes(q))
+        : adminCmds;
+    items = items.concat(cmdMatches);
+
+    if (!items.length) {
+        D.cmdResults.innerHTML = `<div class="cmd-empty">No results for "${esc(query)}"</div>`;
+        return;
+    }
+
+    D.cmdResults.innerHTML = items.map((item, i) =>
+        `<div class="cmd-item${i === cmdIdx ? ' active' : ''}" data-idx="${i}">
+            <span class="cmd-item-icon">${esc(item.icon)}</span>
+            <span class="cmd-item-label">${esc(item.label)}</span>
+            <span class="cmd-item-hint">${esc(item.hint)}</span>
+        </div>`
+    ).join('');
+
+    // Store resolved items for keyboard navigation
+    D.cmdResults._items = items;
+
+    D.cmdResults.onclick = e => {
+        const el = e.target.closest('.cmd-item');
+        if (!el) return;
+        const idx = parseInt(el.dataset.idx, 10);
+        const item = D.cmdResults._items[idx];
+        if (item?.fn) { closeCmdPalette(); item.fn(); }
+    };
+}
+
+D.cmdInput.oninput = debounce(() => {
+    cmdIdx = 0;
+    renderCmdResults(D.cmdInput.value);
+}, 100);
+
+D.cmdInput.onkeydown = e => {
+    const items = D.cmdResults._items || [];
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        cmdIdx = Math.min(cmdIdx + 1, items.length - 1);
+        renderCmdResults(D.cmdInput.value);
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        cmdIdx = Math.max(cmdIdx - 1, 0);
+        renderCmdResults(D.cmdInput.value);
+    } else if (e.key === 'Enter') {
+        const item = items[cmdIdx];
+        if (item?.fn) { closeCmdPalette(); item.fn(); }
+    } else if (e.key === 'Escape') {
+        closeCmdPalette();
+    }
+};
+
+D.cmdOverlay.onclick = e => { if (e.target === D.cmdOverlay) closeCmdPalette(); };
+$('btnCmdPalette').onclick = openCmdPalette;
+
+// ==================== KEYBOARD SHORTCUTS ====================
+
+document.addEventListener('keydown', e => {
+    const tag = (e.target.tagName || '').toLowerCase();
+    const isInput = tag === 'input' || tag === 'textarea' || tag === 'select';
+
+    if (e.key === 'Escape') {
+        if (!D.cmdOverlay.classList.contains('hidden')) { closeCmdPalette(); return; }
+        if (!D.prevOv.classList.contains('hidden'))     { closePreview(); return; }
+        closeAllPanels();
+        return;
+    }
+
+    if (e.ctrlKey || e.metaKey) {
+        switch (e.key.toLowerCase()) {
+            case 'k':
+                e.preventDefault();
+                openCmdPalette();
+                break;
+            case 'f':
+                e.preventDefault();
+                D.search.focus();
+                D.search.select();
+                break;
+            case 'u':
+                if (can('upload')) { e.preventDefault(); D.fileInp.click(); }
+                break;
+            case 'd':
+                e.preventDefault();
+                ST.dark = !ST.dark;
+                localStorage.setItem('darkMode', String(ST.dark));
+                applyTheme();
+                break;
+        }
+        return;
+    }
+
+    if (isInput || !D.prevOv.classList.contains('hidden') === false) return;
+
+    // Preview navigation
+    if (!D.prevOv.classList.contains('hidden')) {
+        if (e.key === 'ArrowLeft')  { e.preventDefault(); navigatePreview(-1); }
+        if (e.key === 'ArrowRight') { e.preventDefault(); navigatePreview(1); }
+        if (e.key === ' ')          { e.preventDefault(); togglePreviewPlay(); }
+    }
+});
+
+// ==================== INIT ====================
 
 async function init() {
-    // Handle OAuth callback params
-    const params     = new URLSearchParams(location.search);
-    const cbToken    = params.get('token');
-    const cbError    = params.get('error');
-    const cbAuthErr  = params.get('auth_error');
+    const params    = new URLSearchParams(location.search);
+    const cbToken   = params.get('token');
+    const cbError   = params.get('error');
+    const cbAuthErr = params.get('auth_error');
 
     const AUTH_ERR_MSGS = {
         no_code:               'Login cancelled or no code received.',
@@ -594,12 +789,10 @@ async function init() {
         email_fetch_failed:    'Could not retrieve your email from Google.',
         rate_limited:          'Too many login attempts. Please wait a minute.',
         revoked:               'Your access has been revoked by an admin.',
-        not_admin:             'That Google account does not have admin access.',
     };
 
     if (cbAuthErr) toast(AUTH_ERR_MSGS[cbAuthErr] || `Auth error: ${cbAuthErr}`, 'error', 6000);
-    if (cbError === 'revoked')   toast('Your access has been revoked.', 'error', 6000);
-    if (cbError === 'not_admin') toast('That account is not an admin.', 'error', 6000);
+    if (cbError === 'revoked') toast('Your access has been revoked.', 'error', 6000);
 
     if (cbToken) {
         ST.token = cbToken;
@@ -607,12 +800,9 @@ async function init() {
         history.replaceState({}, '', location.pathname);
     }
 
-    // Visibility change: pause/resume heartbeat & polling
     document.addEventListener('visibilitychange', () => {
         ST.isVisible = !document.hidden;
-        if (ST.isVisible && ST.token) {
-            sendHeartbeat();
-        }
+        if (ST.isVisible && ST.token) sendHeartbeat();
     });
 
     await render();
@@ -620,10 +810,8 @@ async function init() {
 
 async function render() {
     if (!ST.token) { showLogin(); return; }
-
     const ok = await fetchUserInfo();
     if (!ok) { showLogin(); return; }
-
     if (ST.isAdmin || ST.approved) {
         showMain();
         fetchFiles();
@@ -638,54 +826,60 @@ async function fetchUserInfo() {
         const res = await apiFetch('/user-info');
         if (!res.ok) return false;
         const info = await res.json();
-        ST.email       = info.email;
-        ST.isAdmin     = !!info.isAdmin;
+        ST.email        = info.email;
+        ST.isAdmin      = !!info.isAdmin;
         ST.isSuperAdmin = !!info.isSuperAdmin;
-        ST.approved    = !!info.approved;
-        ST.role        = info.role;
+        ST.approved     = !!info.approved;
+        ST.role         = info.role;
+        if (info.pendingCount > 0) updatePendingBadge(info.pendingCount);
         return true;
     } catch { return false; }
 }
 
 // ==================== HEARTBEAT ====================
-// Only fires when tab is visible; refreshes session TTL & detects approval
+
+async function sendHeartbeat() {
+    if (!ST.token || !ST.isVisible) return;
+    try {
+        const sig = SLOTS.heartbeat.signal;
+        const res = await fetch(`${WORKER_BASE}/heartbeat`, { headers: authHeaders(), signal: sig });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data.alive) { logout(); return; }
+
+        // FIX: Token rotation — server issues a new token on each heartbeat
+        if (data.newToken && data.newToken !== ST.token) {
+            ST.token = data.newToken;
+            localStorage.setItem('vtoken', ST.token);
+        }
+
+        const wasApproved = ST.approved;
+        ST.approved = data.approved;
+        ST.role     = data.role;
+
+        if (data.pendingCount > 0) updatePendingBadge(data.pendingCount);
+
+        if (ST.filesMeta) {
+            const serverTs = data.lastChange?.files || 0;
+            const clientTs = parseInt((ST.filesEtag || '"0"').replace(/"/g, ''), 10);
+            if (serverTs > clientTs) fetchFiles(false);
+        }
+
+        if (!wasApproved && ST.approved) {
+            clearPendingCheck();
+            showMain();
+            fetchFiles();
+            toast('Your access has been approved!', 'success', 5000);
+        }
+    } catch (e) {
+        if (e.name === 'AbortError') return;
+    }
+}
 
 function startHeartbeat() {
     stopHeartbeat();
-    const beat = async () => {
-        if (!ST.token || !ST.isVisible) return;
-        try {
-            const sig = SLOTS.heartbeat.signal;
-            const res = await fetch(`${WORKER_BASE}/heartbeat`, { headers: authHeaders(), signal: sig });
-            if (!res.ok) return;
-            const data = await res.json();
-            if (!data.alive) { logout(); return; }
-
-            const wasApproved = ST.approved;
-            ST.approved = data.approved;
-            ST.role     = data.role;
-
-            // Auto-refresh files if server data changed
-            if (ST.filesMeta) {
-                const serverTs = data.lastChange?.files || 0;
-                const clientTs = parseInt((ST.filesEtag || '"0"').replace(/"/g, ''), 10);
-                if (serverTs > clientTs) {
-                    fetchFiles(false); // silent refresh
-                }
-            }
-
-            if (!wasApproved && ST.approved) {
-                clearPendingCheck();
-                showMain();
-                fetchFiles();
-                toast('Your access has been approved!', 'success', 5000);
-            }
-        } catch (e) {
-            if (e.name === 'AbortError') return;
-        }
-    };
-    beat();
-    ST.heartbeatTimer = setInterval(beat, 45000);
+    sendHeartbeat();
+    ST.heartbeatTimer = setInterval(sendHeartbeat, 45000);
 }
 
 function stopHeartbeat() {
@@ -693,8 +887,7 @@ function stopHeartbeat() {
     SLOTS.heartbeat.abort();
 }
 
-// ==================== PENDING APPROVAL POLLING ====================
-// Exponential backoff: 30s → 60s → 120s → … cap 300s
+// ==================== PENDING POLLING ====================
 
 function startPendingCheck() {
     clearPendingCheck();
@@ -702,7 +895,6 @@ function startPendingCheck() {
     const check = async () => {
         if (!ST.token) return;
         try {
-            // FIX: was using SLOTS.heartbeat — would cancel this check whenever heartbeat fired
             const sig = SLOTS.pending.signal;
             const res = await fetch(`${WORKER_BASE}/user-info`, { headers: authHeaders(), signal: sig });
             if (!res.ok) return;
@@ -715,9 +907,8 @@ function startPendingCheck() {
                 return;
             }
         } catch (e) { if (e.name === 'AbortError') return; }
-        // Exponential backoff capped at 5 minutes
         ST.pendingBackoff = Math.min(ST.pendingBackoff * 2, 300000);
-        ST.pendingTimer = setTimeout(check, ST.pendingBackoff);
+        ST.pendingTimer   = setTimeout(check, ST.pendingBackoff);
     };
     ST.pendingTimer = setTimeout(check, ST.pendingBackoff);
 }
@@ -733,30 +924,22 @@ function showLogin() {
     D.adminBar.classList.add('hidden');
     D.userUI.innerHTML = '';
     if (D.dropzone) D.dropzone.classList.add('hidden');
+    D.urlBar.classList.add('hidden');
+    $('kbdHints').style.display = 'none';
 
     D.grid.innerHTML = `
         <div style="grid-column:1/-1;text-align:center;padding:70px 20px;">
             <div style="font-size:3rem;margin-bottom:16px;">📁</div>
             <h2 style="margin-bottom:8px;">Welcome to File Vault</h2>
             <p style="color:var(--text-secondary);margin-bottom:24px;">Sign in with your Google account to access files.</p>
-            <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
-                <button class="btn btn-primary" id="btnLogin">🔑 Sign in with Google</button>
-                <button class="btn btn-outline" id="btnAdminLogin">🛡️ Admin Login</button>
-            </div>
+            <button class="btn btn-primary" id="btnLogin">🔑 Sign in with Google</button>
         </div>`;
 
     $('btnLogin').onclick = async () => {
         try {
             const r = await fetch(`${WORKER_BASE}/auth-url`);
-            if (r.ok) location.href = (await r.json()).authUrl;
+            if (r.ok) { location.href = (await r.json()).authUrl; }
             else toast('Login failed — worker unreachable', 'error');
-        } catch { toast('Network error', 'error'); }
-    };
-    $('btnAdminLogin').onclick = async () => {
-        try {
-            const r = await fetch(`${WORKER_BASE}/auth-url?state=admin`);
-            if (r.ok) location.href = (await r.json()).authUrl;
-            else toast('Admin login failed', 'error');
         } catch { toast('Network error', 'error'); }
     };
 }
@@ -765,6 +948,8 @@ function showPending() {
     stopHeartbeat(); clearPendingCheck();
     D.adminBar.classList.add('hidden');
     if (D.dropzone) D.dropzone.classList.add('hidden');
+    D.urlBar.classList.add('hidden');
+    $('kbdHints').style.display = 'none';
 
     D.grid.innerHTML = `
         <div style="grid-column:1/-1;text-align:center;padding:70px 20px;">
@@ -792,28 +977,30 @@ function showPending() {
     $('btnSelfRevoke').onclick = async () => {
         if (!confirm('Cancel your access request?')) return;
         try {
-            await apiFetch('/user-revoke-self', { method: 'POST', body: JSON.stringify({ email: ST.email }) });
+            await apiFetch('/user-revoke-self', { method: 'POST', body: JSON.stringify({}) });
             logout(); toast('Request cancelled.');
         } catch { toast('Error cancelling request', 'error'); }
     };
 
-    D.userUI.innerHTML = `<div class="user-chip">👤 ${esc(ST.email)} <button class="btn btn-sm btn-outline" id="btnLogout2" style="margin-left:6px;">🔒 Logout</button></div>`;
+    D.userUI.innerHTML = `
+        <div class="user-chip">
+            👤 ${esc(ST.email)}
+            <button class="btn btn-sm btn-outline" id="btnLogout2" style="margin-left:6px;">🔒 Logout</button>
+        </div>`;
     $('btnLogout2').onclick = logout;
-
     startPendingCheck();
 }
 
 function showMain() {
     clearPendingCheck();
+    $('kbdHints').style.display = '';
 
     if (ST.isAdmin) {
         D.adminBar.classList.remove('hidden');
-        D.userUI.innerHTML = `<div class="user-chip">🛡️ ${esc(ST.email)} <span class="role-badge" style="background:#7c3aed;">ADMIN</span></div>`;
-        if (ST.isSuperAdmin) {
-            D.userUI.innerHTML = `<div class="user-chip">👑 ${esc(ST.email)} <span class="role-badge" style="background:#be185d;">SUPER</span></div>`;
-        }
-        if (D.dropzone) D.dropzone.classList.remove('hidden');
-        loadPendingCount();
+        const badge = ST.isSuperAdmin ? `<span class="role-badge" style="background:#be185d;">SUPER</span>` : `<span class="role-badge" style="background:#7c3aed;">ADMIN</span>`;
+        D.userUI.innerHTML = `<div class="user-chip">${ST.isSuperAdmin ? '👑' : '🛡️'} ${esc(ST.email)} ${badge}</div>`;
+        D.dropzone.classList.remove('hidden');
+        D.urlBar.classList.remove('hidden');
     } else {
         D.adminBar.classList.add('hidden');
         D.userUI.innerHTML = `
@@ -823,24 +1010,31 @@ function showMain() {
                 <button class="btn btn-sm btn-outline" id="btnUserLogout" style="margin-left:4px;">🔒</button>
             </div>`;
         $('btnUserLogout').onclick = logout;
-        if (D.dropzone) {
-            can('upload') ? D.dropzone.classList.remove('hidden') : D.dropzone.classList.add('hidden');
-        }
+        can('upload') ? D.dropzone.classList.remove('hidden') : D.dropzone.classList.add('hidden');
+        can('upload') ? D.urlBar.classList.remove('hidden')   : D.urlBar.classList.add('hidden');
     }
 
-    $('dropzone').onclick = () => D.fileInp.click();
+    D.dropzone.onclick = () => D.fileInp.click();
     bindAdminBar();
+}
+
+function updatePendingBadge(count) {
+    const badge = $('pendingBadge');
+    if (!badge) return;
+    if (count > 0) {
+        badge.textContent = count;
+        badge.classList.remove('hidden');
+    } else {
+        badge.classList.add('hidden');
+    }
 }
 
 function logout() {
     stopHeartbeat(); clearPendingCheck();
     SLOTS.files.abort();
-
     if (ST.token) {
-        // Fire-and-forget end-session
         fetch(`${WORKER_BASE}/end-session`, { method: 'POST', headers: authHeaders() }).catch(() => {});
     }
-
     ST.token = null; ST.filesEtag = null; ST.filesMeta = null; ST.myFilesMeta = null;
     ST.email = null; ST.isAdmin = false; ST.approved = false; ST.role = null;
     localStorage.removeItem('vtoken');
@@ -849,41 +1043,452 @@ function logout() {
     D.grid.innerHTML = '';
 }
 
+// ==================== PANELS ====================
+
+const PANELS = {
+    approval:   'approvalPanel',
+    users:      'usersPanel',
+    logs:       'logsPanel',
+    analytics:  'analyticsPanel',
+    shares:     'sharePanel',
+    adminFiles: 'adminFilesPanel',
+};
+
+function openPanel(name) {
+    // Close all others
+    Object.values(PANELS).forEach(id => $(id)?.classList.add('hidden'));
+    const id = PANELS[name];
+    if (id) $(id)?.classList.remove('hidden');
+}
+
+function closeAllPanels() {
+    Object.values(PANELS).forEach(id => $(id)?.classList.add('hidden'));
+}
+
+// Close buttons
+['closeApprovalBtn','closeUsersBtn','closeLogsBtn','closeAnalyticsBtn','closeSharesBtn','closeAdminFilesBtn'].forEach(id => {
+    const el = $(id);
+    if (el) el.onclick = closeAllPanels;
+});
+
+// ==================== ADMIN BAR BINDINGS ====================
+
+function bindAdminBar() {
+    $('btnSync').onclick = syncDrive;
+    $('btnApprovals').onclick = () => { openPanel('approval'); loadPendingUsers(); };
+    $('btnAllUsers').onclick   = () => { openPanel('users');   loadAllUsers(); };
+    $('btnLogs').onclick       = () => { openPanel('logs');    loadLogs(); };
+    $('btnAnalytics').onclick  = () => { openPanel('analytics'); loadAnalytics(); };
+    $('btnShareManager').onclick = () => { openPanel('shares'); loadShares(); };
+    $('btnAdminFiles').onclick = () => { openPanel('adminFiles'); loadAdminFiles(); };
+    $('btnAdminLogout').onclick = logout;
+    $('btnResetToken').onclick  = resetToken;
+    $('refreshPendingBtn').onclick = loadPendingUsers;
+    $('refreshUsersBtn').onclick   = loadAllUsers;
+    $('refreshLogsBtn').onclick    = loadLogs;
+    $('refreshAnalyticsBtn').onclick = loadAnalytics;
+    $('refreshSharesBtn').onclick  = loadShares;
+    $('refreshAdminFilesBtn').onclick = loadAdminFiles;
+    $('btnApplyLogFilter').onclick = loadLogs;
+    $('addUserBtn').onclick        = addUser;
+    $('btnClearLogs').onclick      = clearLogs;
+}
+
+// ==================== LOAD PENDING COUNT ====================
+
+async function loadPendingCount() {
+    try {
+        const res  = await apiFetch('/pending');
+        const data = await res.json();
+        updatePendingBadge(data.count || 0);
+    } catch {}
+}
+
+// ==================== SYNC DRIVE ====================
+
+async function syncDrive() {
+    const btn = $('btnSync');
+    if (btn) { btn.disabled = true; btn.textContent = '🔄 Syncing…'; }
+    try {
+        const res  = await apiFetch('/sync', { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Sync failed');
+        toast(`Sync complete — ${data.added} new files, ${data.total} total.`, 'success', 5000);
+        ST.filesEtag = null;
+        fetchFiles(false);
+    } catch (e) { toast('Sync failed: ' + e.message, 'error'); }
+    finally { if (btn) { btn.disabled = false; btn.textContent = '🔄 Sync Drive'; } }
+}
+
+// ==================== RESET TOKEN ====================
+
+async function resetToken() {
+    if (!confirm('Reset admin Drive token? You will need to login again to restore access.')) return;
+    try {
+        const res  = await apiFetch('/reset-token', { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message);
+        toast('Drive token reset. Re-login as admin to restore.', 'warn', 5000);
+    } catch (e) { toast('Reset failed: ' + e.message, 'error'); }
+}
+
+// ==================== LOAD PENDING USERS ====================
+
+async function loadPendingUsers() {
+    $('approvalList').innerHTML = '<div class="loading"><span class="spinner"></span> Loading…</div>';
+    try {
+        const res  = await apiFetch('/pending', {}, SLOTS.pending.signal);
+        const data = await res.json();
+        const users = data.users || [];
+        updatePendingBadge(users.length);
+        if (!users.length) {
+            $('approvalList').innerHTML = '<div class="empty-state">✅ No pending approvals.</div>';
+            return;
+        }
+        $('approvalList').innerHTML = users.map(u => `
+            <div class="approval-item" data-email="${esc(u.email)}">
+                <div>
+                    <strong>${esc(u.email)}</strong>
+                    <span class="status-badge s-pending">Pending</span>
+                    <div style="font-size:0.72rem;color:var(--text-secondary);margin-top:2px;">Joined ${fmtRelative(u.created_at)}</div>
+                </div>
+                <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+                    <select class="inline-input role-pick" style="font-size:0.75rem;">
+                        <option value="full">full</option>
+                        <option value="upload">upload</option>
+                        <option value="download">download</option>
+                        <option value="read">read</option>
+                    </select>
+                    <button class="btn btn-sm btn-success btn-approve" data-email="${esc(u.email)}">✔ Approve</button>
+                    <button class="btn btn-sm btn-danger btn-reject" data-email="${esc(u.email)}">✘ Reject</button>
+                </div>
+            </div>`).join('');
+
+        $('approvalList').addEventListener('click', async e => {
+            const btn   = e.target.closest('[data-email]');
+            if (!btn) return;
+            const email = btn.dataset.email;
+            const row   = btn.closest('.approval-item');
+
+            if (btn.classList.contains('btn-approve')) {
+                const role = row?.querySelector('.role-pick')?.value || 'full';
+                btn.disabled = true; btn.textContent = '…';
+                try {
+                    const r = await apiFetch('/approve', { method: 'POST', body: JSON.stringify({ email, role }) });
+                    if (!r.ok) throw new Error((await r.json()).message);
+                    toast(`${email} approved as ${role}`, 'success');
+                    row?.remove();
+                    const remaining = $('approvalList').querySelectorAll('.approval-item').length;
+                    updatePendingBadge(remaining);
+                    if (remaining === 0) $('approvalList').innerHTML = '<div class="empty-state">✅ No pending approvals.</div>';
+                } catch (err) { toast('Approve failed: ' + err.message, 'error'); btn.disabled = false; btn.textContent = '✔ Approve'; }
+            }
+
+            if (btn.classList.contains('btn-reject')) {
+                if (!confirm(`Revoke access request from ${email}?`)) return;
+                btn.disabled = true;
+                try {
+                    const r = await apiFetch('/revoke', { method: 'POST', body: JSON.stringify({ email }) });
+                    if (!r.ok) throw new Error((await r.json()).message);
+                    toast(`${email} rejected.`, 'warn');
+                    row?.remove();
+                    const remaining = $('approvalList').querySelectorAll('.approval-item').length;
+                    updatePendingBadge(remaining);
+                } catch (err) { toast('Reject failed: ' + err.message, 'error'); btn.disabled = false; }
+            }
+        }, { once: true });
+
+    } catch (e) {
+        if (e.name !== 'AbortError')
+            $('approvalList').innerHTML = `<div class="empty-state" style="color:var(--danger);">❌ ${esc(e.message)}</div>`;
+    }
+}
+
+// ==================== LOAD ALL USERS ====================
+
+async function loadAllUsers() {
+    $('usersList').innerHTML = '<div class="loading"><span class="spinner"></span> Loading…</div>';
+    try {
+        const res  = await apiFetch('/all-users', {}, SLOTS.users.signal);
+        const data = await res.json();
+        const users = data.users || [];
+        if (!users.length) { $('usersList').innerHTML = '<div class="empty-state">No users found.</div>'; return; }
+        $('usersList').innerHTML = users.map(u => `
+            <div class="approval-item">
+                <div>
+                    <strong>${esc(u.email)}</strong>
+                    ${u.isAdmin ? '<span class="role-badge" style="background:#7c3aed;">ADMIN</span>' : ''}
+                    <span class="status-badge s-${u.status}">${esc(u.status)}</span>
+                    <div style="font-size:0.72rem;color:var(--text-secondary);">Role: ${esc(u.role || 'none')} · Logins: ${u.loginCount}</div>
+                </div>
+                <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;">
+                    ${!u.isAdmin ? `
+                    <select class="inline-input role-pick-existing" data-email="${esc(u.email)}" style="font-size:0.75rem;">
+                        ${['full','delete','upload','download','read','none'].map(r => `<option value="${r}"${u.role===r?' selected':''}>${r}</option>`).join('')}
+                    </select>
+                    <button class="btn btn-sm btn-primary btn-set-role" data-email="${esc(u.email)}">Set Role</button>
+                    ${u.status !== 'revoked' ? `<button class="btn btn-sm btn-danger btn-revoke-user" data-email="${esc(u.email)}">Revoke</button>` : `<button class="btn btn-sm btn-success btn-reapprove-user" data-email="${esc(u.email)}">Re-approve</button>`}
+                    ` : '<span style="font-size:0.72rem;color:var(--text-secondary);">Protected</span>'}
+                </div>
+            </div>`).join('');
+
+        $('usersList').addEventListener('click', async e => {
+            const btn = e.target.closest('button[data-email]');
+            if (!btn) return;
+            const email = btn.dataset.email;
+            const row   = btn.closest('.approval-item');
+
+            if (btn.classList.contains('btn-set-role')) {
+                const sel  = row?.querySelector('.role-pick-existing');
+                const role = sel?.value;
+                if (!role) return;
+                try {
+                    const r = await apiFetch('/set-role', { method: 'POST', body: JSON.stringify({ email, role }) });
+                    if (!r.ok) throw new Error((await r.json()).message);
+                    toast(`Role set to ${role} for ${email}`, 'success');
+                } catch (err) { toast('Failed: ' + err.message, 'error'); }
+            }
+            if (btn.classList.contains('btn-revoke-user')) {
+                if (!confirm(`Revoke access for ${email}?`)) return;
+                try {
+                    const r = await apiFetch('/revoke', { method: 'POST', body: JSON.stringify({ email }) });
+                    if (!r.ok) throw new Error((await r.json()).message);
+                    toast(`${email} revoked.`, 'warn');
+                    loadAllUsers();
+                } catch (err) { toast('Failed: ' + err.message, 'error'); }
+            }
+            if (btn.classList.contains('btn-reapprove-user')) {
+                const role = row?.querySelector('.role-pick-existing')?.value || 'read';
+                try {
+                    const r = await apiFetch('/approve', { method: 'POST', body: JSON.stringify({ email, role }) });
+                    if (!r.ok) throw new Error((await r.json()).message);
+                    toast(`${email} re-approved.`, 'success');
+                    loadAllUsers();
+                } catch (err) { toast('Failed: ' + err.message, 'error'); }
+            }
+        });
+
+    } catch (e) {
+        if (e.name !== 'AbortError')
+            $('usersList').innerHTML = `<div class="empty-state" style="color:var(--danger);">❌ ${esc(e.message)}</div>`;
+    }
+}
+
+async function addUser() {
+    const email = ($('newUserEmail').value || '').trim();
+    const role  = $('newUserRole').value;
+    if (!email) { toast('Enter an email address', 'warn'); $('newUserEmail').focus(); return; }
+    try {
+        const r = await apiFetch('/add-user', { method: 'POST', body: JSON.stringify({ email, role }) });
+        if (!r.ok) throw new Error((await r.json()).message);
+        toast(`${email} added as ${role}`, 'success');
+        $('newUserEmail').value = '';
+        loadAllUsers();
+    } catch (e) { toast('Add failed: ' + e.message, 'error'); }
+}
+
+// ==================== LOGS ====================
+
+async function loadLogs() {
+    $('logsContent').innerHTML = '<div class="loading"><span class="spinner"></span> Loading…</div>';
+    try {
+        const action = ($('logFilterAction').value || '').trim() || '';
+        const actor  = ($('logFilterActor').value  || '').trim() || '';
+        const params = new URLSearchParams({ limit: '500' });
+        if (action) params.set('action', action);
+        if (actor)  params.set('actor', actor);
+
+        const res  = await apiFetch(`/logs?${params}`, {}, SLOTS.logs.signal);
+        const data = await res.json();
+        const logs = data.logs || [];
+        if (!logs.length) { $('logsContent').innerHTML = '<div style="padding:10px;color:var(--text-secondary);">No logs found.</div>'; return; }
+        $('logsContent').innerHTML = logs.map(l => {
+            const sev = l.severity === 'ERROR' ? 'color:#ef4444' : l.severity === 'WARN' ? 'color:#f59e0b' : '';
+            return `<div style="padding:3px 0;border-bottom:1px solid var(--border);${sev}">
+                [${fmtDate(l.ts)}] <strong>${esc(l.action)}</strong> by ${esc(l.actor)} on ${esc(l.target || '—')}
+                ${l.meta ? `<span style="color:var(--text-secondary);font-size:0.72rem;"> ${esc(l.meta)}</span>` : ''}
+            </div>`;
+        }).join('');
+    } catch (e) {
+        if (e.name !== 'AbortError')
+            $('logsContent').innerHTML = `<div style="color:var(--danger);">❌ ${esc(e.message)}</div>`;
+    }
+}
+
+async function clearLogs() {
+    if (!confirm('Delete ALL audit logs? This cannot be undone.')) return;
+    try {
+        const r = await apiFetch('/clear-logs', { method: 'POST' });
+        if (!r.ok) throw new Error((await r.json()).message);
+        toast('Logs cleared.', 'success');
+        $('logsContent').innerHTML = '<div style="padding:10px;color:var(--text-secondary);">No logs.</div>';
+    } catch (e) { toast('Failed: ' + e.message, 'error'); }
+}
+
+// ==================== ANALYTICS ====================
+
+async function loadAnalytics() {
+    $('analyticsContent').innerHTML = '<div class="loading"><span class="spinner"></span> Loading…</div>';
+    try {
+        const res  = await apiFetch('/analytics', {}, SLOTS.analytics.signal);
+        const d    = await res.json();
+
+        const userRows = (d.users || []).map(u => `<span class="status-badge s-${u.status}" style="margin-right:4px;">${esc(u.status)}: ${u.count}</span>`).join('');
+        const typeRows = (d.byType || []).slice(0, 8).map(t =>
+            `<div style="display:flex;justify-content:space-between;font-size:0.8rem;padding:2px 0;">
+                <span>${esc(t.mime_type)}</span><span>${t.count}</span>
+            </div>`).join('');
+
+        $('analyticsContent').innerHTML = `
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:16px;">
+                ${[
+                    ['📄 Files', d.files?.count || 0],
+                    ['💾 Total Size', fmtSize(d.files?.totalSize)],
+                    ['💬 Comments', d.comments || 0],
+                    ['✅ Ticks', d.ticks || 0],
+                    ['🔗 Active Shares', d.shares || 0],
+                ].map(([label, val]) => `
+                    <div style="background:var(--border);border-radius:10px;padding:14px;text-align:center;">
+                        <div style="font-size:1.4rem;font-weight:700;">${esc(String(val))}</div>
+                        <div style="font-size:0.72rem;color:var(--text-secondary);margin-top:2px;">${esc(label)}</div>
+                    </div>`).join('')}
+            </div>
+            <div style="margin-bottom:10px;">${userRows}</div>
+            <h4 style="font-size:0.85rem;margin-bottom:8px;">Top File Types</h4>
+            <div style="max-height:180px;overflow-y:auto;">${typeRows || 'No data.'}</div>`;
+    } catch (e) {
+        if (e.name !== 'AbortError')
+            $('analyticsContent').innerHTML = `<div class="empty-state" style="color:var(--danger);">❌ ${esc(e.message)}</div>`;
+    }
+}
+
+// ==================== SHARES ====================
+
+async function loadShares() {
+    $('shareContent').innerHTML = '<div class="loading"><span class="spinner"></span> Loading…</div>';
+    try {
+        const res  = await apiFetch('/share/list', {}, SLOTS.shares.signal);
+        const data = await res.json();
+        const shares = (data.shares || []).filter(s => s.expires_at > Date.now());
+        if (!shares.length) { $('shareContent').innerHTML = '<div class="empty-state">No active shares.</div>'; return; }
+        $('shareContent').innerHTML = `<div style="overflow-x:auto;"><table style="width:100%;font-size:0.8rem;border-collapse:collapse;">
+            <thead><tr style="text-align:left;border-bottom:1px solid var(--border);">
+                <th style="padding:6px;">File</th><th style="padding:6px;">Created by</th><th style="padding:6px;">Expires</th><th style="padding:6px;">Downloads</th><th style="padding:6px;"></th>
+            </tr></thead>
+            <tbody>${shares.map(s => `
+                <tr style="border-bottom:1px solid var(--border);">
+                    <td style="padding:6px;">${esc(s.label || s.public_id)}</td>
+                    <td style="padding:6px;">${esc(s.created_by)}</td>
+                    <td style="padding:6px;">${fmtRelative(s.expires_at)}</td>
+                    <td style="padding:6px;">${s.downloads}${s.max_downloads > 0 ? '/'+s.max_downloads : ''}</td>
+                    <td style="padding:6px;">
+                        <button class="btn-xs btn-xs-delete btn-del-share" data-token="${esc(s.token)}">🗑 Delete</button>
+                    </td>
+                </tr>`).join('')}
+            </tbody></table></div>`;
+
+        $('shareContent').addEventListener('click', async e => {
+            const btn = e.target.closest('.btn-del-share');
+            if (!btn) return;
+            const token = btn.dataset.token;
+            if (!confirm('Delete this share link?')) return;
+            try {
+                const r = await apiFetch('/share/delete', { method: 'POST', body: JSON.stringify({ token }) });
+                if (!r.ok) throw new Error((await r.json()).message);
+                toast('Share deleted.', 'success');
+                loadShares();
+            } catch (err) { toast('Failed: ' + err.message, 'error'); }
+        }, { once: true });
+
+    } catch (e) {
+        if (e.name !== 'AbortError')
+            $('shareContent').innerHTML = `<div class="empty-state" style="color:var(--danger);">❌ ${esc(e.message)}</div>`;
+    }
+}
+
+// ==================== ADMIN FILES ====================
+
+async function loadAdminFiles() {
+    $('adminFilesList').innerHTML = '<div class="loading"><span class="spinner"></span> Loading…</div>';
+    try {
+        const res  = await apiFetch('/admin/files');
+        const data = await res.json();
+        const files = data.files || [];
+        if (!files.length) { $('adminFilesList').innerHTML = '<div class="empty-state">No files.</div>'; return; }
+        $('adminFilesList').innerHTML = `<div style="overflow-x:auto;"><table style="width:100%;font-size:0.78rem;border-collapse:collapse;">
+            <thead><tr style="text-align:left;border-bottom:1px solid var(--border);">
+                <th style="padding:6px;">Name</th><th style="padding:6px;">Size</th><th style="padding:6px;">Uploaded by</th><th style="padding:6px;">Visibility</th><th style="padding:6px;"></th>
+            </tr></thead>
+            <tbody>${files.map(f => `
+                <tr style="border-bottom:1px solid var(--border);">
+                    <td style="padding:6px;">${esc(f.name)}</td>
+                    <td style="padding:6px;">${fmtSize(f.size)}</td>
+                    <td style="padding:6px;">${esc(f.uploadedBy)}</td>
+                    <td style="padding:6px;"><span class="vis-badge vis-${esc(f.visibility)}">${esc(f.visibility)}</span></td>
+                    <td style="padding:6px;display:flex;gap:4px;">
+                        <button class="btn-xs btn-xs-vis btn-admin-setvis" data-pid="${esc(f.publicId)}" data-vis="${esc(f.visibility)}">🔐 Visibility</button>
+                        <button class="btn-xs btn-xs-delete btn-admin-del" data-pid="${esc(f.publicId)}" data-name="${esc(f.name)}">🗑</button>
+                    </td>
+                </tr>`).join('')}
+            </tbody></table></div>`;
+
+        $('adminFilesList').addEventListener('click', async e => {
+            const btn = e.target.closest('button[data-pid]');
+            if (!btn) return;
+            const pid = btn.dataset.pid;
+            if (btn.classList.contains('btn-admin-del')) {
+                const name = btn.dataset.name;
+                if (!confirm(`Delete "${name}"?`)) return;
+                try {
+                    const r = await apiFetch('/delete', { method: 'POST', body: JSON.stringify({ publicId: pid }) });
+                    if (!r.ok) throw new Error((await r.json()).message);
+                    toast('Deleted.', 'success');
+                    loadAdminFiles();
+                    ST.filesEtag = null;
+                    fetchFiles(false);
+                } catch (err) { toast('Failed: ' + err.message, 'error'); }
+            }
+            if (btn.classList.contains('btn-admin-setvis')) {
+                await setFileVisibility(pid, btn.dataset.vis);
+                loadAdminFiles();
+            }
+        }, { once: true });
+
+    } catch (e) {
+        $('adminFilesList').innerHTML = `<div class="empty-state" style="color:var(--danger);">❌ ${esc(e.message)}</div>`;
+    }
+}
+
 // ==================== FETCH FILES ====================
 
 async function fetchFiles(showLoader = true) {
     if (!ST.token) return;
-
     if (showLoader && !ST.filesMeta) {
         D.grid.innerHTML = '<div class="loading"><span class="spinner"></span> Loading files…</div>';
     }
-
     try {
         const sig     = SLOTS.files.signal;
         const headers = authHeaders();
         if (ST.filesEtag) headers['If-None-Match'] = ST.filesEtag;
-
         const res = await fetch(`${WORKER_BASE}/files-with-meta`, { headers, signal: sig });
-
         if (res.status === 304) {
-            if (ST.filesMeta) renderFiles(); // re-render with existing data (sort/filter might have changed)
+            if (ST.filesMeta) renderFiles();
             return;
         }
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
         const data     = await res.json();
         ST.filesEtag   = res.headers.get('ETag') || data.etag || null;
         ST.filesMeta   = data.files   || [];
         ST.myFilesMeta = data.myFiles || [];
-
         renderFiles();
     } catch (e) {
         if (e.name === 'AbortError') return;
         D.grid.innerHTML = `
             <div class="empty-state">
                 ❌ Failed to load files.<br>
-                <button class="btn btn-sm btn-outline" style="margin-top:12px;" onclick="fetchFiles()">Retry</button>
+                <button class="btn btn-sm btn-outline" style="margin-top:12px;" id="retryBtn">Retry</button>
             </div>`;
+        $('retryBtn')?.addEventListener('click', () => fetchFiles(), { once: true });
         toast('Could not load files — check your connection.', 'error');
     }
 }
@@ -905,14 +1510,12 @@ function sortFiles(files) {
 
 function filterFiles(files) {
     let list = files;
-
-    // Type filter
     if (ST.filter !== 'all') {
-        list = list.filter(f => mediaType(f.mimeType) === ST.filter ||
-            (ST.filter === 'other' && !['video','audio','image','pdf'].includes(mediaType(f.mimeType))));
+        list = list.filter(f => {
+            const mt = mediaType(f.mimeType);
+            return ST.filter === 'other' ? !['video','audio','image','pdf'].includes(mt) : mt === ST.filter;
+        });
     }
-
-    // Search query
     if (ST.query) {
         const q = ST.query.toLowerCase();
         list = list.filter(f =>
@@ -921,106 +1524,42 @@ function filterFiles(files) {
             (f.uploadedBy || '').toLowerCase().includes(q)
         );
     }
-
     return list;
 }
 
-function renderFiles() {
-    if (!ST.filesMeta) return;
-
-    const allFiles = sortFiles(filterFiles(ST.filesMeta));
-    const myFiles  = sortFiles(filterFiles(ST.myFilesMeta || []));
-
-    // Update card data map
-    cardData.clear();
-    ST.filesMeta.forEach(f => cardData.set(f.publicId, f));
-
-    const html = [];
-
-    // "My Files" section (only if user has own files)
-    if (myFiles.length > 0 && !ST.isAdmin) {
-        html.push(`
-            <div class="file-section">
-                <div class="section-title">📌 My Uploads <span class="count-pill">${myFiles.length}</span></div>
-                <div class="file-grid">${myFiles.map(f => renderCard(f, true)).join('')}</div>
-            </div>`);
-    }
-
-    // "All Files" section
-    if (allFiles.length === 0) {
-        html.push(`<div class="empty-state">📭 No files found${ST.query ? ` for "${esc(ST.query)}"` : ''}.</div>`);
-    } else {
-        const title = ST.isAdmin ? '📂 All Files' : '📂 Shared Files';
-        html.push(`
-            <div class="file-section">
-                <div class="section-title">${title} <span class="count-pill">${allFiles.length}</span></div>
-                <div class="file-grid">${allFiles.map(f => renderCard(f, false)).join('')}</div>
-            </div>`);
-    }
-
-    D.grid.innerHTML = html.join('');
-
-    // Re-attach events (event delegation would be ideal but inline keeps it simple)
-    attachCardEvents();
-
-    // Re-open comment sections that were open
-    commentOpenSet.forEach(pid => {
-        const cl = document.querySelector(`[data-pid="${pid}"] .comment-list`);
-        if (cl) cl.classList.add('open');
-    });
-
-    // Re-check selected
-    ST.selected.forEach(pid => {
-        const cb = document.querySelector(`.card-checkbox[data-pid="${pid}"]`);
-        if (cb) cb.checked = true;
-        const card = document.querySelector(`.card[data-pid="${pid}"]`);
-        if (card) card.classList.add('selected');
-    });
-}
-
-// ==================== CARD HTML ====================
-
 function visBadgeHtml(vis) {
-    const labels = { owner_only:'🔒 Only Me', all_approved:'👥 All Users', public:'🌐 Public' };
-    const cls    = { owner_only:'vis-owner_only', all_approved:'vis-all_approved', public:'vis-public' };
-    const label  = labels[vis] || labels['all_approved'];
-    const c      = cls[vis]   || cls['all_approved'];
-    return `<span class="vis-badge ${c}">${label}</span>`;
+    const labels = { owner_only: '🔒 Private', all_approved: '👥 Users', public: '🌐 Public' };
+    return `<span class="vis-badge vis-${esc(vis)}">${esc(labels[vis] || vis)}</span>`;
 }
 
-function thumbnailHtml(mime, pid) {
-    const mt  = mediaType(mime);
-    const url = mediaUrl(pid, 'video');
-
+function thumbnailHtml(mimeType, publicId) {
+    const mt  = mediaType(mimeType);
+    const url = mediaUrl(publicId, 'preview');
     if (mt === 'image') {
-        // FIX: was using Date.now() cache-buster which defeats HTTP caching on every render.
-        // Now uses file's own createdAt timestamp — stable across renders, busts only when file changes.
         return `<div class="thumbnail">
-            <img src="${mediaUrl(pid, 'preview')}&t=${encodeURIComponent(pid)}" loading="lazy" alt="preview"
-                 onerror="this.parentElement.innerHTML='<span>${MIME_EMOJI[mt]}</span><span class=\\'thumb-type-badge\\'>image</span>'"
-                 style="width:100%;height:100%;object-fit:cover;">
+            <img src="${esc(url)}" loading="lazy" alt="" style="width:100%;height:100%;object-fit:cover;"
+                 onerror="this.parentElement.innerHTML='<span>🖼️</span>'">
             <span class="thumb-type-badge">img</span>
         </div>`;
     }
     if (mt === 'video') {
         return `<div class="thumbnail">
-            <video src="${url}" preload="none" muted playsinline
+            <video src="${esc(url)}" preload="none" muted playsinline
                    style="width:100%;height:100%;object-fit:cover;"
                    onerror="this.parentElement.innerHTML='<span>🎬</span>'"></video>
             <span class="thumb-type-badge">video</span>
         </div>`;
     }
-    return `<div class="thumbnail">${MIME_EMOJI[mt] || '📦'}<span class="thumb-type-badge">${mt}</span></div>`;
+    return `<div class="thumbnail">${MIME_EMOJI[mt] || '📦'}<span class="thumb-type-badge">${esc(mt)}</span></div>`;
 }
 
-function renderCard(f, isMyFile) {
+function renderCard(f) {
     const mt       = mediaType(f.mimeType);
     const isOwner  = f.uploadedBy === ST.email;
     const vis      = f.visibility || 'all_approved';
     const tags     = (f.tags || '').split(',').filter(Boolean);
     const tagHtml  = tags.map(t => `<span class="tag-chip">${esc(t.trim())}</span>`).join('');
 
-    // Action buttons
     const canDel    = can('delete', f);
     const canDL     = can('download');
     const canPrev   = can('preview');
@@ -1031,28 +1570,27 @@ function renderCard(f, isMyFile) {
     const isPlayable = mt === 'video' || mt === 'audio';
 
     const actions = [];
-    if (isPlayable && canPrev) actions.push(`<button class="btn-xs btn-xs-play" data-action="play" data-pid="${f.publicId}">▶ Play</button>`);
-    if (canPrev)    actions.push(`<button class="btn-xs btn-xs-preview" data-action="preview" data-pid="${f.publicId}">👁 View</button>`);
-    if (canDL)      actions.push(`<button class="btn-xs btn-xs-download" data-action="download" data-pid="${f.publicId}">⬇ Save</button>`);
-    if (canCopy)    actions.push(`<button class="btn-xs btn-xs-copy" data-action="copy" data-pid="${f.publicId}">🔗 Link</button>`);
-    if (canShare)   actions.push(`<button class="btn-xs btn-xs-share" data-action="share" data-pid="${f.publicId}">📤 Share</button>`);
-    if (canRename)  actions.push(`<button class="btn-xs btn-xs-rename" data-action="rename" data-pid="${f.publicId}">✏️</button>`);
-    if (canDel)     actions.push(`<button class="btn-xs btn-xs-delete" data-action="delete" data-pid="${f.publicId}">🗑</button>`);
-    if (canVis)     actions.push(`<button class="btn-xs btn-xs-vis" data-action="setvis" data-pid="${f.publicId}">🔐</button>`);
+    if (isPlayable && canPrev) actions.push(`<button class="btn-xs btn-xs-play" data-action="play" data-pid="${esc(f.publicId)}">▶ Play</button>`);
+    if (canPrev)    actions.push(`<button class="btn-xs btn-xs-preview" data-action="preview" data-pid="${esc(f.publicId)}">👁 View</button>`);
+    if (canDL)      actions.push(`<button class="btn-xs btn-xs-download" data-action="download" data-pid="${esc(f.publicId)}">⬇ Save</button>`);
+    if (canCopy)    actions.push(`<button class="btn-xs btn-xs-copy" data-action="copy" data-pid="${esc(f.publicId)}">🔗 Link</button>`);
+    if (canShare)   actions.push(`<button class="btn-xs btn-xs-share" data-action="share" data-pid="${esc(f.publicId)}">📤 Share</button>`);
+    if (canRename)  actions.push(`<button class="btn-xs btn-xs-rename" data-action="rename" data-pid="${esc(f.publicId)}">✏️</button>`);
+    if (canDel)     actions.push(`<button class="btn-xs btn-xs-delete" data-action="delete" data-pid="${esc(f.publicId)}">🗑</button>`);
+    if (canVis)     actions.push(`<button class="btn-xs btn-xs-vis" data-action="setvis" data-pid="${esc(f.publicId)}">🔐</button>`);
 
     const tickIcon  = f.isTicked ? '✅' : '☐';
-    const tickLabel = f.isTicked ? `Ticked (${f.tickCount})` : `Mark (${f.tickCount})`;
     const uploaderShort = (f.uploadedBy || '').replace(/@.*/, '');
 
     return `
-        <div class="card" data-pid="${f.publicId}">
-            <input type="checkbox" class="card-checkbox" data-pid="${f.publicId}" tabindex="-1">
+        <div class="card" data-pid="${esc(f.publicId)}">
+            <input type="checkbox" class="card-checkbox" data-pid="${esc(f.publicId)}" tabindex="-1" aria-label="Select ${esc(f.name)}">
             ${thumbnailHtml(f.mimeType, f.publicId)}
             <div class="file-name" title="${esc(f.name)}">${esc(f.name)}</div>
             <div class="file-meta">
                 <span>${fmtSize(f.size)}</span>
                 <span>•</span>
-                <span title="${fmtDate(f.createdAt)}">${fmtRelative(f.createdAt)}</span>
+                <span title="${esc(fmtDate(f.createdAt))}">${fmtRelative(f.createdAt)}</span>
                 ${visBadgeHtml(vis)}
                 ${tagHtml}
             </div>
@@ -1061,22 +1599,65 @@ function renderCard(f, isMyFile) {
                 ${isOwner ? '<span style="color:var(--success);font-size:0.65rem;">✔ mine</span>' : ''}
             </div>
             <div class="actions">${actions.join('')}
-                <button class="tick-btn" data-action="tick" data-pid="${f.publicId}" data-ticked="${f.isTicked ? '1' : '0'}" title="${tickLabel}">${tickIcon} <span style="font-size:0.65rem;vertical-align:middle;">${f.tickCount}</span></button>
+                <button class="tick-btn" data-action="tick" data-pid="${esc(f.publicId)}" data-ticked="${f.isTicked ? '1' : '0'}" title="Mark as seen">
+                    ${tickIcon} <span style="font-size:.65rem;vertical-align:middle;">${f.tickCount}</span>
+                </button>
             </div>
             <div class="comment-section">
-                <div class="comment-toggle" data-pid="${f.publicId}">
+                <div class="comment-toggle" data-pid="${esc(f.publicId)}">
                     💬 Comments <span class="comment-count-badge">${f.commentCount || 0}</span>
                 </div>
-                <div class="comment-list" data-pid="${f.publicId}">
+                <div class="comment-list" data-pid="${esc(f.publicId)}">
                     <div class="loading" style="padding:10px;">Loading…</div>
                 </div>
                 ${can('comment') ? `
                 <div class="comment-form">
-                    <input type="text" class="comment-input" data-pid="${f.publicId}" placeholder="Add a comment…" maxlength="1000">
-                    <button class="btn-xs btn-xs-play" data-action="add-comment" data-pid="${f.publicId}">Send</button>
+                    <input type="text" class="comment-input" data-pid="${esc(f.publicId)}" placeholder="Add a comment…" maxlength="1000" autocomplete="off">
+                    <button class="btn-xs btn-xs-play" data-action="add-comment" data-pid="${esc(f.publicId)}">Send</button>
                 </div>` : ''}
             </div>
         </div>`;
+}
+
+function renderFiles() {
+    if (!ST.filesMeta) return;
+
+    const allFiles = sortFiles(filterFiles(ST.filesMeta));
+    const myFiles  = sortFiles(filterFiles(ST.myFilesMeta || []));
+
+    cardData.clear();
+    ST.filesMeta.forEach(f => cardData.set(f.publicId, f));
+
+    const frag = document.createDocumentFragment();
+    const wrap  = document.createElement('div');
+
+    // My Files section
+    if (myFiles.length > 0 && !ST.isAdmin) {
+        const section = document.createElement('div');
+        section.className = 'file-section';
+        section.innerHTML = `
+            <div class="section-title">📌 My Uploads <span class="count-pill">${myFiles.length}</span></div>
+            <div class="file-grid">${myFiles.map(f => renderCard(f)).join('')}</div>`;
+        frag.appendChild(section);
+    }
+
+    // All Files section
+    const section2 = document.createElement('div');
+    section2.className = 'file-section';
+    if (allFiles.length === 0) {
+        section2.innerHTML = `<div class="empty-state">📭 No files found${ST.query ? ` for "<em>${esc(ST.query)}</em>"` : ''}.</div>`;
+    } else {
+        const title = ST.isAdmin ? '📂 All Files' : '📂 Shared Files';
+        section2.innerHTML = `
+            <div class="section-title">${title} <span class="count-pill">${allFiles.length}</span></div>
+            <div class="file-grid">${allFiles.map(f => renderCard(f)).join('')}</div>`;
+    }
+    frag.appendChild(section2);
+
+    D.grid.innerHTML = '';
+    D.grid.appendChild(frag);
+
+    attachCardEvents();
 }
 
 // ==================== CARD EVENTS (event delegation) ====================
@@ -1090,36 +1671,38 @@ function attachCardEvents() {
     D.grid.addEventListener('keydown', onGridKeydown);
 }
 
-async function onGridClick(e) {
-    const el  = e.target;
-    const pid = el.dataset.pid;
-    const action = el.dataset.action;
+function onGridClick(e) {
+    // Use closest() for robust event delegation — not e.target.dataset directly
+    const btn    = e.target.closest('[data-action]');
+    const toggle = e.target.closest('.comment-toggle');
 
-    if (!pid) {
-        // Check if clicking comment-toggle
-        const toggle = el.closest('.comment-toggle');
-        if (toggle) { toggleComments(toggle.dataset.pid); return; }
+    if (toggle) {
+        toggleComments(toggle.dataset.pid);
         return;
     }
 
-    if (!action) return;
+    if (!btn) return;
     e.stopPropagation();
+
+    const pid    = btn.dataset.pid;
+    const action = btn.dataset.action;
+    if (!pid || !action) return;
 
     const f = cardData.get(pid);
 
     switch (action) {
-        case 'play':     return openPreview(pid, true);
-        case 'preview':  return openPreview(pid, false);
-        case 'download': return downloadFile(pid, f?.name);
-        case 'delete':   return deleteFile(pid, f?.name);
-        case 'rename':   return renameFile(pid, f?.name);
-        case 'copy':     return copyLink(pid);
-        case 'share':    return createShare(pid);
-        case 'tick':     return toggleTick(pid, el);
-        case 'setvis':   return setFileVisibility(pid, f?.visibility);
+        case 'play':        openPreview(pid, true);   break;
+        case 'preview':     openPreview(pid, false);  break;
+        case 'download':    downloadFile(pid, f?.name); break;
+        case 'delete':      deleteFile(pid, f?.name);  break;
+        case 'rename':      renameFile(pid, f?.name);  break;
+        case 'copy':        copyLink(pid);             break;
+        case 'share':       createShare(pid);          break;
+        case 'tick':        toggleTick(pid, btn);      break;
+        case 'setvis':      setFileVisibility(pid, f?.visibility); break;
         case 'add-comment': {
-            const inp = D.grid.querySelector(`.comment-input[data-pid="${pid}"]`);
-            if (inp) await submitComment(pid, inp);
+            const inp = D.grid.querySelector(`.comment-input[data-pid="${CSS.escape(pid)}"]`);
+            if (inp) submitComment(pid, inp);
             break;
         }
     }
@@ -1130,8 +1713,8 @@ function onGridChange(e) {
     if (!el.classList.contains('card-checkbox')) return;
     const pid  = el.dataset.pid;
     const card = el.closest('.card');
-    if (el.checked) { ST.selected.add(pid); card.classList.add('selected'); }
-    else            { ST.selected.delete(pid); card.classList.remove('selected'); }
+    if (el.checked) { ST.selected.add(pid); card?.classList.add('selected'); }
+    else            { ST.selected.delete(pid); card?.classList.remove('selected'); }
     updateBulkBar();
 }
 
@@ -1145,46 +1728,43 @@ function onGridKeydown(e) {
 
 // ==================== FILE ACTIONS ====================
 
-async function downloadFile(pid, name) {
+function downloadFile(pid, name) {
     const url = mediaUrl(pid, 'download');
     const a   = document.createElement('a');
-    a.href = url; a.download = name || 'file'; a.target = '_blank';
+    a.href = url; a.download = name || 'file'; a.target = '_blank'; a.rel = 'noopener noreferrer';
     document.body.appendChild(a); a.click(); a.remove();
 }
 
 async function deleteFile(pid, name) {
     if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
-
-    // Optimistic: visually remove immediately
-    const card = document.querySelector(`.card[data-pid="${pid}"]`);
+    const card = document.querySelector(`.card[data-pid="${CSS.escape(pid)}"]`);
     if (card) card.classList.add('removing');
     ST.filesMeta   = (ST.filesMeta   || []).filter(f => f.publicId !== pid);
     ST.myFilesMeta = (ST.myFilesMeta || []).filter(f => f.publicId !== pid);
     cardData.delete(pid);
     ST.selected.delete(pid);
     updateBulkBar();
-
     try {
         const res = await apiFetch('/delete', { method: 'POST', body: JSON.stringify({ publicId: pid }) });
-        if (!res.ok) throw new Error(await res.json().then(d => d.message).catch(() => 'Delete failed'));
-        if (card) card.remove();
+        if (!res.ok) throw new Error((await res.json()).message || 'Delete failed');
+        card?.remove();
         toast(`"${name}" deleted.`, 'success');
-        ST.filesEtag = null; // force fresh fetch next time
+        ST.filesEtag = null;
     } catch (e) {
-        // Rollback optimistic removal
         toast(e.message, 'error');
         if (card) card.classList.remove('removing');
-        fetchFiles(false); // re-fetch to restore
+        fetchFiles(false);
     }
 }
 
 async function renameFile(pid, currentName) {
     const newName = prompt('New name:', currentName);
-    if (!newName || newName === currentName) return;
+    if (!newName || newName.trim() === currentName) return;
     try {
-        const res = await apiFetch('/rename', { method: 'POST', body: JSON.stringify({ publicId: pid, newName }) });
+        const res = await apiFetch('/rename', { method: 'POST', body: JSON.stringify({ publicId: pid, newName: newName.trim() }) });
         if (!res.ok) throw new Error((await res.json()).message || 'Rename failed');
-        toast(`Renamed to "${newName}"`, 'success');
+        const data = await res.json();
+        toast(`Renamed to "${data.newName}"`, 'success');
         ST.filesEtag = null;
         fetchFiles(false);
     } catch (e) { toast(e.message, 'error'); }
@@ -1201,14 +1781,14 @@ async function copyLink(pid) {
 }
 
 async function createShare(pid) {
-    const hours = prompt('Share link expires in how many hours? (1–168)', '24');
+    const hours = prompt('Share link expires in how many hours? (1–720)', '24');
     if (!hours) return;
-    const expiresIn = Math.min(Math.max(parseInt(hours, 10) || 24, 1), 168) * 3600;
+    const expiresIn = Math.min(Math.max(parseInt(hours, 10) || 24, 1), 720) * 3600;
     try {
         const res  = await apiFetch('/share/create', { method: 'POST', body: JSON.stringify({ publicId: pid, expiresIn }) });
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || 'Share failed');
-        await navigator.clipboard.writeText(data.shareUrl).catch(() => {});
+        try { await navigator.clipboard.writeText(data.shareUrl); } catch {}
         toast('Share link created & copied!', 'success', 5000);
     } catch (e) { toast(e.message, 'error'); }
 }
@@ -1216,20 +1796,15 @@ async function createShare(pid) {
 async function toggleTick(pid, btn) {
     const wasTicked = btn.dataset.ticked === '1';
     const newTicked = !wasTicked;
-
-    // Optimistic update
     btn.dataset.ticked = newTicked ? '1' : '0';
     btn.innerHTML = `${newTicked ? '✅' : '☐'}`;
-
     try {
         const res  = await apiFetch('/tick/set', { method: 'POST', body: JSON.stringify({ fileId: pid, ticked: newTicked }) });
         const data = await res.json();
         btn.innerHTML = `${newTicked ? '✅' : '☐'} <span style="font-size:.65rem;vertical-align:middle;">${data.count}</span>`;
-        // Update local state
         const f = cardData.get(pid);
         if (f) { f.isTicked = newTicked; f.tickCount = data.count; }
-    } catch (e) {
-        // Rollback
+    } catch {
         btn.dataset.ticked = wasTicked ? '1' : '0';
         btn.innerHTML = `${wasTicked ? '✅' : '☐'}`;
         toast('Tick failed', 'error');
@@ -1237,20 +1812,17 @@ async function toggleTick(pid, btn) {
 }
 
 async function setFileVisibility(pid, current) {
-    const options = { owner_only: '🔒 Only Me', all_approved: '👥 All Approved Users', public: '🌐 Public (share links)' };
+    const map   = { '1': 'owner_only', '2': 'all_approved', '3': 'public' };
     const choice = prompt(
-        `Set visibility for this file:\n\n` +
-        `1 = Only Me (owner_only)\n2 = All Users (all_approved)\n3 = Public\n\nCurrent: ${current || 'all_approved'}\n\nEnter 1, 2, or 3:`,
+        `Set visibility:\n\n1 = Only Me (owner_only)\n2 = All Approved Users (all_approved)\n3 = Public\n\nCurrent: ${current || 'all_approved'}\n\nEnter 1, 2, or 3:`,
         current === 'owner_only' ? '1' : current === 'public' ? '3' : '2'
     );
-    const map = { '1': 'owner_only', '2': 'all_approved', '3': 'public' };
     const vis = map[choice?.trim()];
     if (!vis) return;
-
     try {
         const res  = await apiFetch('/file/set-visibility', { method: 'POST', body: JSON.stringify({ publicId: pid, visibility: vis }) });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.message || 'Failed to set visibility');
+        if (!res.ok) throw new Error(data.message || 'Failed');
         toast(`Visibility set to "${vis}"`, 'success');
         ST.filesEtag = null;
         fetchFiles(false);
@@ -1261,40 +1833,34 @@ async function setFileVisibility(pid, current) {
 
 function updateBulkBar() {
     const n = ST.selected.size;
-    $('bulkBar').classList.toggle('hidden', n === 0);
-    $('bulkCount').textContent = `${n} selected`;
+    D.bulkBar.classList.toggle('hidden', n === 0);
+    D.bulkCnt.textContent = `${n} selected`;
 }
 
 $('btnBulkDelete').onclick = async () => {
     if (!ST.selected.size) return;
     if (!confirm(`Delete ${ST.selected.size} selected file(s)?`)) return;
     const ids = [...ST.selected];
-
-    // Optimistic removal
-    ids.forEach(pid => {
-        const card = document.querySelector(`.card[data-pid="${pid}"]`);
-        if (card) card.classList.add('removing');
-    });
-
+    ids.forEach(pid => document.querySelector(`.card[data-pid="${CSS.escape(pid)}"]`)?.classList.add('removing'));
     try {
         const res  = await apiFetch('/bulk-delete', { method: 'POST', body: JSON.stringify({ publicIds: ids }) });
         const data = await res.json();
         toast(`Deleted ${data.deleted}${data.forbidden > 0 ? `, ${data.forbidden} denied` : ''}`, 'success');
-        ids.forEach(pid => document.querySelector(`.card[data-pid="${pid}"]`)?.remove());
+        ids.forEach(pid => document.querySelector(`.card[data-pid="${CSS.escape(pid)}"]`)?.remove());
         ST.selected.clear();
         updateBulkBar();
         ST.filesEtag = null;
         fetchFiles(false);
     } catch (e) {
         toast('Bulk delete failed: ' + e.message, 'error');
-        ids.forEach(pid => document.querySelector(`.card[data-pid="${pid}"]`)?.classList.remove('removing'));
+        ids.forEach(pid => document.querySelector(`.card[data-pid="${CSS.escape(pid)}"]`)?.classList.remove('removing'));
     }
 };
 
 $('btnBulkCancel').onclick = () => {
     ST.selected.forEach(pid => {
-        document.querySelector(`.card[data-pid="${pid}"]`)?.classList.remove('selected');
-        const cb = document.querySelector(`.card-checkbox[data-pid="${pid}"]`);
+        document.querySelector(`.card[data-pid="${CSS.escape(pid)}"]`)?.classList.remove('selected');
+        const cb = document.querySelector(`.card-checkbox[data-pid="${CSS.escape(pid)}"]`);
         if (cb) cb.checked = false;
     });
     ST.selected.clear();
@@ -1304,32 +1870,27 @@ $('btnBulkCancel').onclick = () => {
 // ==================== COMMENTS ====================
 
 async function toggleComments(pid) {
-    const list = document.querySelector(`.comment-list[data-pid="${pid}"]`);
+    const list = document.querySelector(`.comment-list[data-pid="${CSS.escape(pid)}"]`);
     if (!list) return;
-
     if (list.classList.contains('open')) {
         list.classList.remove('open');
         commentOpenSet.delete(pid);
         return;
     }
-
     list.classList.add('open');
     commentOpenSet.add(pid);
     list.innerHTML = '<div class="loading" style="padding:8px;">Loading…</div>';
-
     try {
-        const res      = await apiFetch(`/comment/list?fileId=${pid}`);
+        const res = await apiFetch(`/comment/list?fileId=${encodeURIComponent(pid)}`);
         const { comments } = await res.json();
         renderComments(pid, comments || []);
     } catch { list.innerHTML = '<div style="padding:8px;color:var(--danger);">Failed to load comments.</div>'; }
 }
 
 function renderComments(pid, comments) {
-    const list = document.querySelector(`.comment-list[data-pid="${pid}"]`);
+    const list = document.querySelector(`.comment-list[data-pid="${CSS.escape(pid)}"]`);
     if (!list) return;
-
-    // Update badge
-    const badge = document.querySelector(`.comment-toggle[data-pid="${pid}"] .comment-count-badge`);
+    const badge = document.querySelector(`.comment-toggle[data-pid="${CSS.escape(pid)}"] .comment-count-badge`);
     if (badge) badge.textContent = comments.length;
 
     if (!comments.length) {
@@ -1337,16 +1898,15 @@ function renderComments(pid, comments) {
         return;
     }
 
-    // FIX: was using inline onclick with user comment text — XSS vector even with esc()
-    // because HTML-encoding doesn't protect against JS string injection in onclick attributes.
-    // Now uses data attributes + event delegation for safe rendering.
+    list._commentData = {};
     list.innerHTML = comments.map(c => {
+        list._commentData[c.id] = c.text;
         const isOwn  = c.user_email === ST.email;
         const canEdit = isOwn || ST.isAdmin;
         const canDel  = isOwn || ST.isAdmin;
         const author  = (c.user_email || '').replace(/@.*/, '');
         return `
-            <div class="comment-item" data-comment-id="${esc(c.id)}" data-file-pid="${esc(pid)}">
+            <div class="comment-item">
                 <div class="comment-text-body">
                     <span class="comment-author">${esc(author)}</span>${esc(c.text)}
                 </div>
@@ -1357,12 +1917,8 @@ function renderComments(pid, comments) {
             </div>`;
     }).join('');
 
-    // Store comment text in a safe map (keyed by comment ID) for edit dialog
-    comments.forEach(c => { list._commentData = list._commentData || {}; list._commentData[c.id] = c.text; });
-
-    // Event delegation on the list
     list.onclick = e => {
-        const btn    = e.target.closest('[data-caction]');
+        const btn = e.target.closest('[data-caction]');
         if (!btn) return;
         const cid    = btn.dataset.cid;
         const cpid   = btn.dataset.cpid;
@@ -1385,11 +1941,9 @@ async function submitComment(pid, inp) {
         const data = await res.json();
         if (!res.ok) throw new Error(data.message);
         inp.value = '';
-        // Refresh comments
-        const res2 = await apiFetch(`/comment/list?fileId=${pid}`);
+        const res2 = await apiFetch(`/comment/list?fileId=${encodeURIComponent(pid)}`);
         const { comments } = await res2.json();
         renderComments(pid, comments);
-        // Update local count
         const f = cardData.get(pid);
         if (f) f.commentCount = (f.commentCount || 0) + 1;
     } catch (e) { toast('Comment failed: ' + e.message, 'error'); }
@@ -1400,18 +1954,20 @@ async function delComment(commentId, pid) {
     if (!confirm('Delete this comment?')) return;
     try {
         await apiFetch('/comment/delete', { method: 'POST', body: JSON.stringify({ commentId }) });
-        const res = await apiFetch(`/comment/list?fileId=${pid}`);
+        const res = await apiFetch(`/comment/list?fileId=${encodeURIComponent(pid)}`);
         const { comments } = await res.json();
         renderComments(pid, comments);
+        const f = cardData.get(pid);
+        if (f && f.commentCount > 0) f.commentCount--;
     } catch (e) { toast('Delete failed: ' + e.message, 'error'); }
 }
 
 async function editCommentUI(commentId, pid, currentText) {
     const newText = prompt('Edit comment:', currentText);
-    if (!newText || newText === currentText) return;
+    if (!newText || newText.trim() === currentText) return;
     try {
-        await apiFetch('/comment/edit', { method: 'PATCH', body: JSON.stringify({ commentId, text: newText }) });
-        const res = await apiFetch(`/comment/list?fileId=${pid}`);
+        await apiFetch('/comment/edit', { method: 'PATCH', body: JSON.stringify({ commentId, text: newText.trim() }) });
+        const res = await apiFetch(`/comment/list?fileId=${encodeURIComponent(pid)}`);
         const { comments } = await res.json();
         renderComments(pid, comments);
     } catch (e) { toast('Edit failed: ' + e.message, 'error'); }
@@ -1420,15 +1976,15 @@ async function editCommentUI(commentId, pid, currentText) {
 // ==================== PREVIEW OVERLAY ====================
 
 function openPreview(pid, autoPlay = false) {
-    // Build ordered list of previewable files
-    const previewable = (ST.filesMeta || []).filter(f => can('preview'));
+    // Build ordered list of ALL previewable files (not filtered by can() — role is checked on stream)
+    const previewable = (ST.filesMeta || []).filter(() => can('preview'));
     ST.previewList = previewable;
     ST.previewIdx  = previewable.findIndex(f => f.publicId === pid);
     if (ST.previewIdx < 0) ST.previewIdx = 0;
-    showPreview();
+    showPreview(autoPlay);
 }
 
-function showPreview() {
+function showPreview(autoPlay = false) {
     const f = ST.previewList?.[ST.previewIdx];
     if (!f) return;
 
@@ -1437,52 +1993,115 @@ function showPreview() {
     let content = '';
 
     if (mt === 'video') {
-        content = `<video src="${url}" controls autoplay playsinline style="max-width:100%;max-height:100%;"></video>`;
+        content = `<video src="${esc(url)}" controls ${autoPlay ? 'autoplay' : ''} playsinline style="max-width:100%;max-height:85vh;"></video>`;
     } else if (mt === 'audio') {
-        content = `<div style="text-align:center;color:#fff;padding:40px;"><p style="font-size:1.5rem;margin-bottom:16px;">🎵</p><p style="margin-bottom:12px;">${esc(f.name)}</p><audio src="${url}" controls autoplay style="width:100%;max-width:400px;"></audio></div>`;
+        content = `<div style="text-align:center;color:#fff;padding:40px;">
+            <p style="font-size:3rem;margin-bottom:16px;">🎵</p>
+            <p style="margin-bottom:12px;">${esc(f.name)}</p>
+            <audio src="${esc(url)}" controls ${autoPlay ? 'autoplay' : ''} style="width:100%;max-width:400px;"></audio>
+        </div>`;
     } else if (mt === 'image') {
-        content = `<img src="${url}" alt="${esc(f.name)}" style="max-width:100%;max-height:85vh;object-fit:contain;">`;
+        content = `<img src="${esc(url)}" alt="${esc(f.name)}" style="max-width:100%;max-height:85vh;object-fit:contain;">`;
     } else if (mt === 'pdf') {
-        content = `<iframe src="${url}" style="width:100%;height:85vh;border:none;"></iframe>`;
+        content = `<iframe src="${esc(url)}" title="${esc(f.name)}" style="width:100%;height:85vh;border:none;" sandbox="allow-scripts allow-same-origin"></iframe>`;
     } else {
-        content = `<div style="color:#fff;text-align:center;padding:40px;"><p style="font-size:3rem;">${MIME_EMOJI[mt] || '📦'}</p><p style="margin:12px 0;">${esc(f.name)}</p><p style="color:#94a3b8;font-size:0.85rem;">${fmtSize(f.size)}</p><a href="${mediaUrl(f.publicId,'download')}" class="btn btn-primary" download style="margin-top:16px;">⬇ Download</a></div>`;
+        content = `<div style="color:#fff;text-align:center;padding:40px;">
+            <p style="font-size:3rem;">${MIME_EMOJI[mt] || '📦'}</p>
+            <p style="margin:12px 0;">${esc(f.name)}</p>
+            <p style="color:#94a3b8;font-size:0.85rem;">${fmtSize(f.size)}</p>
+            <a href="${esc(mediaUrl(f.publicId, 'download'))}" rel="noopener noreferrer"
+               class="btn btn-primary" style="margin-top:16px;display:inline-block;">⬇ Download</a>
+        </div>`;
     }
 
     D.prevCont.innerHTML = content;
     D.prevOv.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
 
-    // Nav visibility
+    $('previewFilename').textContent = f.name;
     $('btnPrevFile').style.display = ST.previewIdx > 0 ? '' : 'none';
     $('btnNextFile').style.display = ST.previewIdx < ST.previewList.length - 1 ? '' : 'none';
 }
 
+function navigatePreview(dir) {
+    const newIdx = ST.previewIdx + dir;
+    if (newIdx >= 0 && newIdx < (ST.previewList?.length || 0)) {
+        ST.previewIdx = newIdx;
+        showPreview();
+    }
+}
+
+function togglePreviewPlay() {
+    const media = D.prevCont.querySelector('video,audio');
+    if (!media) return;
+    media.paused ? media.play() : media.pause();
+}
+
 function closePreview() {
+    const media = D.prevCont.querySelector('video,audio');
+    if (media) { media.pause(); media.src = ''; }
     D.prevCont.innerHTML = '';
     D.prevOv.classList.add('hidden');
     document.body.style.overflow = '';
 }
 
 $('btnClosePreview').onclick = closePreview;
-$('btnPrevFile').onclick = () => { if (ST.previewIdx > 0) { ST.previewIdx--; showPreview(); } };
-$('btnNextFile').onclick = () => { if (ST.previewIdx < (ST.previewList?.length || 0) - 1) { ST.previewIdx++; showPreview(); } };
-$('btnFullscreen').onclick = () => {
+$('btnPrevFile').onclick     = () => navigatePreview(-1);
+$('btnNextFile').onclick     = () => navigatePreview(1);
+$('btnFullscreen').onclick   = () => {
     const el = D.prevCont.querySelector('video,img,iframe');
-    if (el?.requestFullscreen) el.requestFullscreen();
+    if (el?.requestFullscreen) el.requestFullscreen().catch(() => {});
 };
+
+// Dismiss preview by clicking backdrop
+D.prevOv.addEventListener('click', e => {
+    if (e.target === D.prevOv) closePreview();
+});
 
 // ==================== UPLOAD ====================
 
-const CHUNK_SIZE = 5 * 1024 * 1024; // 5 MB
+const CHUNK_SIZE = 5 * 1024 * 1024;
 
-$('dropzone').addEventListener('dragover', e => { e.preventDefault(); $('dropzone').classList.add('dragover'); });
-$('dropzone').addEventListener('dragleave', () => $('dropzone').classList.remove('dragover'));
-$('dropzone').addEventListener('drop', e => {
+D.dropzone.addEventListener('dragover', e => { e.preventDefault(); D.dropzone.classList.add('dragover'); });
+D.dropzone.addEventListener('dragleave', () => D.dropzone.classList.remove('dragover'));
+D.dropzone.addEventListener('drop', e => {
     e.preventDefault();
-    $('dropzone').classList.remove('dragover');
+    D.dropzone.classList.remove('dragover');
     queueFiles([...e.dataTransfer.files]);
 });
 $('fileInput').onchange = e => { queueFiles([...e.target.files]); e.target.value = ''; };
+
+// ── URL Upload ────────────────────────────────────────────────
+$('btnUrlUpload').onclick = async () => {
+    const url = (D.urlInput.value || '').trim();
+    if (!url) { toast('Paste a URL first', 'warn'); D.urlInput.focus(); return; }
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        toast('Only http/https URLs are supported', 'error');
+        return;
+    }
+    $('btnUrlUpload').disabled = true;
+    $('btnUrlUpload').textContent = '⏳ Uploading…';
+    try {
+        const res  = await apiFetch('/upload-from-url', { method: 'POST', body: JSON.stringify({ url }) });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Upload failed');
+        toast(`Uploaded "${data.name}" (${fmtSize(data.size)})`, 'success', 5000);
+        D.urlInput.value = '';
+        ST.filesEtag = null;
+        fetchFiles(false);
+    } catch (e) { toast('URL upload failed: ' + e.message, 'error'); }
+    finally { $('btnUrlUpload').disabled = false; $('btnUrlUpload').textContent = '📥 Upload URL'; }
+};
+
+// Ctrl+V on the URL input auto-triggers upload if it looks like a URL
+D.urlInput.addEventListener('paste', e => {
+    setTimeout(() => {
+        const v = D.urlInput.value.trim();
+        if (v.startsWith('http://') || v.startsWith('https://')) {
+            // Auto-focus the upload button; user can press Enter or click
+        }
+    }, 0);
+});
 
 function queueFiles(files) {
     if (!can('upload')) { toast('You do not have upload permission.', 'error'); return; }
@@ -1507,63 +2126,91 @@ function makeProgressItem(name) {
     div.id = id;
     div.innerHTML = `
         <div class="progress-header">
-            <span>${esc(name)}</span>
+            <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:70%;" title="${esc(name)}">${esc(name)}</span>
             <span class="prog-label">0%</span>
         </div>
         <div class="progress-bar"><div class="progress-fill" style="width:0"></div></div>`;
     D.uploadProgress.appendChild(div);
+    const fill  = div.querySelector('.progress-fill');
+    const label = div.querySelector('.prog-label');
     return {
-        setProgress(pct, label) {
-            div.querySelector('.progress-fill').style.width = pct + '%';
-            div.querySelector('.prog-label').textContent = label || pct + '%';
+        setProgress(pct, text) {
+            fill.style.width  = pct + '%';
+            label.textContent = text || pct + '%';
         },
-        setDone()  { div.querySelector('.progress-fill').classList.add('done');  div.querySelector('.prog-label').textContent = '✔ Done'; setTimeout(() => div.remove(), 2000); if (!D.uploadProgress.children.length) D.uploadProgress.classList.add('hidden'); },
-        setError() { div.querySelector('.progress-fill').classList.add('error'); div.querySelector('.prog-label').textContent = '✘ Error'; setTimeout(() => div.remove(), 4000); }
+        setDone()  {
+            fill.classList.add('done'); label.textContent = '✔ Done';
+            setTimeout(() => {
+                div.remove();
+                if (!D.uploadProgress.children.length) D.uploadProgress.classList.add('hidden');
+            }, 2000);
+        },
+        setError() {
+            fill.classList.add('error'); label.textContent = '✘ Error';
+            setTimeout(() => div.remove(), 4000);
+        },
     };
 }
 
 async function uploadFile(file) {
     const prog = makeProgressItem(file.name);
     try {
-        // Init — CRITICAL: read body ONCE and reuse result, never call .json() twice on same response
-        const initRes  = await apiFetch('/upload-init', {
+        const initRes = await apiFetch('/upload-init', {
             method: 'POST',
-            body:   JSON.stringify({ fileName: file.name, fileSize: file.size, fileType: file.type || 'application/octet-stream' })
+            body:   JSON.stringify({ fileName: file.name, fileSize: file.size, fileType: file.type || 'application/octet-stream' }),
         });
+        // FIX: Read body only once — never call .json() twice on same Response
         const initData = await initRes.json();
         if (!initRes.ok) throw new Error(initData.message || 'Upload init failed');
+
         const { publicId } = initData;
+        let   offset       = 0;
+        let   startTime    = Date.now();
+        let   uploadedSoFar = 0;
 
-        // Chunked upload
-        let offset = 0;
         while (offset < file.size) {
-            const end   = Math.min(offset + CHUNK_SIZE, file.size);
-            const chunk = file.slice(offset, end);
+            const chunk = file.slice(offset, offset + CHUNK_SIZE);
+            const end   = Math.min(offset + chunk.size - 1, file.size - 1);
 
-            const res = await fetch(`${WORKER_BASE}/upload-chunk/${publicId}`, {
-                method:  'PUT',
-                headers: {
-                    ...authHeaders({ 'Content-Type': file.type || 'application/octet-stream' }),
-                    'Content-Range': `bytes ${offset}-${end - 1}/${file.size}`,
-                    'Content-Length': String(end - offset),
-                },
-                body: chunk,
-            });
+            let chunkRes;
+            for (let attempt = 1; attempt <= 3; attempt++) {
+                try {
+                    chunkRes = await fetch(`${WORKER_BASE}/upload-chunk/${publicId}`, {
+                        method:  'PUT',
+                        headers: {
+                            ...authHeaders({ 'Content-Type': file.type || 'application/octet-stream' }),
+                            'Content-Range': `bytes ${offset}-${end}/${file.size}`,
+                            'Content-Length': String(chunk.size),
+                        },
+                        body: chunk,
+                    });
+                    break;
+                } catch {
+                    if (attempt === 3) throw new Error('Network error after 3 retries');
+                    await new Promise(r => setTimeout(r, 1000 * attempt));
+                }
+            }
 
-            if (!res.ok) throw new Error('Chunk upload failed');
-            const data = await res.json();
+            const chunkData = await chunkRes.json();
+            if (!chunkRes.ok) throw new Error(chunkData.message || `Chunk error ${chunkRes.status}`);
 
-            const pct = data.progress ?? Math.round((end / file.size) * 100);
-            prog.setProgress(pct, pct + '%');
+            if (chunkData.complete) {
+                prog.setProgress(100, '✔ Processing…');
+                prog.setDone();
+                toast(`"${file.name}" uploaded!`, 'success', 4000);
+                ST.filesEtag = null;
+                fetchFiles(false);
+                return;
+            }
 
-            if (data.complete) break;
-            offset = data.uploadedBytes ?? end;
+            offset         = chunkData.uploadedBytes;
+            uploadedSoFar += chunk.size;
+            const pct      = Math.round((offset / file.size) * 100);
+            const elapsed  = (Date.now() - startTime) / 1000;
+            const speed    = elapsed > 0 ? uploadedSoFar / elapsed : 0;
+            const eta      = speed > 0 ? Math.round((file.size - offset) / speed) : '?';
+            prog.setProgress(pct, `${pct}% · ${fmtSize(speed)}/s · ETA ${eta}s`);
         }
-
-        prog.setDone();
-        toast(`"${file.name}" uploaded!`, 'success');
-        ST.filesEtag = null;
-        fetchFiles(false);
 
     } catch (e) {
         prog.setError();
@@ -1571,434 +2218,29 @@ async function uploadFile(file) {
     }
 }
 
-// ==================== ADMIN FUNCTIONS ====================
+// ==================== SEARCH & SORT & FILTER BINDINGS ====================
 
-function bindAdminBar() {
-    $('btnSync').onclick = async () => {
-        toast('Syncing with Drive…');
-        try {
-            const r = await apiFetch('/sync', { method: 'POST' });
-            const d = await r.json();
-            toast(`Sync done: ${d.added} new file(s).`, 'success');
-            ST.filesEtag = null; fetchFiles(false);
-        } catch (e) { toast('Sync failed: ' + e.message, 'error'); }
-    };
-
-    $('btnApprovals').onclick = () => togglePanel('approvalPanel', loadPendingApprovals);
-    $('btnAllUsers').onclick  = () => togglePanel('usersPanel',    loadAllUsers);
-    $('btnLogs').onclick      = () => togglePanel('logsPanel',     loadLogs);
-    $('btnAnalytics').onclick = () => togglePanel('analyticsPanel',loadAnalytics);
-    $('btnShareManager').onclick = () => togglePanel('sharePanel', loadShares);
-    $('btnAdminFiles').onclick   = () => togglePanel('adminFilesPanel', loadAdminFiles);
-
-    $('btnAdminLogout').onclick = logout;
-    $('btnResetToken').onclick  = async () => {
-        if (!confirm('Reset the admin Drive token? You will need to re-login as admin.')) return;
-        try {
-            await apiFetch('/reset-token', { method: 'POST' });
-            toast('Token reset. Re-login as admin.', 'warn');
-        } catch (e) { toast(e.message, 'error'); }
-    };
-
-    $('refreshPendingBtn').onclick  = loadPendingApprovals;
-    $('refreshUsersBtn').onclick    = loadAllUsers;
-    $('refreshLogsBtn').onclick     = loadLogs;
-    $('refreshAnalyticsBtn').onclick= loadAnalytics;
-    $('refreshFilesBtn').onclick    = () => { ST.filesEtag = null; fetchFiles(); };
-    $('refreshAdminFilesBtn').onclick = loadAdminFiles;
-    $('btnClearLogs').onclick = async () => {
-        if (!confirm('Clear all audit logs?')) return;
-        await apiFetch('/clear-logs', { method: 'POST' });
-        toast('Logs cleared.'); loadLogs();
-    };
-    $('btnApplyLogFilter').onclick = loadLogs;
-
-    $('addUserBtn').onclick = async () => {
-        const email = $('newUserEmail').value.trim();
-        const role  = $('newUserRole').value;
-        if (!email) return toast('Enter an email address.', 'warn');
-        try {
-            const res = await apiFetch('/add-user', { method: 'POST', body: JSON.stringify({ email, role }) });
-            const d   = await res.json();
-            if (!res.ok) throw new Error(d.message);
-            toast(`Added ${email} as ${role}.`, 'success');
-            $('newUserEmail').value = '';
-            loadAllUsers();
-        } catch (e) { toast(e.message, 'error'); }
-    };
-}
-
-const openPanels = new Set();
-function togglePanel(id, loadFn) {
-    const el = $(id);
-    if (el.classList.contains('hidden')) {
-        el.classList.remove('hidden');
-        openPanels.add(id);
-        if (loadFn) loadFn();
-    } else {
-        el.classList.add('hidden');
-        openPanels.delete(id);
-    }
-}
-
-async function loadPendingCount() {
-    try {
-        const res = await apiFetch('/user-info');
-        const d   = await res.json();
-        const n   = d.pendingCount || 0;
-        const badge = $('pendingBadge');
-        if (badge) { badge.textContent = n; badge.classList.toggle('hidden', n === 0); }
-    } catch {}
-}
-
-async function loadPendingApprovals() {
-    $('approvalList').innerHTML = '<div class="loading">Loading…</div>';
-    try {
-        const sig    = SLOTS.pending.signal;
-        const res    = await fetch(`${WORKER_BASE}/pending`, { headers: authHeaders(), signal: sig });
-        const { users } = await res.json();
-        if (!users?.length) { $('approvalList').innerHTML = '<p style="color:var(--text-secondary);font-size:0.85rem;">No pending requests.</p>'; return; }
-
-        // FIX: was using email as element ID which breaks with special chars (+, ., etc.)
-        // Now uses data attributes + event delegation so emails never appear in CSS selectors.
-        $('approvalList').innerHTML = users.map((u, i) => `
-            <div class="approval-item">
-                <div>
-                    <strong>${esc(u.email)}</strong>
-                    <div style="font-size:0.72rem;color:var(--text-secondary);">Registered ${fmtRelative(u.created_at)}</div>
-                </div>
-                <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                    <select class="inline-input" data-approve-email="${esc(u.email)}" style="padding:3px 6px;font-size:0.78rem;">
-                        ${['full','delete','upload','download','read','none'].map(r => `<option value="${r}" ${r === 'full' ? 'selected' : ''}>${r}</option>`).join('')}
-                    </select>
-                    <button class="btn btn-sm btn-success" data-action="approve" data-email="${esc(u.email)}">✔ Approve</button>
-                    <button class="btn btn-sm btn-danger"  data-action="reject"  data-email="${esc(u.email)}">✘ Reject</button>
-                </div>
-            </div>`).join('');
-
-        // Event delegation — no inline onclick, no CSS selector on email
-        $('approvalList').onclick = async e => {
-            const btn = e.target.closest('[data-action]');
-            if (!btn) return;
-            const email  = btn.dataset.email;
-            const action = btn.dataset.action;
-            if (action === 'approve') {
-                const sel  = $('approvalList').querySelector(`[data-approve-email="${CSS.escape(email)}"]`);
-                const role = sel?.value || 'full';
-                await approveUser(email, role);
-            } else if (action === 'reject') {
-                await rejectUser(email);
-            }
-        };
-    } catch (e) { if (e.name !== 'AbortError') $('approvalList').innerHTML = '<div style="color:var(--danger);">Failed to load.</div>'; }
-}
-
-async function approveUser(email, role = 'full') {
-    try {
-        const res = await apiFetch('/approve', { method: 'POST', body: JSON.stringify({ email, role }) });
-        const d   = await res.json();
-        if (!res.ok) throw new Error(d.message);
-        toast(`Approved ${email} as ${role}.`, 'success');
-        loadPendingApprovals(); loadPendingCount();
-    } catch (e) { toast(e.message, 'error'); }
-}
-
-async function rejectUser(email) {
-    if (!confirm(`Reject ${email}?`)) return;
-    try {
-        await apiFetch('/revoke', { method: 'POST', body: JSON.stringify({ email }) });
-        toast(`Rejected ${email}.`);
-        loadPendingApprovals(); loadPendingCount();
-    } catch (e) { toast(e.message, 'error'); }
-}
-
-async function loadAllUsers() {
-    $('usersList').innerHTML = '<div class="loading">Loading…</div>';
-    try {
-        const sig    = SLOTS.users.signal;
-        const res    = await fetch(`${WORKER_BASE}/all-users`, { headers: authHeaders(), signal: sig });
-        const { users } = await res.json();
-
-        // FIX: was using email as element ID — emails with +, . etc. break querySelector/getElementById.
-        // Now uses data-user-email attributes and event delegation; CSS.escape used for querySelector.
-        const list = users.map(u => {
-            const badge   = `<span class="status-badge s-${u.status}">${u.status}</span>`;
-            const isSuper = u.isSuperAdmin;
-            return `
-                <div class="approval-item">
-                    <div style="flex:1;min-width:0;">
-                        <strong>${esc(u.email)}</strong>
-                        ${isSuper ? '<span class="role-badge" style="background:#be185d;margin-left:4px;">SUPER</span>' : u.isAdmin ? '<span class="role-badge" style="background:#7c3aed;margin-left:4px;">ADMIN</span>' : ''}
-                        <div style="font-size:0.72rem;color:var(--text-secondary);margin-top:2px;">${badge} • role: <strong>${u.role}</strong> • logins: ${u.loginCount}</div>
-                        ${u.approvedBy ? `<div style="font-size:0.65rem;color:var(--text-secondary);">Approved by: ${esc(u.approvedBy)}</div>` : ''}
-                    </div>
-                    <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;">
-                        <select class="inline-input" data-user-email="${esc(u.email)}" style="font-size:0.75rem;padding:2px 5px;">
-                            ${['full','delete','upload','download','read','none'].map(r => `<option value="${r}" ${r === u.role ? 'selected' : ''}>${r}</option>`).join('')}
-                        </select>
-                        <button class="btn btn-sm"          data-uaction="role"    data-uemail="${esc(u.email)}">Set Role</button>
-                        ${u.status !== 'revoked' && !isSuper ? `<button class="btn btn-sm btn-danger"  data-uaction="revoke"  data-uemail="${esc(u.email)}">Revoke</button>` : ''}
-                        ${u.status === 'revoked'             ? `<button class="btn btn-sm btn-success" data-uaction="approve" data-uemail="${esc(u.email)}">Re-Approve</button>` : ''}
-                    </div>
-                </div>`;
-        }).join('');
-        $('usersList').innerHTML = list;
-
-        // Event delegation — no inline onclick, no CSS selector injection on raw email
-        $('usersList').onclick = async e => {
-            const btn = e.target.closest('[data-uaction]');
-            if (!btn) return;
-            const email   = btn.dataset.uemail;
-            const uaction = btn.dataset.uaction;
-            if (uaction === 'role') {
-                const sel  = $('usersList').querySelector(`[data-user-email="${CSS.escape(email)}"]`);
-                const role = sel?.value;
-                if (!role) return;
-                await setRole(email, role);
-            } else if (uaction === 'revoke') {
-                await revokeUser(email);
-            } else if (uaction === 'approve') {
-                await approveUser(email);
-            }
-        };
-    } catch (e) { if (e.name !== 'AbortError') $('usersList').innerHTML = '<div style="color:var(--danger);">Failed.</div>'; }
-}
-
-async function setRole(email, role) {
-    if (!role) return;
-    try {
-        const res = await apiFetch('/set-role', { method: 'POST', body: JSON.stringify({ email, role }) });
-        const d   = await res.json();
-        if (!res.ok) throw new Error(d.message);
-        toast(`${email} → ${role}`, 'success');
-        loadAllUsers();
-    } catch (e) { toast(e.message, 'error'); }
-}
-
-async function revokeUser(email) {
-    if (!confirm(`Revoke access for ${email}?`)) return;
-    try {
-        const res = await apiFetch('/revoke', { method: 'POST', body: JSON.stringify({ email }) });
-        const d   = await res.json();
-        if (!res.ok) throw new Error(d.message);
-        toast(`Revoked ${email}.`);
-        loadAllUsers();
-    } catch (e) { toast(e.message, 'error'); }
-}
-
-async function loadLogs() {
-    $('logsContent').innerHTML = '<div class="loading">Loading…</div>';
-    const action = $('logFilterAction').value.trim() || null;
-    const actor  = $('logFilterActor').value.trim()  || null;
-    const params = new URLSearchParams({ limit: '300' });
-    if (action) params.set('action', action);
-    if (actor)  params.set('actor',  actor);
-
-    try {
-        const sig  = SLOTS.logs.signal;
-        const res  = await fetch(`${WORKER_BASE}/logs?${params}`, { headers: authHeaders(), signal: sig });
-        const { logs } = await res.json();
-        if (!logs?.length) { $('logsContent').innerHTML = '<p style="color:var(--text-secondary);">No logs.</p>'; return; }
-
-        $('logsContent').innerHTML = logs.map(l => {
-            const meta = typeof l.meta === 'string' ? l.meta : JSON.stringify(l.meta || {});
-            return `<div style="padding:3px 0;border-bottom:1px solid var(--border);">
-                <span style="color:var(--text-secondary);">${fmtDate(l.ts)}</span>
-                <strong style="color:var(--accent);margin:0 6px;">${esc(l.action)}</strong>
-                <span>${esc(l.actor)}</span>
-                ${l.target ? `<span style="color:var(--text-secondary);"> → ${esc(l.target)}</span>` : ''}
-                <span style="color:var(--text-secondary);font-size:0.7rem;margin-left:4px;">${esc(meta)}</span>
-            </div>`;
-        }).join('');
-    } catch (e) { if (e.name !== 'AbortError') $('logsContent').innerHTML = '<div style="color:var(--danger);">Failed.</div>'; }
-}
-
-async function loadAnalytics() {
-    $('analyticsContent').innerHTML = '<div class="loading">Loading…</div>';
-    try {
-        const sig = SLOTS.analytics.signal;
-        const res = await fetch(`${WORKER_BASE}/analytics`, { headers: authHeaders(), signal: sig });
-        const d   = await res.json();
-
-        const userRows = (d.users || []).map(u => `<tr><td>${esc(u.status)}</td><td>${u.count}</td></tr>`).join('');
-        const uploaderRows = (d.byUploader || []).map(u => `<tr><td>${esc(u.uploaded_by)}</td><td>${u.count}</td></tr>`).join('');
-        const typeRows = (d.byType || []).map(t => `<tr><td>${esc(t.mime_type)}</td><td>${t.count}</td></tr>`).join('');
-
-        $('analyticsContent').innerHTML = `
-            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:14px;">
-                ${[
-                    ['📂 Files', d.files?.count || 0],
-                    ['💾 Total Size', fmtSize(d.files?.totalSize)],
-                    ['💬 Comments', d.comments || 0],
-                    ['✅ Ticks', d.ticks || 0],
-                    ['🔗 Shares', d.shares || 0],
-                ].map(([label,val]) => `
-                    <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;">
-                        <div style="font-size:1.4rem;font-weight:700;color:var(--accent);">${val}</div>
-                        <div style="font-size:0.75rem;color:var(--text-secondary);">${label}</div>
-                    </div>`).join('')}
-            </div>
-            <details open><summary style="cursor:pointer;font-weight:600;">Users by status</summary>
-                <table class="role-matrix" style="margin-top:6px;"><thead><tr><th>Status</th><th>Count</th></tr></thead><tbody>${userRows}</tbody></table>
-            </details>
-            <details style="margin-top:8px;"><summary style="cursor:pointer;font-weight:600;">Top uploaders</summary>
-                <table class="role-matrix" style="margin-top:6px;"><thead><tr><th>Email</th><th>Files</th></tr></thead><tbody>${uploaderRows}</tbody></table>
-            </details>
-            <details style="margin-top:8px;"><summary style="cursor:pointer;font-weight:600;">By file type</summary>
-                <table class="role-matrix" style="margin-top:6px;"><thead><tr><th>MIME type</th><th>Count</th></tr></thead><tbody>${typeRows}</tbody></table>
-            </details>`;
-    } catch (e) { if (e.name !== 'AbortError') $('analyticsContent').innerHTML = '<div style="color:var(--danger);">Failed.</div>'; }
-}
-
-async function loadShares() {
-    $('shareContent').innerHTML = '<div class="loading">Loading…</div>';
-    try {
-        const sig  = SLOTS.shares.signal;
-        const res  = await fetch(`${WORKER_BASE}/share/list`, { headers: authHeaders(), signal: sig });
-        const { shares } = await res.json();
-        if (!shares?.length) { $('shareContent').innerHTML = '<p style="color:var(--text-secondary);">No active shares.</p>'; return; }
-
-        $('shareContent').innerHTML = `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:0.78rem;">
-            <thead><tr style="background:var(--accent);color:#fff;">
-                <th style="padding:5px 8px;">File ID</th>
-                <th>Created by</th>
-                <th>Expires</th>
-                <th>DLs</th>
-                <th>Label</th>
-                <th></th>
-            </tr></thead>
-            <tbody>
-            ${shares.map(s => `
-                <tr style="border-bottom:1px solid var(--border);">
-                    <td style="padding:4px 8px;">${esc(s.public_id)}</td>
-                    <td>${esc(s.created_by)}</td>
-                    <td>${fmtDate(s.expires_at)}</td>
-                    <td>${s.downloads}/${s.max_downloads || '∞'}</td>
-                    <td>${esc(s.label || '')}</td>
-                    <td><button class="btn btn-sm btn-danger" onclick="deleteShare('${esc(s.token)}')">🗑</button></td>
-                </tr>`).join('')}
-            </tbody></table></div>`;
-    } catch (e) { if (e.name !== 'AbortError') $('shareContent').innerHTML = '<div style="color:var(--danger);">Failed.</div>'; }
-}
-
-async function deleteShare(token) {
-    if (!confirm('Delete this share link?')) return;
-    try {
-        await apiFetch('/share/delete', { method: 'POST', body: JSON.stringify({ token }) });
-        toast('Share deleted.'); loadShares();
-    } catch (e) { toast(e.message, 'error'); }
-}
-
-async function loadAdminFiles() {
-    $('adminFilesList').innerHTML = '<div class="loading">Loading…</div>';
-    try {
-        const res   = await apiFetch('/admin/files');
-        const { files } = await res.json();
-        if (!files?.length) { $('adminFilesList').innerHTML = '<p style="color:var(--text-secondary);">No files.</p>'; return; }
-
-        $('adminFilesList').innerHTML = `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:0.78rem;">
-            <thead><tr style="background:var(--accent);color:#fff;">
-                <th style="padding:5px 8px;text-align:left;">Name</th>
-                <th>Size</th>
-                <th>Uploaded by</th>
-                <th>Visibility</th>
-                <th>Uploaded</th>
-                <th>Actions</th>
-            </tr></thead>
-            <tbody>
-            ${files.map(f => `
-                <tr style="border-bottom:1px solid var(--border);">
-                    <td style="padding:4px 8px;">${esc(f.name)}</td>
-                    <td>${fmtSize(f.size)}</td>
-                    <td>${esc(f.uploadedBy)}</td>
-                    <td>${visBadgeHtml(f.visibility)}</td>
-                    <td>${fmtRelative(f.createdAt)}</td>
-                    <td style="white-space:nowrap;">
-                        <button class="btn-xs btn-xs-vis" onclick="setFileVisibility('${f.publicId}','${f.visibility}')">🔐 Vis</button>
-                        <button class="btn-xs btn-xs-delete" onclick="deleteFile('${f.publicId}','${esc(f.name)}')">🗑</button>
-                    </td>
-                </tr>`).join('')}
-            </tbody></table></div>`;
-    } catch (e) { $('adminFilesList').innerHTML = `<div style="color:var(--danger);">${e.message}</div>`; }
-}
-
-function visBadgeHtml(vis) {
-    const m = { owner_only:['🔒 Only Me','vis-owner_only'], all_approved:['👥 All Users','vis-all_approved'], public:['🌐 Public','vis-public'] };
-    const [label, cls] = m[vis] || m['all_approved'];
-    return `<span class="vis-badge ${cls}">${label}</span>`;
-}
-
-// ==================== SEARCH (debounced) ====================
-
-const doSearch = debounce(() => {
+D.search.addEventListener('input', debounce(() => {
     ST.query = D.search.value.trim();
     renderFiles();
-}, 300);
+}, 300));
 
-D.search.addEventListener('input', doSearch);
-
-// ==================== SORT / FILTER ====================
-
-$('sortSelect').onchange = e => { ST.sort = e.target.value; localStorage.setItem('sort', ST.sort); renderFiles(); };
-$('filterSelect').onchange = e => { ST.filter = e.target.value; localStorage.setItem('filter', ST.filter); renderFiles(); };
-
-// ==================== DARK MODE ====================
-
-$('btnDarkMode').onclick = () => { ST.dark = !ST.dark; localStorage.setItem('darkMode', ST.dark); applyTheme(); };
-
-// ==================== KEYBOARD SHORTCUTS ====================
-
-document.addEventListener('keydown', e => {
-    const tag = document.activeElement.tagName;
-    const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
-
-    if (e.key === 'Escape') {
-        if (!D.prevOv.classList.contains('hidden')) { closePreview(); return; }
-        // Close open panels
-        ['approvalPanel','usersPanel','logsPanel','analyticsPanel','sharePanel','adminFilesPanel'].forEach(id => $(id)?.classList.add('hidden'));
-        return;
-    }
-
-    if (!isInput) {
-        if (e.ctrlKey || e.metaKey) {
-            if (e.key === 'f') { e.preventDefault(); D.search.focus(); return; }
-            if (e.key === 'u') { e.preventDefault(); D.fileInp.click(); return; }
-        }
-        const overlayOpen = !D.prevOv.classList.contains('hidden');
-        if (e.key === 'ArrowLeft'  && overlayOpen) { $('btnPrevFile').click(); return; }
-        if (e.key === 'ArrowRight' && overlayOpen) { $('btnNextFile').click(); return; }
-        // Space: play / pause video in preview, or navigate next if no video
-        if (e.key === ' ' && overlayOpen) {
-            e.preventDefault();
-            const vid = D.prevCont.querySelector('video');
-            if (vid) { vid.paused ? vid.play() : vid.pause(); }
-            else { $('btnNextFile').click(); }
-            return;
-        }
-    }
+D.sortSel.addEventListener('change', () => {
+    ST.sort = D.sortSel.value;
+    localStorage.setItem('sort', ST.sort);
+    renderFiles();
 });
 
-// Close preview on background click
-D.prevOv.addEventListener('click', e => { if (e.target === D.prevOv) closePreview(); });
-
-// ==================== PASTE HANDLER ====================
-
-$('sendPasteBtn').onclick = () => {
-    const val = $('pasteInput').value.trim();
-    if (!val) return;
-    toast('Paste-to-upload is not yet supported for URLs.', 'warn');
-    $('pasteInput').value = '';
-};
-
-document.addEventListener('paste', e => {
-    const items = [...(e.clipboardData?.items || [])];
-    const files  = items.filter(i => i.kind === 'file').map(i => i.getAsFile()).filter(Boolean);
-    if (files.length && can('upload')) { queueFiles(files); toast(`Pasting ${files.length} file(s)…`); }
+D.filterSel.addEventListener('change', () => {
+    ST.filter = D.filterSel.value;
+    localStorage.setItem('filter', ST.filter);
+    renderFiles();
 });
+
+$('refreshFilesBtn').addEventListener('click', () => { ST.filesEtag = null; fetchFiles(); });
 
 // ==================== START ====================
 
 init();
 </script>
-</body>
-</html>
+</body></html>
