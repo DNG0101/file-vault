@@ -733,7 +733,9 @@ function authH() {
 
 async function api(path, opts = {}, signal) {
   const url = WORKER + path;
-  const headers = { 'Content-Type': 'application/json', ...authH(), ...(opts.headers || {}) };
+  // Only send Content-Type when there is a body — sending it on GET requests triggers an unnecessary CORS preflight
+  const ctHeader = opts.body !== undefined ? { 'Content-Type': 'application/json' } : {};
+  const headers = { ...ctHeader, ...authH(), ...(opts.headers || {}) };
   return fetch(url, { ...opts, headers, signal });
 }
 
@@ -811,6 +813,8 @@ async function login(driveMode = false) {
 
 // Listen for token/error posted back from the auth-callback popup page
 window.addEventListener('message', async (e) => {
+  // Only accept messages from the worker — any other origin could forge a fake auth token
+  if (e.origin !== WORKER) return;
   if (!e.data?.nexusVaultAuth) return;
   const { token, error } = e.data.nexusVaultAuth;
   if (_authPopup && !_authPopup.closed) { try { _authPopup.close(); } catch {} }
