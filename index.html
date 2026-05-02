@@ -424,7 +424,7 @@ class RequestSlot{
   abort(){if(this._c){this._c.abort();this._c=null;}}
   get signal(){this.abort();this._c=new AbortController();return this._c.signal;}
 }
-const SLOTS={files:new RequestSlot(),search:new RequestSlot(),heartbeat:new RequestSlot(),pending:new RequestSlot(),chat:new RequestSlot()};
+const SLOTS={files:new RequestSlot(),search:new RequestSlot(),heartbeat:new RequestSlot(),pending:new RequestSlot(),chat:new RequestSlot(),users:new RequestSlot(),logs:new RequestSlot()};
 const $=id=>document.getElementById(id);
 const esc=s=>{const d=document.createElement('div');d.textContent=String(s??'');return d.innerHTML;};
 function fmtSize(b){if(!b)return'0 B';const u=['B','KB','MB','GB'];let i=0,s=+b;while(s>=1024&&i<3){s/=1024;i++;}return s.toFixed(i?1:0)+' '+u[i];}
@@ -634,9 +634,9 @@ async function fetchUserInfo(){
   }catch{return false;}
 }
 
-// ── HEARTBEAT — NO TOKEN ROTATION ────────────────────────────────
-// Sessions last 30 days. resolveUser() refreshes TTL automatically.
-// NO newToken handling here — rotation was causing auto-logout.
+// ── HEARTBEAT ────────────────────────────────────────────────────
+// Worker v33.0 no longer rotates tokens on heartbeat.
+// This function handles both v32 (sends newToken) and v33 (no newToken) gracefully.
 async function sendHeartbeat(){
   if(!ST.token||!ST.isVisible)return;
   try{
@@ -645,6 +645,11 @@ async function sendHeartbeat(){
     if(!res.ok)return;
     const data=await res.json();
     if(!data.alive){logout();return;}
+    // Handle newToken defensively (v32 compatibility — update token if worker sends one)
+    if(data.newToken && typeof data.newToken==='string' && data.newToken!==ST.token){
+      ST.token=data.newToken;
+      localStorage.setItem('vtoken',data.newToken);
+    }
     const wasApproved=ST.approved;
     ST.approved=data.approved;ST.role=data.role;
     if(data.pendingCount>0)updatePendingBadge(data.pendingCount);
@@ -735,7 +740,6 @@ function showMain(){
   }
   D.dropzone.onclick=()=>D.fileInp.click();
   bindAdminBar();
-  // Load chat users list
   loadChatUsers();
 }
 
@@ -809,7 +813,9 @@ async function loadPendingUsers(){
           <button class="btn btn-sm btn-danger btn-reject" data-email="${esc(u.email)}">✘ Reject</button>
         </div>
       </div>`).join('');
-    $('approvalList').addEventListener('click', async e=>{
+    // Use a single delegated listener on the container (no {once:true} needed)
+    const list=$('approvalList');
+    list.onclick=async e=>{
       const btn=e.target.closest('[data-email]');if(!btn)return;
       const email=btn.dataset.email;const row=btn.closest('.approval-item');
       if(btn.classList.contains('btn-approve')){
@@ -823,7 +829,7 @@ async function loadPendingUsers(){
         try{await apiFetch('/revoke',{method:'POST',body:JSON.stringify({email})});toast(`${email} rejected.`,'warn');row?.remove();}
         catch(err){toast('Failed: '+err.message,'error');btn.disabled=false;}
       }
-    },{once:true});
+    };
   }catch(e){if(e.name!=='AbortError')$('approvalList').innerHTML=`<div class="empty-state" style="color:var(--danger);">❌ ${esc(e.message)}</div>`;}
 }
 
@@ -831,6 +837,7 @@ async function loadPendingUsers(){
 async function loadAllUsers(){
   $('usersList').innerHTML='<div class="loading"><span class="spinner"></span> Loading…</div>';
   try{
+    // FIX: SLOTS.users now exists — was undefined before, causing TypeError crash
     const res=await apiFetch('/all-users',{},SLOTS.users.signal);
     const {users=[]}=await res.json();
     if(!users.length){$('usersList').innerHTML='<div class="empty-state">No users.</div>';return;}
@@ -865,7 +872,8 @@ async function loadLogs(){
   try{
     const action=($('logFilterAction').value||'').trim();const actor=($('logFilterActor').value||'').trim();
     const p=new URLSearchParams({limit:'500'});if(action)p.set('action',action);if(actor)p.set('actor',actor);
-    const res=await apiFetch(`/logs?${p}`,{},SLOTS.logs?.signal);const {logs=[]}=await res.json();
+    // FIX: SLOTS.logs now exists — was undefined before (optional chain made it silently pass null signal)
+    const res=await apiFetch(`/logs?${p}`,{},SLOTS.logs.signal);const {logs=[]}=await res.json();
     if(!logs.length){$('logsContent').innerHTML='<div style="padding:8px;color:var(--muted);">No logs.</div>';return;}
     $('logsContent').innerHTML=logs.map(l=>{const sev=l.severity==='ERROR'?'color:#ef4444':l.severity==='WARN'?'color:#f59e0b':'';return`<div style="padding:2px 0;border-bottom:1px solid var(--border);${sev}">[${fmtDate(l.ts)}] <strong>${esc(l.action)}</strong> by ${esc(l.actor)} on ${esc(l.target||'—')}</div>`;}).join('');
   }catch(e){if(e.name!=='AbortError')$('logsContent').innerHTML=`<div style="color:var(--danger);">❌ ${esc(e.message)}</div>`;}
@@ -925,14 +933,14 @@ async function fetchFiles(showLoader=true){
     if(ST.filesEtag)headers['If-None-Match']=ST.filesEtag;
     const res=await fetch(`${WORKER_BASE}/files-with-meta`,{headers,signal:sig});
     if(res.status===304){if(ST.filesMeta)renderFiles();return;}
-    if(!res.ok)throw new Error(`HTTP ${res.status}`);
+    if(!res.ok)throw new Error(`HTTP ${res.status}: ${res.statusText||'error'}`);
     const data=await res.json();
     ST.filesEtag=res.headers.get('ETag')||data.etag||null;
     ST.filesMeta=data.files||[];ST.myFilesMeta=data.myFiles||[];
     renderFiles();
   }catch(e){
     if(e.name==='AbortError')return;
-    D.grid.innerHTML=`<div class="empty-state">❌ Failed to load files.<br><button class="btn btn-sm btn-outline" style="margin-top:10px;" id="retryBtn">Retry</button></div>`;
+    D.grid.innerHTML=`<div class="empty-state">❌ Failed to load files.<br><small style="color:var(--muted);">${esc(e.message)}</small><br><button class="btn btn-sm btn-outline" style="margin-top:10px;" id="retryBtn">🔄 Retry</button></div>`;
     $('retryBtn')?.addEventListener('click',()=>fetchFiles(),{once:true});
     toast('Could not load files — check connection.','error');
   }
@@ -1105,7 +1113,8 @@ async function submitComment(pid,inp){
 
 // ── PREVIEW ───────────────────────────────────────────────────────
 function openPreview(pid,autoPlay=false){
-  const previewable=(ST.filesMeta||[]).filter(()=>can('preview'));
+  // FIX: was filter(()=>can('preview')) — arrow fn ignored the file param 'f'
+  const previewable=(ST.filesMeta||[]).filter(f=>f&&can('preview'));
   ST.previewList=previewable;ST.previewIdx=previewable.findIndex(f=>f.publicId===pid);
   if(ST.previewIdx<0)ST.previewIdx=0;showPreview(autoPlay);
 }
@@ -1176,6 +1185,7 @@ async function uploadFile(file){
 D.search.addEventListener('input',debounce(()=>{ST.query=D.search.value.trim();renderFiles();},300));
 D.sortSel.addEventListener('change',()=>{ST.sort=D.sortSel.value;localStorage.setItem('sort',ST.sort);renderFiles();});
 D.filterSel.addEventListener('change',()=>{ST.filter=D.filterSel.value;localStorage.setItem('filter',ST.filter);renderFiles();});
+// FIX: Removed duplicate refreshFilesBtn listener (was bound twice — here and at the bottom)
 $('refreshFilesBtn').addEventListener('click',()=>{ST.filesEtag=null;fetchFiles();});
 
 // ── CHAT ─────────────────────────────────────────────────────────
@@ -1226,15 +1236,15 @@ $('dmRecipientSel').onchange=()=>{
 async function loadChatUsers(){
   try{
     const res=await apiFetch('/chat/users');
+    if(!res.ok)return;
     const {users=[]}=await res.json();
     ST.chatUsers=users.filter(u=>u!==ST.email);
     const sel=$('dmRecipientSel');
     sel.innerHTML='<option value="">— Select user —</option>'+ST.chatUsers.map(u=>`<option value="${esc(u)}">${esc(u)}</option>`).join('');
-    // Update online count
     apiFetch('/chat/online').then(r=>r.json()).then(d=>{
       $('chatOnlineCount').textContent=`${d.count||0} online`;
     }).catch(()=>{});
-  }catch(e){ /* silent — not critical */ }
+  }catch(e){ /* silent — chat is non-critical */ }
 }
 
 async function loadChatMessages(){
@@ -1266,9 +1276,7 @@ async function loadChatMessages(){
 }
 
 function appendChatMsg(msg){
-  // Remove "no messages" placeholder
   const empty=D.chatMessages.querySelector('.chat-empty');if(empty)empty.remove();
-  // Check if already rendered
   if(document.getElementById(`cmsg-${msg.id}`))return;
   const isMe=msg.sender===ST.email;
   const authorName=(msg.senderDisplay||msg.sender||'').replace(/@.*/,'');
@@ -1309,9 +1317,6 @@ $('chatSendBtn').onclick=sendChatMsg;
 
 function startChatPoll(){stopChat();ST.chatTimer=setInterval(loadChatMessages,5000);}
 function stopChat(){if(ST.chatTimer){clearInterval(ST.chatTimer);ST.chatTimer=null;}SLOTS.chat.abort();}
-
-// ── SEARCH / SORT / FILTER ────────────────────────────────────────
-$('refreshFilesBtn').addEventListener('click',()=>{ST.filesEtag=null;fetchFiles();});
 
 // ── START ─────────────────────────────────────────────────────────
 init();
