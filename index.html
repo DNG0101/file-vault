@@ -786,14 +786,41 @@ $('modalOverlay').addEventListener('click', e => { if (e.target === $('modalOver
 // ═══════════════════════════════════════════════════════
 // AUTH
 // ═══════════════════════════════════════════════════════
+// ── Popup-based OAuth ── opens Google auth in a small popup; main page never navigates.
+// If popups are blocked the flow gracefully falls back to full-page redirect.
+let _authPopup = null;
 async function login(driveMode = false) {
   try {
     const res = await api('/auth-url?mode=' + (driveMode ? 'admin' : 'user'));
     const d = await res.json();
-    if (d.authUrl) window.location.href = d.authUrl;
-    else toast('Cannot get auth URL: ' + (d.message || ''), 'error');
+    if (!d.authUrl) { toast('Cannot get auth URL: ' + (d.message || ''), 'error'); return; }
+
+    // Try popup first
+    _authPopup = window.open(d.authUrl, 'nexus_vault_auth',
+      'width=520,height=660,scrollbars=yes,resizable=yes,popup=1,noopener=0');
+
+    if (!_authPopup || _authPopup.closed || typeof _authPopup.closed === 'undefined') {
+      // Popup blocked — fall back to full-page redirect (worker popupResponse handles it)
+      window.location.href = d.authUrl;
+      return;
+    }
+
+    toast('Sign-in popup opened — complete the Google login there.', 'info', 8000);
   } catch (e) { toast('Login error: ' + e.message, 'error'); }
 }
+
+// Listen for token/error posted back from the auth-callback popup page
+window.addEventListener('message', async (e) => {
+  if (!e.data?.nexusVaultAuth) return;
+  const { token, error } = e.data.nexusVaultAuth;
+  if (_authPopup && !_authPopup.closed) { try { _authPopup.close(); } catch {} }
+  _authPopup = null;
+  if (error) { toast('Auth error: ' + decodeURIComponent(error), 'error'); return; }
+  if (token) {
+    localStorage.setItem('vault_token', token);
+    await trySession();   // boot without page reload
+  }
+}, false);
 
 function applyUserInfo(d) {
   ST.email = d.email;
@@ -2427,39 +2454,41 @@ if (savedTheme) { document.documentElement.dataset.theme = savedTheme; $('btnThe
 // ═══════════════════════════════════════════════════════
 // BOOT
 // ═══════════════════════════════════════════════════════
+// trySession() — called on boot AND after popup login; safe to call multiple times
+// (intervals are guarded by _sessionStarted so they only register once)
+let _sessionStarted = false;
+async function trySession() {
+  ST.token = localStorage.getItem('vault_token');
+  if (!ST.token) { showLoginGate(); return; }
+  try {
+    const res = await api('/user-info');
+    if (!res.ok) { localStorage.removeItem('vault_token'); showLoginGate(); return; }
+    const d = await res.json();
+    if (!d.email) { localStorage.removeItem('vault_token'); showLoginGate(); return; }
+    applyUserInfo(d);
+    if (!_sessionStarted) {
+      _sessionStarted = true;
+      startHeartbeat();
+      api('/user/ping', { method: 'POST' }).catch(()=>{});
+      setInterval(() => api('/user/ping', { method: 'POST' }).catch(()=>{}), 60000);
+      if (d.approved) setInterval(() => fetchFiles(false), 60000);
+    }
+    await silentMigrate();
+    if (d.approved) fetchFiles(true);
+  } catch (e) {
+    console.error('Session error:', e);
+    showLoginGate();
+  }
+}
+
 (async () => {
-  // Check for token in URL
+  // Handle fallback redirect path (popup blocked → full-page redirect → ?token= in URL)
   const params = new URLSearchParams(location.search);
   const urlToken = params.get('token');
   const urlError = params.get('error');
-  const shareToken = params.get('share');
-
-  if (urlError) { toast(`Auth error: ${urlError}`, 'error'); history.replaceState(null,'',location.pathname); }
+  if (urlError) { toast(`Auth error: ${decodeURIComponent(urlError)}`, 'error'); history.replaceState(null,'',location.pathname); }
   if (urlToken) { localStorage.setItem('vault_token', urlToken); history.replaceState(null,'',location.pathname); }
-  if (shareToken) { /* handle share link preview */ }
-
-  ST.token = localStorage.getItem('vault_token');
-  if (!ST.token) { showLoginGate(); return; }
-
-  try {
-    const res = await api('/user-info');
-    if (!res.ok) { showLoginGate(); return; }
-    const d = await res.json();
-    if (!d.email) { showLoginGate(); return; }
-    applyUserInfo(d);
-    startHeartbeat();
-    await silentMigrate();
-    // Ping online status
-    api('/user/ping', { method: 'POST' }).catch(()=>{});
-    setInterval(() => api('/user/ping', { method: 'POST' }).catch(()=>{}), 60000);
-    if (d.approved) {
-      fetchFiles(true);
-      setInterval(() => fetchFiles(false), 60000);
-    }
-  } catch (e) {
-    console.error('Boot error:', e);
-    showLoginGate();
-  }
+  await trySession();
 })();
 </script>
 </body>
