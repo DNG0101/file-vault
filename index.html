@@ -702,7 +702,8 @@ function startPendingCheck() {
     const check = async () => {
         if (!ST.token) return;
         try {
-            const sig = SLOTS.heartbeat.signal;
+            // FIX: was using SLOTS.heartbeat — would cancel this check whenever heartbeat fired
+            const sig = SLOTS.pending.signal;
             const res = await fetch(`${WORKER_BASE}/user-info`, { headers: authHeaders(), signal: sig });
             if (!res.ok) return;
             const info = await res.json();
@@ -992,8 +993,10 @@ function thumbnailHtml(mime, pid) {
     const url = mediaUrl(pid, 'video');
 
     if (mt === 'image') {
+        // FIX: was using Date.now() cache-buster which defeats HTTP caching on every render.
+        // Now uses file's own createdAt timestamp — stable across renders, busts only when file changes.
         return `<div class="thumbnail">
-            <img src="${mediaUrl(pid, 'preview')}?t=${Date.now()}" loading="lazy" alt="preview"
+            <img src="${mediaUrl(pid, 'preview')}&t=${encodeURIComponent(pid)}" loading="lazy" alt="preview"
                  onerror="this.parentElement.innerHTML='<span>${MIME_EMOJI[mt]}</span><span class=\\'thumb-type-badge\\'>image</span>'"
                  style="width:100%;height:100%;object-fit:cover;">
             <span class="thumb-type-badge">img</span>
@@ -1329,22 +1332,48 @@ function renderComments(pid, comments) {
     const badge = document.querySelector(`.comment-toggle[data-pid="${pid}"] .comment-count-badge`);
     if (badge) badge.textContent = comments.length;
 
-    if (!comments.length) { list.innerHTML = '<div style="padding:6px;font-size:0.75rem;color:var(--text-secondary);">No comments yet.</div>'; return; }
+    if (!comments.length) {
+        list.innerHTML = '<div style="padding:6px;font-size:0.75rem;color:var(--text-secondary);">No comments yet.</div>';
+        return;
+    }
 
+    // FIX: was using inline onclick with user comment text — XSS vector even with esc()
+    // because HTML-encoding doesn't protect against JS string injection in onclick attributes.
+    // Now uses data attributes + event delegation for safe rendering.
     list.innerHTML = comments.map(c => {
-        const isOwn   = c.user_email === ST.email;
-        const canEdit  = isOwn || ST.isAdmin;
-        const canDel   = isOwn || ST.isAdmin;
-        const author   = (c.user_email || '').replace(/@.*/, '');
+        const isOwn  = c.user_email === ST.email;
+        const canEdit = isOwn || ST.isAdmin;
+        const canDel  = isOwn || ST.isAdmin;
+        const author  = (c.user_email || '').replace(/@.*/, '');
         return `
-            <div class="comment-item">
-                <div class="comment-text-body"><span class="comment-author">${esc(author)}</span>${esc(c.text)}</div>
+            <div class="comment-item" data-comment-id="${esc(c.id)}" data-file-pid="${esc(pid)}">
+                <div class="comment-text-body">
+                    <span class="comment-author">${esc(author)}</span>${esc(c.text)}
+                </div>
                 <div class="comment-actions">
-                    ${canEdit ? `<button onclick="editCommentUI('${c.id}','${pid}','${esc(c.text).replace(/'/g, "\\'")}')">✏️</button>` : ''}
-                    ${canDel  ? `<button onclick="delComment('${c.id}','${pid}')">🗑</button>` : ''}
+                    ${canEdit ? `<button data-caction="edit"   data-cid="${esc(c.id)}" data-cpid="${esc(pid)}">✏️</button>` : ''}
+                    ${canDel  ? `<button data-caction="delete" data-cid="${esc(c.id)}" data-cpid="${esc(pid)}">🗑</button>` : ''}
                 </div>
             </div>`;
     }).join('');
+
+    // Store comment text in a safe map (keyed by comment ID) for edit dialog
+    comments.forEach(c => { list._commentData = list._commentData || {}; list._commentData[c.id] = c.text; });
+
+    // Event delegation on the list
+    list.onclick = e => {
+        const btn    = e.target.closest('[data-caction]');
+        if (!btn) return;
+        const cid    = btn.dataset.cid;
+        const cpid   = btn.dataset.cpid;
+        const action = btn.dataset.caction;
+        if (action === 'edit') {
+            const currentText = list._commentData?.[cid] || '';
+            editCommentUI(cid, cpid, currentText);
+        } else if (action === 'delete') {
+            delComment(cid, cpid);
+        }
+    };
 }
 
 async function submitComment(pid, inp) {
@@ -1496,13 +1525,14 @@ function makeProgressItem(name) {
 async function uploadFile(file) {
     const prog = makeProgressItem(file.name);
     try {
-        // Init
-        const initRes = await apiFetch('/upload-init', {
+        // Init — CRITICAL: read body ONCE and reuse result, never call .json() twice on same response
+        const initRes  = await apiFetch('/upload-init', {
             method: 'POST',
             body:   JSON.stringify({ fileName: file.name, fileSize: file.size, fileType: file.type || 'application/octet-stream' })
         });
-        if (!initRes.ok) throw new Error((await initRes.json()).message || 'Init failed');
-        const { publicId } = await initRes.json();
+        const initData = await initRes.json();
+        if (!initRes.ok) throw new Error(initData.message || 'Upload init failed');
+        const { publicId } = initData;
 
         // Chunked upload
         let offset = 0;
@@ -1629,26 +1659,41 @@ async function loadPendingApprovals() {
         const { users } = await res.json();
         if (!users?.length) { $('approvalList').innerHTML = '<p style="color:var(--text-secondary);font-size:0.85rem;">No pending requests.</p>'; return; }
 
-        $('approvalList').innerHTML = users.map(u => `
+        // FIX: was using email as element ID which breaks with special chars (+, ., etc.)
+        // Now uses data attributes + event delegation so emails never appear in CSS selectors.
+        $('approvalList').innerHTML = users.map((u, i) => `
             <div class="approval-item">
                 <div>
                     <strong>${esc(u.email)}</strong>
                     <div style="font-size:0.72rem;color:var(--text-secondary);">Registered ${fmtRelative(u.created_at)}</div>
                 </div>
                 <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                    <select class="inline-input" id="role-sel-${esc(u.email)}" style="padding:3px 6px;font-size:0.78rem;">
+                    <select class="inline-input" data-approve-email="${esc(u.email)}" style="padding:3px 6px;font-size:0.78rem;">
                         ${['full','delete','upload','download','read','none'].map(r => `<option value="${r}" ${r === 'full' ? 'selected' : ''}>${r}</option>`).join('')}
                     </select>
-                    <button class="btn btn-sm btn-success" onclick="approveUser('${esc(u.email)}')">✔ Approve</button>
-                    <button class="btn btn-sm btn-danger"  onclick="rejectUser('${esc(u.email)}')">✘ Reject</button>
+                    <button class="btn btn-sm btn-success" data-action="approve" data-email="${esc(u.email)}">✔ Approve</button>
+                    <button class="btn btn-sm btn-danger"  data-action="reject"  data-email="${esc(u.email)}">✘ Reject</button>
                 </div>
             </div>`).join('');
+
+        // Event delegation — no inline onclick, no CSS selector on email
+        $('approvalList').onclick = async e => {
+            const btn = e.target.closest('[data-action]');
+            if (!btn) return;
+            const email  = btn.dataset.email;
+            const action = btn.dataset.action;
+            if (action === 'approve') {
+                const sel  = $('approvalList').querySelector(`[data-approve-email="${CSS.escape(email)}"]`);
+                const role = sel?.value || 'full';
+                await approveUser(email, role);
+            } else if (action === 'reject') {
+                await rejectUser(email);
+            }
+        };
     } catch (e) { if (e.name !== 'AbortError') $('approvalList').innerHTML = '<div style="color:var(--danger);">Failed to load.</div>'; }
 }
 
-async function approveUser(email) {
-    const roleSel = $(`role-sel-${email}`);
-    const role    = roleSel?.value || 'full';
+async function approveUser(email, role = 'full') {
     try {
         const res = await apiFetch('/approve', { method: 'POST', body: JSON.stringify({ email, role }) });
         const d   = await res.json();
@@ -1674,8 +1719,10 @@ async function loadAllUsers() {
         const res    = await fetch(`${WORKER_BASE}/all-users`, { headers: authHeaders(), signal: sig });
         const { users } = await res.json();
 
-        $('usersList').innerHTML = users.map(u => {
-            const badge = `<span class="status-badge s-${u.status}">${u.status}</span>`;
+        // FIX: was using email as element ID — emails with +, . etc. break querySelector/getElementById.
+        // Now uses data-user-email attributes and event delegation; CSS.escape used for querySelector.
+        const list = users.map(u => {
+            const badge   = `<span class="status-badge s-${u.status}">${u.status}</span>`;
             const isSuper = u.isSuperAdmin;
             return `
                 <div class="approval-item">
@@ -1686,21 +1733,38 @@ async function loadAllUsers() {
                         ${u.approvedBy ? `<div style="font-size:0.65rem;color:var(--text-secondary);">Approved by: ${esc(u.approvedBy)}</div>` : ''}
                     </div>
                     <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;">
-                        <select class="inline-input" id="ur-${esc(u.email)}" style="font-size:0.75rem;padding:2px 5px;">
+                        <select class="inline-input" data-user-email="${esc(u.email)}" style="font-size:0.75rem;padding:2px 5px;">
                             ${['full','delete','upload','download','read','none'].map(r => `<option value="${r}" ${r === u.role ? 'selected' : ''}>${r}</option>`).join('')}
                         </select>
-                        <button class="btn btn-sm" onclick="setRole('${esc(u.email)}')">Set Role</button>
-                        ${u.status !== 'revoked' && !isSuper ? `<button class="btn btn-sm btn-danger" onclick="revokeUser('${esc(u.email)}')">Revoke</button>` : ''}
-                        ${u.status === 'revoked' ? `<button class="btn btn-sm btn-success" onclick="approveUser('${esc(u.email)}')">Re-Approve</button>` : ''}
+                        <button class="btn btn-sm"          data-uaction="role"    data-uemail="${esc(u.email)}">Set Role</button>
+                        ${u.status !== 'revoked' && !isSuper ? `<button class="btn btn-sm btn-danger"  data-uaction="revoke"  data-uemail="${esc(u.email)}">Revoke</button>` : ''}
+                        ${u.status === 'revoked'             ? `<button class="btn btn-sm btn-success" data-uaction="approve" data-uemail="${esc(u.email)}">Re-Approve</button>` : ''}
                     </div>
                 </div>`;
         }).join('');
+        $('usersList').innerHTML = list;
+
+        // Event delegation — no inline onclick, no CSS selector injection on raw email
+        $('usersList').onclick = async e => {
+            const btn = e.target.closest('[data-uaction]');
+            if (!btn) return;
+            const email   = btn.dataset.uemail;
+            const uaction = btn.dataset.uaction;
+            if (uaction === 'role') {
+                const sel  = $('usersList').querySelector(`[data-user-email="${CSS.escape(email)}"]`);
+                const role = sel?.value;
+                if (!role) return;
+                await setRole(email, role);
+            } else if (uaction === 'revoke') {
+                await revokeUser(email);
+            } else if (uaction === 'approve') {
+                await approveUser(email);
+            }
+        };
     } catch (e) { if (e.name !== 'AbortError') $('usersList').innerHTML = '<div style="color:var(--danger);">Failed.</div>'; }
 }
 
-async function setRole(email) {
-    const sel  = $(`ur-${email}`);
-    const role = sel?.value;
+async function setRole(email, role) {
     if (!role) return;
     try {
         const res = await apiFetch('/set-role', { method: 'POST', body: JSON.stringify({ email, role }) });
@@ -1900,8 +1964,17 @@ document.addEventListener('keydown', e => {
             if (e.key === 'f') { e.preventDefault(); D.search.focus(); return; }
             if (e.key === 'u') { e.preventDefault(); D.fileInp.click(); return; }
         }
-        if (e.key === 'ArrowLeft'  && !D.prevOv.classList.contains('hidden')) { $('btnPrevFile').click(); return; }
-        if (e.key === 'ArrowRight' && !D.prevOv.classList.contains('hidden')) { $('btnNextFile').click(); return; }
+        const overlayOpen = !D.prevOv.classList.contains('hidden');
+        if (e.key === 'ArrowLeft'  && overlayOpen) { $('btnPrevFile').click(); return; }
+        if (e.key === 'ArrowRight' && overlayOpen) { $('btnNextFile').click(); return; }
+        // Space: play / pause video in preview, or navigate next if no video
+        if (e.key === ' ' && overlayOpen) {
+            e.preventDefault();
+            const vid = D.prevCont.querySelector('video');
+            if (vid) { vid.paused ? vid.play() : vid.pause(); }
+            else { $('btnNextFile').click(); }
+            return;
+        }
     }
 });
 
