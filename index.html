@@ -1624,7 +1624,7 @@ function showPreview(autoPlay = false) {
         </div>
         <div class="vcontrols">
           <button class="vbtn" id="vPlay" title="Play/Pause (Space)">▶</button>
-          <button class="vbtn" id="vSkipB" title="Back 10s (←)">⏮10</button>
+          <button class="vbtn" id="vSkipB" title="Back 10s (←)">(��10</button>
           <button class="vbtn" id="vSkipF" title="Forward 10s (→)">10⏭</button>
           <button class="vbtn" id="vMute" title="Mute (M)">🔊</button>
           <div class="vvol-wrap">
@@ -1689,13 +1689,21 @@ function bindVideoPlayer(video, f) {
   let gainNode = null, audioCtx = null;
   function ensureAudioCtx() {
     if (audioCtx) return;
+    // Save playback state — createMediaElementSource re-routes the media pipeline
+    // and can blank the video on Chrome. We save time + playing state and restore after.
+    const wasPlaying = !video.paused;
+    const savedTime = video.currentTime;
     try {
       audioCtx = new (window.AudioContext||window.webkitAudioContext)();
       const src = audioCtx.createMediaElementSource(video);
       gainNode = audioCtx.createGain();
-      gainNode.gain.value = 1;
-      src.connect(gainNode); gainNode.connect(audioCtx.destination);
-    } catch(e) { gainNode = null; }
+      gainNode.gain.value = parseFloat(boost.value) || 1;
+      src.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      // Restore position and resume if was playing — prevents blank video flash
+      video.currentTime = savedTime;
+      if (wasPlaying) video.play().catch(()=>{});
+    } catch(e) { gainNode = null; audioCtx = null; }
   }
   function setGain(v) { if (gainNode) gainNode.gain.value = v; }
 
