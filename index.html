@@ -437,7 +437,7 @@ body::before{content:'';position:fixed;inset:0;z-index:-1;
 <div class="admin-ribbon hidden" id="adminRibbon">
   <span class="lbl">Admin</span>
   <span id="driveAuthBadge" style="font-size:.72rem;padding:2px 8px;border-radius:6px;font-weight:700;"></span>
-  <button class="btn btn-sm hidden" id="btnDriveAuth">🔑 Authorize Drive</button>
+  <button class="btn btn-sm" id="btnDriveAuth" style="display:none;">🔑 Authorize Drive</button>
   <button class="btn btn-sm" id="btnSync">🔄 Sync</button>
   <button class="btn btn-sm" id="btnPending">⏳ Pending <span id="pendingCount">0</span></button>
   <button class="btn btn-sm" id="btnUsers">👥 Users</button>
@@ -458,12 +458,12 @@ body::before{content:'';position:fixed;inset:0;z-index:-1;
 </div>
 
 <!-- DRIVE WARN BANNER -->
-<div class="drive-warn-banner hidden" id="driveWarnBanner">
+<div class="drive-warn-banner" id="driveWarnBanner" style="display:none;">
   ⚠️ Google Drive not authorized — uploads and file serving will fail until an admin clicks <strong>Authorize Drive</strong> above.
 </div>
 
 <!-- MIGRATE NOTIFICATION -->
-<div id="msgNotify" style="display:none;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);border-radius:10px;padding:10px 16px;margin:0 20px 0;font-size:.82rem;color:#fbbf24;display:flex;align-items:center;gap:10px;">
+<div id="msgNotify" style="display:none;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);border-radius:10px;padding:10px 16px;margin:0 20px 0;font-size:.82rem;color:#fbbf24;align-items:center;gap:10px;">
   ⚠️ Database may need migration.
   <button class="btn btn-sm" id="btnRunMigrate">Run Migration</button>
 </div>
@@ -561,7 +561,7 @@ body::before{content:'';position:fixed;inset:0;z-index:-1;
   <div class="prev-toolbar">
     <button class="btn btn-ghost btn-sm" id="btnPrevClose">✕</button>
     <span class="prev-fname" id="prevFname"></span>
-    <button class="btn btn-ghost btn-sm hidden" id="btnPrevSub">📝 Sub</button>
+    <button class="btn btn-ghost btn-sm" id="btnPrevSub" style="display:none;">📝 Sub</button>
     <input type="file" id="subFileInput" accept=".vtt,.srt" style="display:none;">
     <button class="btn btn-ghost btn-sm" id="btnPrevDL">⬇ Download</button>
     <button class="btn btn-ghost btn-sm" id="btnPrevFullscreen">⛶</button>
@@ -762,7 +762,7 @@ function toast(msg, type = 'info', dur = 4000) {
   setTimeout(() => el.remove(), dur);
 }
 
-// ═══.��═══════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 // MODAL
 // ═══════════════════════════════════════════════════════
 function openModal({ title, desc, body, actions }) {
@@ -959,8 +959,7 @@ $('btnExitViewAs').onclick = () => {
 async function silentMigrate() {
   try {
     const res = await api('/migrate', { method: 'POST' });
-    const d = await res.json();
-    if (res.ok && d.failed === 0) $('msgNotify')?.classList.add('hidden');
+    if (res.ok) $('msgNotify').style.display = 'none';
   } catch {}
 }
 
@@ -1259,6 +1258,7 @@ async function fetchFiles(force = false) {
       return;
     }
     const d = await res.json();
+    $('msgNotify').style.display = 'none';
     ST.filesEtag = res.headers.get('ETag') || d.etag || null;
     ST.filesMeta = d.files || [];
     cardData.clear();
@@ -1389,16 +1389,23 @@ $('fileGrid').addEventListener('click', e => {
     return;
   }
 
+  // ── Tick: has data-pid but NO data-action — MUST be before action guard ──
+  if (e.target.classList.contains('tick-btn') || e.target.closest('.tick-btn')) {
+    toggleTick(pid, cardData.get(pid)); return;
+  }
+  // ── Comment toggle: same — MUST be before action guard ──
+  if (e.target.closest('.comment-toggle')) { toggleComments(pid); return; }
+
   const f = cardData.get(pid);
   if (!action) return;
 
   if (action === 'play' || action === 'preview') { openPreview(pid, action === 'play'); return; }
   if (action === 'download') { window.open(mediaUrl(pid, 'download'), '_blank'); return; }
   if (action === 'share') { shareFile(pid); return; }
-  if (action === 'rename') { renameFile(pid, e.target.dataset.name || (f?.name||'')); return; }
-  if (action === 'delete') { deleteFile(pid, e.target.dataset.name || (f?.name||'')); return; }
-  if (action === 'visibility') { setFileVisibility(pid, f?.visibility||'all_approved'); return; }
-  if (action === 'access') { setFileAccess(pid, e.target.dataset.name||(f?.name||'')); return; }
+  if (action === 'rename') { renameFile(pid, e.target.closest('[data-name]')?.dataset.name || f?.name || ''); return; }
+  if (action === 'delete') { deleteFile(pid, e.target.closest('[data-name]')?.dataset.name || f?.name || ''); return; }
+  if (action === 'visibility') { setFileVisibility(pid, f?.visibility || 'all_approved'); return; }
+  if (action === 'access') { setFileAccess(pid, e.target.closest('[data-name]')?.dataset.name || f?.name || ''); return; }
   if (action === 'copy-link') {
     const link = mediaUrl(pid, 'preview');
     navigator.clipboard.writeText(link).then(()=>toast('Link copied!','success')).catch(()=>toast(link,'info',8000));
@@ -1409,15 +1416,6 @@ $('fileGrid').addEventListener('click', e => {
     if (inp) submitComment(pid, inp);
     return;
   }
-
-  // Tick
-  if (e.target.classList.contains('tick-btn') || e.target.closest('.tick-btn')) {
-    const f2 = cardData.get(pid); toggleTick(pid, f2);
-    return;
-  }
-
-  // Comment toggle
-  if (e.target.closest('.comment-toggle')) { toggleComments(pid); return; }
 });
 
 $('fileGrid').addEventListener('keydown', e => {
@@ -2104,12 +2102,14 @@ async function loadMessengerTab(tab) {
 function openDmChat(email) {
   ST.currentChat = { type:'dm', id:email, name:email.split('@')[0] };
   $('memberPanel').classList.add('hidden');
+  document.querySelector('.messenger')?.classList.add('chat-open');
   renderChatArea();
   loadDmMessages(email);
 }
 
 function openGroupChat(groupId, name) {
   ST.currentChat = { type:'group', id:groupId, name };
+  document.querySelector('.messenger')?.classList.add('chat-open');
   renderChatArea();
   loadGroupMessages(groupId);
   loadGroupMembers(groupId);
@@ -2118,6 +2118,7 @@ function openGroupChat(groupId, name) {
 function openRoomChat(room) {
   ST.currentChat = { type:'room', id:room, name:'# '+room };
   $('memberPanel').classList.add('hidden');
+  document.querySelector('.messenger')?.classList.add('chat-open');
   renderChatArea();
   loadRoomMessages(room);
 }
@@ -2126,8 +2127,8 @@ function openRoomChat(room) {
 function goBackToList() {
   ST.currentChat = null;
   $('memberPanel').classList.add('hidden');
+  document.querySelector('.messenger')?.classList.remove('chat-open');
   $('msgMain').innerHTML = '<div class="msg-empty"><div style="font-size:3rem;">💬</div><div>Select a conversation to start chatting</div></div>';
-  // Deselect in list
   $('msgList').querySelectorAll('.msg-list-item').forEach(i=>i.classList.remove('active'));
 }
 
@@ -2216,10 +2217,8 @@ async function loadGroupMembers(groupId) {
       else toast((await r.json()).message, 'error');
     };
 
-    // Show add member form
-    if (ST.isAdmin) {
-      addForm.style.display = 'block';
-    }
+    // Show add member form for admins and all group members
+    addForm.style.display = 'block';
   } catch (e) {
     list.innerHTML = `<div style="color:var(--r);padding:10px;font-size:.78rem;">${esc(e.message)}</div>`;
   }
@@ -2430,7 +2429,7 @@ if (savedTheme) { document.documentElement.dataset.theme = savedTheme; $('btnThe
     if (!d.email) { showLoginGate(); return; }
     applyUserInfo(d);
     startHeartbeat();
-    silentMigrate();
+    await silentMigrate();
     // Ping online status
     api('/user/ping', { method: 'POST' }).catch(()=>{});
     setInterval(() => api('/user/ping', { method: 'POST' }).catch(()=>{}), 60000);
