@@ -822,8 +822,20 @@ function applyUserInfo(d) {
   updateMsgBadge();
 }
 
-function showLoginGate() { $('loginGate').style.display = 'flex'; $('uploadSection').style.display = 'none'; }
-function hideLoginGate() { $('loginGate').style.display = 'none'; $('uploadSection').style.display = ''; }
+function showLoginGate() {
+  // uploadSection is the parent container — it must stay visible; only hide sub-sections
+  $('uploadSection').style.display = '';
+  $('loginGate').style.display = 'flex';
+  $('visPickerSection').style.display = 'none';
+  $('btnLogout').classList.add('hidden');
+  $('btnLogin').classList.remove('hidden');
+}
+function hideLoginGate() {
+  $('loginGate').style.display = 'none';
+  $('uploadSection').style.display = '';
+  $('btnLogin').classList.add('hidden');
+  $('btnLogout').classList.remove('hidden');
+}
 
 $('loginBtn').onclick = () => login(false);
 $('btnLogin').onclick = () => login(false);
@@ -1251,10 +1263,9 @@ async function fetchFiles(force = false) {
     const res = await fetch(WORKER + '/files-with-meta', { headers: { ...authH(), ...headers } });
     if (res.status === 304) return;
     if (!res.ok) {
-      const d = await res.json().catch(()=>({}));
-      if (d.message?.includes('migrate') || d.message?.includes('DB error')) {
-        $('msgNotify').style.display = 'flex';
-      }
+      // Never auto-show the migration banner — the worker auto-migrates on cold start.
+      // On failure, silently retry once after 3 s so transient errors self-heal.
+      if (force) setTimeout(() => fetchFiles(true), 3000);
       return;
     }
     const d = await res.json();
