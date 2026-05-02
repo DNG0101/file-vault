@@ -162,7 +162,7 @@ select.inline-input{cursor:pointer;}
 .cmd-empty{padding:18px;text-align:center;color:var(--muted);}
 
 /* ── CHAT PANEL ── */
-.chat-panel{position:fixed;right:0;bottom:0;width:340px;height:480px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius) 0 0 0;box-shadow:var(--shadow);display:flex;flex-direction:column;z-index:500;transition:transform .2s;}
+.chat-panel{position:fixed;right:0;bottom:0;width:360px;height:520px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius) 0 0 0;box-shadow:var(--shadow);display:flex;flex-direction:column;z-index:500;transition:transform .2s;}
 .chat-panel.hidden{transform:translateY(100%);}
 .chat-header{padding:10px 12px;background:var(--accent);color:#fff;border-radius:var(--radius) 0 0 0;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;}
 .chat-header h4{font-size:.9rem;font-weight:700;}
@@ -170,24 +170,34 @@ select.inline-input{cursor:pointer;}
 .chat-tab{flex:1;padding:6px 4px;text-align:center;font-size:.75rem;font-weight:600;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;background:none;border-top:none;border-left:none;border-right:none;}
 .chat-tab.active{color:var(--accent);border-bottom-color:var(--accent);}
 .chat-messages{flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:7px;}
-.chat-msg{max-width:80%;padding:6px 10px;border-radius:12px;font-size:.8rem;line-height:1.4;word-break:break-word;}
-.chat-msg.me{align-self:flex-end;background:var(--chat-me);}
-.chat-msg.other{align-self:flex-start;background:var(--chat-other);}
-.chat-msg-meta{font-size:.6rem;color:var(--muted);margin-top:2px;display:flex;justify-content:space-between;align-items:center;gap:4px;}
-.chat-msg-author{font-weight:700;color:var(--accent);font-size:.65rem;margin-bottom:1px;}
-.chat-input-row{display:flex;gap:6px;padding:8px 10px;border-top:1px solid var(--border);flex-shrink:0;}
-.chat-input{flex:1;padding:6px 9px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);font-size:.82rem;}
+.chat-msg{max-width:82%;padding:7px 11px;border-radius:14px;font-size:.82rem;line-height:1.45;word-break:break-word;position:relative;}
+.chat-msg.me{align-self:flex-end;background:var(--chat-me);border-bottom-right-radius:4px;}
+.chat-msg.other{align-self:flex-start;background:var(--chat-other);border-bottom-left-radius:4px;}
+.chat-msg-meta{font-size:.6rem;color:var(--muted);margin-top:3px;display:flex;justify-content:flex-end;align-items:center;gap:4px;}
+.chat-msg.other .chat-msg-meta{justify-content:space-between;}
+.chat-msg-author{font-weight:700;color:var(--accent);font-size:.68rem;margin-bottom:2px;}
+.chat-input-row{display:flex;gap:6px;padding:8px 10px;border-top:1px solid var(--border);flex-shrink:0;align-items:center;}
+.chat-input{flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:20px;background:var(--card);color:var(--text);font-size:.84rem;}
 .chat-input:focus{outline:none;border-color:var(--accent);}
-.chat-send-btn{padding:5px 10px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:.82rem;}
+.chat-send-btn{padding:7px 13px;background:var(--accent);color:#fff;border:none;border-radius:20px;cursor:pointer;font-size:.84rem;flex-shrink:0;}
 .chat-send-btn:hover{opacity:.85;}
 .chat-room-sel{padding:5px 8px;border:1px solid var(--border);border-radius:7px;background:var(--card);color:var(--text);font-size:.76rem;flex-shrink:0;}
 .chat-online-dot{display:inline-block;width:7px;height:7px;background:var(--success);border-radius:50%;margin-right:3px;}
-.dm-picker{padding:8px 10px;border-bottom:1px solid var(--border);flex-shrink:0;}
-.dm-picker select{width:100%;padding:4px 7px;border:1px solid var(--border);border-radius:7px;background:var(--card);color:var(--text);font-size:.8rem;}
-.chat-fab{position:fixed;bottom:20px;right:20px;z-index:499;background:var(--accent);color:#fff;border:none;border-radius:50%;width:50px;height:50px;font-size:1.3rem;cursor:pointer;box-shadow:0 4px 12px rgba(59,130,246,.4);display:flex;align-items:center;justify-content:center;}
+/* DM user list — replaces plain select for messenger feel */
+.dm-user-list{flex-shrink:0;border-bottom:1px solid var(--border);max-height:110px;overflow-y:auto;}
+.dm-user-item{padding:7px 12px;cursor:pointer;font-size:.8rem;display:flex;align-items:center;gap:7px;border-bottom:1px solid var(--border);}
+.dm-user-item:last-child{border-bottom:none;}
+.dm-user-item:hover{background:rgba(59,130,246,.07);}
+.dm-user-item.active{background:rgba(59,130,246,.12);font-weight:700;color:var(--accent);}
+.dm-user-avatar{width:26px;height:26px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;flex-shrink:0;}
+.dm-user-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.chat-fab{position:fixed;bottom:20px;right:20px;z-index:499;background:var(--accent);color:#fff;border:none;border-radius:50%;width:52px;height:52px;font-size:1.3rem;cursor:pointer;box-shadow:0 4px 12px rgba(59,130,246,.4);display:flex;align-items:center;justify-content:center;}
 .chat-fab:hover{opacity:.88;}
 .chat-unread-badge{position:absolute;top:-4px;right:-4px;background:var(--danger);color:#fff;border-radius:50%;width:18px;height:18px;font-size:.62rem;font-weight:700;display:flex;align-items:center;justify-content:center;}
-.chat-empty{text-align:center;color:var(--muted);font-size:.8rem;padding:20px;}
+.chat-empty{text-align:center;color:var(--muted);font-size:.8rem;padding:24px 12px;}
+.chat-notify-bar{background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);border-radius:8px;margin:6px 10px;padding:7px 10px;font-size:.74rem;color:#92400e;display:flex;gap:6px;align-items:flex-start;}
+[data-theme="dark"] .chat-notify-bar{background:rgba(245,158,11,.08);color:#fde68a;}
+#chatGroupControls{padding:6px 10px;border-bottom:1px solid var(--border);flex-shrink:0;display:flex;gap:6px;align-items:center;}
 
 /* URL bar */
 .url-bar{display:flex;gap:7px;margin-bottom:12px;}
@@ -235,6 +245,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
   <button class="btn btn-sm" id="btnLogs">📋 Logs</button>
   <button class="btn btn-sm" id="btnAnalytics">📊 Analytics</button>
   <button class="btn btn-sm" id="btnShareManager">🔗 Shares</button>
+  <button class="btn btn-sm hidden" id="btnMigrateDB" style="background:rgba(245,158,11,.7);">🔧 Migrate DB</button>
   <button class="btn btn-sm btn-danger" id="btnAdminLogout">🔒 Logout</button>
 </div>
 
@@ -385,22 +396,26 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
     <button class="chat-tab" data-tab="dm">Direct</button>
   </div>
   <!-- Group chat room selector -->
-  <div id="chatGroupControls" style="padding:6px 10px;border-bottom:1px solid var(--border);flex-shrink:0;display:flex;gap:6px;align-items:center;">
+  <div id="chatGroupControls" style="display:flex;gap:6px;align-items:center;">
     <select class="chat-room-sel" id="chatRoomSel">
-      <option value="general">general</option>
-      <option value="announcements">announcements</option>
-      <option value="random">random</option>
+      <option value="general">💬 general</option>
+      <option value="announcements">📢 announcements</option>
+      <option value="random">🎲 random</option>
     </select>
     <span style="font-size:.72rem;color:var(--muted);flex:1;" id="chatRoomLastSeen"></span>
   </div>
-  <!-- DM controls -->
-  <div class="dm-picker hidden" id="chatDMControls">
-    <select id="dmRecipientSel">
-      <option value="">— Select user —</option>
-    </select>
+  <!-- DM user list (messenger-style, replaces plain select) -->
+  <div class="dm-user-list hidden" id="chatDMControls"></div>
+  <!-- Chat notification bar (shown when migration needed) -->
+  <div class="chat-notify-bar hidden" id="chatNotifyBar">
+    ⚠️ <span id="chatNotifyMsg">Chat setup required.</span>
   </div>
   <div class="chat-messages" id="chatMessages">
     <div class="chat-empty">Loading messages…</div>
+  </div>
+  <!-- DM: show who you're talking to -->
+  <div id="chatDMHeader" class="hidden" style="padding:4px 10px;font-size:.74rem;color:var(--muted);border-top:1px solid var(--border);flex-shrink:0;background:var(--bg);">
+    Chatting with <strong id="chatDMWithLabel">—</strong>
   </div>
   <div class="chat-input-row">
     <input type="text" class="chat-input" id="chatInput" placeholder="Type a message… (Enter)" maxlength="2000" autocomplete="off">
@@ -430,6 +445,7 @@ const esc=s=>{const d=document.createElement('div');d.textContent=String(s??'');
 function fmtSize(b){if(!b)return'0 B';const u=['B','KB','MB','GB'];let i=0,s=+b;while(s>=1024&&i<3){s/=1024;i++;}return s.toFixed(i?1:0)+' '+u[i];}
 function fmtDate(ts){if(!ts)return'–';return new Date(ts).toLocaleString(undefined,{dateStyle:'medium',timeStyle:'short'});}
 function fmtRel(ts){if(!ts)return'';const d=Date.now()-ts,m=Math.floor(d/60000);if(m<1)return'just now';if(m<60)return m+'m ago';const h=Math.floor(m/60);if(h<24)return h+'h ago';return Math.floor(h/24)+'d ago';}
+function fmtTime(ts){if(!ts)return'';return new Date(ts).toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});}
 function mediaType(m){
   if(!m)return'other';
   if(m.startsWith('video'))return'video';if(m.startsWith('audio'))return'audio';
@@ -635,68 +651,59 @@ async function fetchUserInfo(){
 }
 
 // ── HEARTBEAT ────────────────────────────────────────────────────
-// Worker v33.0 no longer rotates tokens on heartbeat.
-// This function handles both v32 (sends newToken) and v33 (no newToken) gracefully.
+function startHeartbeat(){
+  stopHeartbeat();
+  sendHeartbeat();
+  ST.heartbeatTimer=setInterval(sendHeartbeat,45000);
+}
+function stopHeartbeat(){if(ST.heartbeatTimer){clearInterval(ST.heartbeatTimer);ST.heartbeatTimer=null;}}
+
 async function sendHeartbeat(){
-  if(!ST.token||!ST.isVisible)return;
+  if(!ST.token)return;
   try{
     const sig=SLOTS.heartbeat.signal;
     const res=await fetch(`${WORKER_BASE}/heartbeat`,{headers:authHeaders(),signal:sig});
     if(!res.ok)return;
     const data=await res.json();
-    if(!data.alive){logout();return;}
-    // Handle newToken defensively (v32 compatibility — update token if worker sends one)
-    if(data.newToken && typeof data.newToken==='string' && data.newToken!==ST.token){
-      ST.token=data.newToken;
-      localStorage.setItem('vtoken',data.newToken);
-    }
-    const wasApproved=ST.approved;
-    ST.approved=data.approved;ST.role=data.role;
+    if(!data.alive){toast('Session expired — please login again.','error');logout();return;}
+    ST.isAdmin=!!data.isAdmin;ST.isSuperAdmin=!!data.isSuperAdmin;ST.approved=!!data.approved;ST.role=data.role;
     if(data.pendingCount>0)updatePendingBadge(data.pendingCount);
-    if(ST.filesMeta){
-      const serverTs=data.lastChange?.files||0;
-      const clientTs=parseInt((ST.filesEtag||'"0"').replace(/"/g,''),10);
-      if(serverTs>clientTs)fetchFiles(false);
+    if(data.lastChange?.files&&ST.filesEtag){
+      const serverTs=`"${data.lastChange.files}"`;
+      if(serverTs!==ST.filesEtag){ST.filesEtag=null;fetchFiles(false);}
     }
-    if(!wasApproved&&ST.approved){clearPendingCheck();showMain();fetchFiles();toast('Your access has been approved!','success',5000);}
-  }catch(e){if(e.name==='AbortError')return;}
+  }catch(e){if(e.name!=='AbortError')console.warn('Heartbeat failed:',e.message);}
 }
-function startHeartbeat(){ stopHeartbeat(); sendHeartbeat(); ST.heartbeatTimer=setInterval(sendHeartbeat,45000); }
-function stopHeartbeat(){ if(ST.heartbeatTimer){clearInterval(ST.heartbeatTimer);ST.heartbeatTimer=null;}SLOTS.heartbeat.abort(); }
 
-// ── PENDING POLLING ───────────────────────────────────────────────
+// ── PENDING CHECK ─────────────────────────────────────────────────
 function startPendingCheck(){
-  clearPendingCheck();ST.pendingBackoff=30000;
+  clearPendingCheck();
   const check=async()=>{
-    if(!ST.token)return;
-    try{
-      const sig=SLOTS.pending.signal;
-      const res=await fetch(`${WORKER_BASE}/user-info`,{headers:authHeaders(),signal:sig});
-      if(!res.ok)return;const info=await res.json();
-      if(info.approved||info.isAdmin){clearPendingCheck();ST.approved=true;ST.role=info.role;ST.isAdmin=info.isAdmin;showMain();fetchFiles();startHeartbeat();toast('Your access has been approved!','success',5000);return;}
-    }catch(e){if(e.name==='AbortError')return;}
-    ST.pendingBackoff=Math.min(ST.pendingBackoff*2,300000);
-    ST.pendingTimer=setTimeout(check,ST.pendingBackoff);
+    const ok=await fetchUserInfo();
+    if(ok&&(ST.approved||ST.isAdmin)){clearPendingCheck();showMain();fetchFiles();startHeartbeat();}
+    else{ST.pendingBackoff=Math.min(ST.pendingBackoff*1.5,120000);ST.pendingTimer=setTimeout(check,ST.pendingBackoff);}
   };
   ST.pendingTimer=setTimeout(check,ST.pendingBackoff);
 }
-function clearPendingCheck(){ if(ST.pendingTimer){clearTimeout(ST.pendingTimer);ST.pendingTimer=null;} }
+function clearPendingCheck(){if(ST.pendingTimer){clearTimeout(ST.pendingTimer);ST.pendingTimer=null;}ST.pendingBackoff=30000;}
 
-// ── SHOW STATES ───────────────────────────────────────────────────
-function showLogin(){
-  stopHeartbeat();clearPendingCheck();
-  D.adminBar.classList.add('hidden');D.userUI.innerHTML='';
-  D.dropzone.classList.add('hidden');D.urlBar.classList.add('hidden');$('kbdHints').classList.add('hidden');
-  D.chatPanel.classList.add('hidden');D.chatFab.classList.add('hidden');
+// ── LOGIN PAGE ────────────────────────────────────────────────────
+async function showLogin(){
+  D.adminBar.classList.add('hidden');D.dropzone.classList.add('hidden');D.urlBar.classList.add('hidden');
+  $('kbdHints').classList.add('hidden');D.chatPanel.classList.add('hidden');D.chatFab.classList.add('hidden');
   D.grid.innerHTML=`
-    <div style="grid-column:1/-1;text-align:center;padding:70px 16px;">
-      <div style="font-size:3rem;margin-bottom:14px;">📁</div>
-      <h2 style="margin-bottom:8px;">Welcome to File Vault</h2>
-      <p style="color:var(--muted);margin-bottom:22px;">Sign in with your Google account to access files.</p>
-      <button class="btn btn-primary" id="btnLogin">🔑 Sign in with Google</button>
+    <div style="grid-column:1/-1;text-align:center;padding:80px 16px;">
+      <div style="font-size:3.5rem;margin-bottom:16px;">📁</div>
+      <h2 style="margin-bottom:8px;font-size:1.5rem;">File Vault</h2>
+      <p style="color:var(--muted);margin-bottom:24px;">Sign in with your Google account to access files.</p>
+      <button class="btn btn-primary" id="btnLogin" style="font-size:1rem;padding:10px 28px;">🔑 Sign in with Google</button>
     </div>`;
+  D.userUI.innerHTML='';
   $('btnLogin').onclick=async()=>{
-    try{const r=await fetch(`${WORKER_BASE}/auth-url`);if(r.ok)location.href=(await r.json()).authUrl;else toast('Worker unreachable','error');}
+    try{
+      const res=await fetch(`${WORKER_BASE}/auth-url`);
+      const {authUrl}=await res.json();window.location.href=authUrl;
+    }
     catch{toast('Network error','error');}
   };
 }
@@ -731,6 +738,8 @@ function showMain(){
     D.userUI.innerHTML=`<div class="user-chip">${ST.isSuperAdmin?'👑':'🛡️'} ${esc(ST.email)} ${badge}<button class="btn btn-sm btn-outline" id="btnAdminLogoutInner" style="margin-left:5px;">🔒</button></div>`;
     $('btnAdminLogoutInner').onclick=logout;
     D.dropzone.classList.remove('hidden');D.urlBar.classList.remove('hidden');
+    // Show migrate button for all admins — they need it to enable chat
+    $('btnMigrateDB').classList.remove('hidden');
   } else {
     D.adminBar.classList.add('hidden');
     D.userUI.innerHTML=`<div class="user-chip">👤 ${esc(ST.email)}<span class="role-badge">${esc(ST.role||'user')}</span><button class="btn btn-sm btn-outline" id="btnUserLogout" style="margin-left:4px;">🔒</button></div>`;
@@ -773,6 +782,7 @@ function bindAdminBar(){
   $('btnAnalytics').onclick=()=>{openPanel('analytics');loadAnalytics();};
   $('btnShareManager').onclick=()=>{openPanel('shares');loadShares();};
   $('btnAdminLogout').onclick=logout;
+  $('btnMigrateDB').onclick=migrateDB;
   $('refreshPendingBtn').onclick=loadPendingUsers;
   $('refreshLogsBtn').onclick=loadLogs;
   $('refreshAnalyticsBtn').onclick=loadAnalytics;
@@ -781,6 +791,22 @@ function bindAdminBar(){
   $('btnApplyLogFilter').onclick=loadLogs;
   $('addUserBtn').onclick=addUser;
   $('btnClearLogs').onclick=clearLogs;
+}
+
+async function migrateDB(){
+  const btn=$('btnMigrateDB');if(btn){btn.disabled=true;btn.textContent='⏳ Migrating…';}
+  try{
+    const res=await apiFetch('/migrate',{method:'POST'});
+    const data=await res.json();
+    if(!res.ok)throw new Error(data.message||'Migration failed');
+    const msg=data.failed===0
+      ? `✅ Database ready! ${data.total} migrations applied.`
+      : `⚠️ ${data.total-data.failed}/${data.total} migrations OK, ${data.failed} failed.`;
+    toast(msg,data.failed===0?'success':'warn',7000);
+    // Hide notify bar in chat if it was shown
+    $('chatNotifyBar').classList.add('hidden');
+  }catch(e){toast('Migration failed: '+e.message,'error',6000);}
+  finally{if(btn){btn.disabled=false;btn.textContent='🔧 Migrate DB';}}
 }
 
 async function syncDrive(){
@@ -813,7 +839,6 @@ async function loadPendingUsers(){
           <button class="btn btn-sm btn-danger btn-reject" data-email="${esc(u.email)}">✘ Reject</button>
         </div>
       </div>`).join('');
-    // Use a single delegated listener on the container (no {once:true} needed)
     const list=$('approvalList');
     list.onclick=async e=>{
       const btn=e.target.closest('[data-email]');if(!btn)return;
@@ -834,31 +859,67 @@ async function loadPendingUsers(){
 }
 
 // ── ALL USERS ─────────────────────────────────────────────────────
+// FIX: super admin now sees action buttons for regular admins.
+// FIX: event listener uses onclick (not addEventListener) to avoid accumulation.
 async function loadAllUsers(){
   $('usersList').innerHTML='<div class="loading"><span class="spinner"></span> Loading…</div>';
   try{
-    // FIX: SLOTS.users now exists — was undefined before, causing TypeError crash
     const res=await apiFetch('/all-users',{},SLOTS.users.signal);
     const {users=[]}=await res.json();
     if(!users.length){$('usersList').innerHTML='<div class="empty-state">No users.</div>';return;}
-    $('usersList').innerHTML=users.map(u=>`
-      <div class="approval-item">
-        <div><strong>${esc(u.email)}</strong>${u.isAdmin?`<span class="role-badge" style="background:#7c3aed;margin-left:4px;">ADMIN</span>`:''}<span class="status-badge s-${u.status}" style="margin-left:4px;">${esc(u.status)}</span><div style="font-size:.7rem;color:var(--muted);">Role: ${esc(u.role||'none')} · Logins: ${u.loginCount}</div></div>
-        <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;">
-          ${!u.isAdmin?`<select class="inline-input role-pick-existing" data-email="${esc(u.email)}" style="font-size:.74rem;">${['full','delete','upload','download','read','none'].map(r=>`<option value="${r}"${u.role===r?' selected':''}>${r}</option>`).join('')}</select>
-          <button class="btn btn-sm btn-primary btn-set-role" data-email="${esc(u.email)}">Set Role</button>
-          ${u.status!=='revoked'?`<button class="btn btn-sm btn-danger btn-revoke-user" data-email="${esc(u.email)}">Revoke</button>`:`<button class="btn btn-sm btn-success btn-reapprove-user" data-email="${esc(u.email)}">Re-approve</button>`}`:'<span style="font-size:.7rem;color:var(--muted);">Protected</span>'}
+
+    $('usersList').innerHTML=users.map(u=>{
+      // Can we manage this user?
+      // - Can always manage non-admins
+      // - Super admin can manage regular admins (but not themselves and not other super admins)
+      const isMe = u.email === ST.email;
+      const canManage = !u.isAdmin || (ST.isSuperAdmin && !isMe && !u.isSuperAdmin);
+      const actions = canManage ? `
+        <select class="inline-input role-pick-existing" data-email="${esc(u.email)}" style="font-size:.74rem;">
+          ${['full','delete','upload','download','read','none'].map(r=>`<option value="${r}"${u.role===r?' selected':''}>${r}</option>`).join('')}
+        </select>
+        <button class="btn btn-sm btn-primary btn-set-role" data-email="${esc(u.email)}">Set Role</button>
+        ${u.status!=='revoked'
+          ? `<button class="btn btn-sm btn-danger btn-revoke-user" data-email="${esc(u.email)}">Revoke</button>`
+          : `<button class="btn btn-sm btn-success btn-reapprove-user" data-email="${esc(u.email)}">Re-approve</button>`}
+      ` : `<span style="font-size:.7rem;color:var(--muted);">${isMe?'(you)':'Protected'}</span>`;
+
+      return `<div class="approval-item">
+        <div>
+          <strong>${esc(u.email)}</strong>
+          ${u.isSuperAdmin?`<span class="role-badge" style="background:#be185d;margin-left:4px;">SUPER</span>`
+            :u.isAdmin?`<span class="role-badge" style="background:#7c3aed;margin-left:4px;">ADMIN</span>`:''}
+          <span class="status-badge s-${u.status}" style="margin-left:4px;">${esc(u.status)}</span>
+          <div style="font-size:.7rem;color:var(--muted);">Role: ${esc(u.role||'none')} · Logins: ${u.loginCount}</div>
         </div>
-      </div>`).join('');
-    $('usersList').addEventListener('click', async e=>{
+        <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;">${actions}</div>
+      </div>`;
+    }).join('');
+
+    // Single delegated handler (assigned via onclick, not addEventListener, so no accumulation)
+    $('usersList').onclick=async e=>{
       const btn=e.target.closest('button[data-email]');if(!btn)return;
       const email=btn.dataset.email;const row=btn.closest('.approval-item');
-      if(btn.classList.contains('btn-set-role')){const role=row?.querySelector('.role-pick-existing')?.value;if(!role)return;try{const r=await apiFetch('/set-role',{method:'POST',body:JSON.stringify({email,role})});if(!r.ok)throw new Error((await r.json()).message);toast(`Role set to ${role}`,`success`);}catch(err){toast('Failed: '+err.message,'error');}}
-      if(btn.classList.contains('btn-revoke-user')){if(!confirm(`Revoke ${email}?`))return;try{await apiFetch('/revoke',{method:'POST',body:JSON.stringify({email})});toast(`${email} revoked.`,'warn');loadAllUsers();}catch(err){toast('Failed: '+err.message,'error');}}
-      if(btn.classList.contains('btn-reapprove-user')){const role=row?.querySelector('.role-pick-existing')?.value||'read';try{await apiFetch('/approve',{method:'POST',body:JSON.stringify({email,role})});toast(`${email} re-approved.`,'success');loadAllUsers();}catch(err){toast('Failed: '+err.message,'error');}}
-    });
+      if(btn.classList.contains('btn-set-role')){
+        const role=row?.querySelector('.role-pick-existing')?.value;if(!role)return;
+        try{const r=await apiFetch('/set-role',{method:'POST',body:JSON.stringify({email,role})});if(!r.ok)throw new Error((await r.json()).message);toast(`Role set to ${role}`,'success');}
+        catch(err){toast('Failed: '+err.message,'error');}
+      }
+      if(btn.classList.contains('btn-revoke-user')){
+        if(!confirm(`Revoke access for ${email}? They will be logged out immediately.`))return;
+        btn.disabled=true;btn.textContent='…';
+        try{const r=await apiFetch('/revoke',{method:'POST',body:JSON.stringify({email})});if(!r.ok)throw new Error((await r.json()).message);toast(`${email} revoked.`,'warn');loadAllUsers();}
+        catch(err){toast('Failed: '+err.message,'error');btn.disabled=false;btn.textContent='Revoke';}
+      }
+      if(btn.classList.contains('btn-reapprove-user')){
+        const role=row?.querySelector('.role-pick-existing')?.value||'read';
+        try{const r=await apiFetch('/approve',{method:'POST',body:JSON.stringify({email,role})});if(!r.ok)throw new Error((await r.json()).message);toast(`${email} re-approved.`,'success');loadAllUsers();}
+        catch(err){toast('Failed: '+err.message,'error');}
+      }
+    };
   }catch(e){if(e.name!=='AbortError')$('usersList').innerHTML=`<div class="empty-state" style="color:var(--danger);">❌ ${esc(e.message)}</div>`;}
 }
+
 async function addUser(){
   const email=($('newUserEmail').value||'').trim();const role=$('newUserRole').value;
   if(!email){toast('Enter an email','warn');$('newUserEmail').focus();return;}
@@ -872,7 +933,6 @@ async function loadLogs(){
   try{
     const action=($('logFilterAction').value||'').trim();const actor=($('logFilterActor').value||'').trim();
     const p=new URLSearchParams({limit:'500'});if(action)p.set('action',action);if(actor)p.set('actor',actor);
-    // FIX: SLOTS.logs now exists — was undefined before (optional chain made it silently pass null signal)
     const res=await apiFetch(`/logs?${p}`,{},SLOTS.logs.signal);const {logs=[]}=await res.json();
     if(!logs.length){$('logsContent').innerHTML='<div style="padding:8px;color:var(--muted);">No logs.</div>';return;}
     $('logsContent').innerHTML=logs.map(l=>{const sev=l.severity==='ERROR'?'color:#ef4444':l.severity==='WARN'?'color:#f59e0b':'';return`<div style="padding:2px 0;border-bottom:1px solid var(--border);${sev}">[${fmtDate(l.ts)}] <strong>${esc(l.action)}</strong> by ${esc(l.actor)} on ${esc(l.target||'—')}</div>`;}).join('');
@@ -897,14 +957,22 @@ async function loadAnalytics(){
 }
 
 // ── SHARES ────────────────────────────────────────────────────────
+// FIX: use onclick instead of addEventListener to avoid handler stacking
 async function loadShares(){
   $('shareContent').innerHTML='<div class="loading"><span class="spinner"></span> Loading…</div>';
   try{
     const res=await apiFetch('/share/list');const {shares=[]}=await res.json();
     const active=shares.filter(s=>s.expires_at>Date.now());
     if(!active.length){$('shareContent').innerHTML='<div class="empty-state">No active shares.</div>';return;}
-    $('shareContent').innerHTML=`<div style="overflow-x:auto;"><table style="width:100%;font-size:.78rem;border-collapse:collapse;"><thead><tr style="border-bottom:1px solid var(--border);text-align:left;"><th style="padding:5px;">File</th><th>Created by</th><th>Expires</th><th>DL</th><th></th></tr></thead><tbody>${active.map(s=>`<tr style="border-bottom:1px solid var(--border);"><td style="padding:5px;">${esc(s.label||s.public_id)}</td><td style="padding:5px;">${esc(s.created_by)}</td><td style="padding:5px;">${fmtRel(s.expires_at)}</td><td style="padding:5px;">${s.downloads}${s.max_downloads>0?'/'+s.max_downloads:''}</td><td style="padding:5px;"><button class="btn-xs btn-xs-delete btn-del-share" data-token="${esc(s.token)}">🗑</button></td></tr>`).join('')}</tbody></table></div>`;
-    $('shareContent').addEventListener('click',async e=>{const btn=e.target.closest('.btn-del-share');if(!btn)return;if(!confirm('Delete this share?'))return;try{const r=await apiFetch('/share/delete',{method:'POST',body:JSON.stringify({token:btn.dataset.token})});if(!r.ok)throw new Error((await r.json()).message);toast('Share deleted.','success');loadShares();}catch(err){toast('Failed: '+err.message,'error');}},{once:true});
+    const wrap=document.createElement('div');wrap.style.overflowX='auto';
+    wrap.innerHTML=`<table style="width:100%;font-size:.78rem;border-collapse:collapse;"><thead><tr style="border-bottom:1px solid var(--border);text-align:left;"><th style="padding:5px;">File</th><th>Created by</th><th>Expires</th><th>DL</th><th></th></tr></thead><tbody>${active.map(s=>`<tr style="border-bottom:1px solid var(--border);"><td style="padding:5px;">${esc(s.label||s.public_id)}</td><td style="padding:5px;">${esc(s.created_by)}</td><td style="padding:5px;">${fmtRel(s.expires_at)}</td><td style="padding:5px;">${s.downloads}${s.max_downloads>0?'/'+s.max_downloads:''}</td><td style="padding:5px;"><button class="btn-xs btn-xs-delete btn-del-share" data-token="${esc(s.token)}">🗑</button></td></tr>`).join('')}</tbody></table>`;
+    $('shareContent').innerHTML='';$('shareContent').appendChild(wrap);
+    wrap.onclick=async e=>{
+      const btn=e.target.closest('.btn-del-share');if(!btn)return;
+      if(!confirm('Delete this share?'))return;
+      try{const r=await apiFetch('/share/delete',{method:'POST',body:JSON.stringify({token:btn.dataset.token})});if(!r.ok)throw new Error((await r.json()).message);toast('Share deleted.','success');loadShares();}
+      catch(err){toast('Failed: '+err.message,'error');}
+    };
   }catch(e){$('shareContent').innerHTML=`<div class="empty-state" style="color:var(--danger);">❌ ${esc(e.message)}</div>`;}
 }
 
@@ -914,17 +982,19 @@ async function loadAdminFiles(){
   try{
     const res=await apiFetch('/admin/files');const {files=[]}=await res.json();
     if(!files.length){$('adminFilesList').innerHTML='<div class="empty-state">No files.</div>';return;}
-    $('adminFilesList').innerHTML=`<div style="overflow-x:auto;"><table style="width:100%;font-size:.77rem;border-collapse:collapse;"><thead><tr style="text-align:left;border-bottom:1px solid var(--border);"><th style="padding:5px;">Name</th><th>Size</th><th>By</th><th>Vis</th><th></th></tr></thead><tbody>${files.map(f=>`<tr style="border-bottom:1px solid var(--border);"><td style="padding:5px;" title="${esc(f.name)}">${esc(f.name.substring(0,28))}</td><td style="padding:5px;">${fmtSize(f.size)}</td><td style="padding:5px;">${esc((f.uploadedBy||'').replace(/@.*/,''))}</td><td style="padding:5px;"><span class="vis-badge vis-${esc(f.visibility)}">${esc(f.visibility)}</span></td><td style="padding:5px;display:flex;gap:3px;"><button class="btn-xs btn-xs-vis btn-admin-setvis" data-pid="${esc(f.publicId)}" data-vis="${esc(f.visibility)}">🔐</button><button class="btn-xs btn-xs-delete btn-admin-del" data-pid="${esc(f.publicId)}" data-name="${esc(f.name)}">🗑</button></td></tr>`).join('')}</tbody></table></div>`;
-    $('adminFilesList').addEventListener('click',async e=>{
+    const wrap=document.createElement('div');wrap.style.overflowX='auto';
+    wrap.innerHTML=`<table style="width:100%;font-size:.77rem;border-collapse:collapse;"><thead><tr style="text-align:left;border-bottom:1px solid var(--border);"><th style="padding:5px;">Name</th><th>Size</th><th>By</th><th>Vis</th><th></th></tr></thead><tbody>${files.map(f=>`<tr style="border-bottom:1px solid var(--border);"><td style="padding:5px;" title="${esc(f.name)}">${esc(f.name.substring(0,28))}</td><td style="padding:5px;">${fmtSize(f.size)}</td><td style="padding:5px;">${esc((f.uploadedBy||'').replace(/@.*/,''))}</td><td style="padding:5px;"><span class="vis-badge vis-${esc(f.visibility)}">${esc(f.visibility)}</span></td><td style="padding:5px;display:flex;gap:3px;"><button class="btn-xs btn-xs-vis btn-admin-setvis" data-pid="${esc(f.publicId)}" data-vis="${esc(f.visibility)}">🔐</button><button class="btn-xs btn-xs-delete btn-admin-del" data-pid="${esc(f.publicId)}" data-name="${esc(f.name)}">🗑</button></td></tr>`).join('')}</tbody></table>`;
+    $('adminFilesList').innerHTML='';$('adminFilesList').appendChild(wrap);
+    wrap.onclick=async e=>{
       const btn=e.target.closest('button[data-pid]');if(!btn)return;
       const pid=btn.dataset.pid;
       if(btn.classList.contains('btn-admin-del')){if(!confirm(`Delete "${btn.dataset.name}"?`))return;try{const r=await apiFetch('/delete',{method:'POST',body:JSON.stringify({publicId:pid})});if(!r.ok)throw new Error((await r.json()).message);toast('Deleted.','success');loadAdminFiles();ST.filesEtag=null;fetchFiles(false);}catch(err){toast('Failed: '+err.message,'error');}}
       if(btn.classList.contains('btn-admin-setvis'))await setFileVisibility(pid,btn.dataset.vis);
-    },{once:true});
+    };
   }catch(e){$('adminFilesList').innerHTML=`<div class="empty-state" style="color:var(--danger);">❌ ${esc(e.message)}</div>`;}
 }
 
-// ── FETCH FILES ───────────────────────────────────────────────────
+// ── FETCH FILES ───────────────────────────────────────────���───────
 async function fetchFiles(showLoader=true){
   if(!ST.token)return;
   if(showLoader&&!ST.filesMeta)D.grid.innerHTML='<div class="loading"><span class="spinner"></span> Loading files…</div>';
@@ -933,16 +1003,23 @@ async function fetchFiles(showLoader=true){
     if(ST.filesEtag)headers['If-None-Match']=ST.filesEtag;
     const res=await fetch(`${WORKER_BASE}/files-with-meta`,{headers,signal:sig});
     if(res.status===304){if(ST.filesMeta)renderFiles();return;}
-    if(!res.ok)throw new Error(`HTTP ${res.status}: ${res.statusText||'error'}`);
+    if(!res.ok){
+      const errBody=await res.json().catch(()=>({message:res.statusText||'Unknown error'}));
+      throw new Error(`${res.status}: ${errBody.message||res.statusText}`);
+    }
     const data=await res.json();
     ST.filesEtag=res.headers.get('ETag')||data.etag||null;
     ST.filesMeta=data.files||[];ST.myFilesMeta=data.myFiles||[];
     renderFiles();
   }catch(e){
     if(e.name==='AbortError')return;
-    D.grid.innerHTML=`<div class="empty-state">❌ Failed to load files.<br><small style="color:var(--muted);">${esc(e.message)}</small><br><button class="btn btn-sm btn-outline" style="margin-top:10px;" id="retryBtn">🔄 Retry</button></div>`;
+    const hint=e.message.includes('401')?'Your session may have expired — try logging out and back in.'
+               :e.message.includes('403')?'Your account may not have file access — contact an admin.'
+               :e.message.includes('503')?'The server is temporarily unavailable — try again shortly.'
+               :'Check your internet connection.';
+    D.grid.innerHTML=`<div class="empty-state">❌ Failed to load files.<br><small style="color:var(--muted);">${esc(e.message)}</small><br><small style="color:var(--muted);font-style:italic;">${esc(hint)}</small><br><button class="btn btn-sm btn-outline" style="margin-top:10px;" id="retryBtn">🔄 Retry</button></div>`;
     $('retryBtn')?.addEventListener('click',()=>fetchFiles(),{once:true});
-    toast('Could not load files — check connection.','error');
+    toast('Could not load files — '+hint,'error',5000);
   }
 }
 
@@ -989,89 +1066,112 @@ function renderCard(f){
     <input type="checkbox" class="card-checkbox" data-pid="${esc(f.publicId)}" tabindex="-1">
     ${thumbHtml(f.mimeType,f.publicId)}
     <div class="file-name" title="${esc(f.name)}">${esc(f.name)}</div>
-    <div class="file-meta">${fmtSize(f.size)} · ${fmtRel(f.createdAt)} ${visBadge(vis)} ${tags}</div>
-    <div class="file-meta" style="margin-top:-2px;">👤 ${esc(uploaderShort)}${f.isOwner?` <span style="color:var(--success);font-size:.62rem;">✔ mine</span>`:''}</div>
-    <div class="actions">${acts.join('')}
-      <button class="tick-btn" data-action="tick" data-pid="${esc(f.publicId)}" data-ticked="${f.isTicked?'1':'0'}" title="Mark seen">
-        ${f.isTicked?'✅':'☐'}<span style="font-size:.62rem;vertical-align:middle;">${f.tickCount}</span>
+    <div class="file-meta">
+      ${visBadge(vis)}
+      <span>${fmtSize(f.size)}</span>
+      <span title="${esc(f.uploadedBy||'')}">by ${esc(uploaderShort)}</span>
+      <span>${fmtRel(f.createdAt)}</span>
+      ${tags}
+    </div>
+    <div class="actions">${acts.join('')}</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;">
+      <button class="tick-btn" data-action="tick" data-pid="${esc(f.publicId)}" title="${f.isTicked?'Untick':'Tick'}">
+        ${f.isTicked?'✅':'☑️'} <span style="font-size:.7rem;color:var(--muted);">${f.tickCount||0}</span>
       </button>
     </div>
     <div class="comment-section">
-      <div class="comment-toggle" data-pid="${esc(f.publicId)}">💬 <span class="comment-count-badge">${f.commentCount||0}</span></div>
+      <div class="comment-toggle" data-action="toggleComments" data-pid="${esc(f.publicId)}">
+        💬 Comments <span class="comment-count-badge">${f.commentCount||0}</span>
+      </div>
       <div class="comment-list" data-pid="${esc(f.publicId)}"></div>
-      ${can('comment')?`<div class="comment-form"><input type="text" class="comment-input" data-pid="${esc(f.publicId)}" placeholder="Add comment…" maxlength="1000" autocomplete="off"><button class="btn-xs btn-xs-play" data-action="add-comment" data-pid="${esc(f.publicId)}">Send</button></div>`:''}
+      <div class="comment-form">
+        <input type="text" placeholder="Add comment…" data-action="commentInput" data-pid="${esc(f.publicId)}" maxlength="1000">
+        <button class="btn-xs btn-xs-preview" data-action="submitComment" data-pid="${esc(f.publicId)}">Send</button>
+      </div>
     </div>
   </div>`;
 }
 function renderFiles(){
-  if(!ST.filesMeta)return;
-  const allFiles=sortFiles(filterFiles(ST.filesMeta));
-  const myFiles=sortFiles(filterFiles(ST.myFilesMeta||[]));
-  cardData.clear();ST.filesMeta.forEach(f=>cardData.set(f.publicId,f));
-  const frag=document.createDocumentFragment();
-  if(myFiles.length>0&&!ST.isAdmin){const s=document.createElement('div');s.className='file-section';s.innerHTML=`<div class="section-title">📌 My Uploads <span class="count-pill">${myFiles.length}</span></div><div class="file-grid">${myFiles.map(f=>renderCard(f)).join('')}</div>`;frag.appendChild(s);}
-  const s2=document.createElement('div');s2.className='file-section';
-  if(!allFiles.length)s2.innerHTML=`<div class="empty-state">📭 No files found${ST.query?` for "<em>${esc(ST.query)}</em>"`:''}.${!ST.isAdmin&&!ST.filesMeta?.length?' The vault is empty.':''}</div>`;
-  else{s2.innerHTML=`<div class="section-title">${ST.isAdmin?'📂 All Files':'📂 Shared Files'} <span class="count-pill">${allFiles.length}</span></div><div class="file-grid">${allFiles.map(f=>renderCard(f)).join('')}</div>`;}
-  frag.appendChild(s2);D.grid.innerHTML='';D.grid.appendChild(frag);
-  attachCardEvents();
-}
+  const all=ST.filesMeta||[];const my=ST.myFilesMeta||[];
+  const allFiltered=sortFiles(filterFiles(all));
+  const myFiltered=sortFiles(filterFiles(my));
+  cardData.clear();all.forEach(f=>cardData.set(f.publicId,f));
+  if(!all.length){D.grid.innerHTML='<div class="empty-state">📭 No files yet.</div>';return;}
+  if(!allFiltered.length){D.grid.innerHTML='<div class="empty-state">🔍 No files match your search/filter.</div>';return;}
 
-// ── CARD EVENTS ───────────────────────────────────────────────────
-function attachCardEvents(){
-  D.grid.removeEventListener('click',onGridClick);D.grid.removeEventListener('change',onGridChange);D.grid.removeEventListener('keydown',onGridKeydown);
-  D.grid.addEventListener('click',onGridClick);D.grid.addEventListener('change',onGridChange);D.grid.addEventListener('keydown',onGridKeydown);
-}
-function onGridClick(e){
-  const toggle=e.target.closest('.comment-toggle');if(toggle){toggleComments(toggle.dataset.pid);return;}
-  const btn=e.target.closest('[data-action]');if(!btn)return;e.stopPropagation();
-  const pid=btn.dataset.pid,action=btn.dataset.action;if(!pid||!action)return;
-  const f=cardData.get(pid);
-  switch(action){
-    case 'play':openPreview(pid,true);break;case 'preview':openPreview(pid);break;
-    case 'download':downloadFile(pid,f?.name);break;case 'delete':deleteFile(pid,f?.name);break;
-    case 'rename':renameFile(pid,f?.name);break;case 'copy':copyLink(pid);break;
-    case 'share':createShare(pid);break;case 'tick':toggleTick(pid,btn);break;
-    case 'setvis':setFileVisibility(pid,f?.visibility);break;
-    case 'add-comment':{const inp=D.grid.querySelector(`.comment-input[data-pid="${CSS.escape(pid)}"]`);if(inp)submitComment(pid,inp);break;}
+  let html='';
+  if(myFiltered.length&&myFiltered.length<allFiltered.length){
+    html+=`<div class="file-section"><div class="section-title">My Files <span class="count-pill">${myFiltered.length}</span></div><div class="file-grid">${myFiltered.map(renderCard).join('')}</div></div>`;
+    const otherFiltered=allFiltered.filter(f=>f.uploadedBy!==ST.email);
+    if(otherFiltered.length)html+=`<div class="file-section"><div class="section-title">All Files <span class="count-pill">${otherFiltered.length}</span></div><div class="file-grid">${otherFiltered.map(renderCard).join('')}</div></div>`;
+  } else {
+    html+=`<div class="file-section"><div class="section-title">Files <span class="count-pill">${allFiltered.length}</span></div><div class="file-grid">${allFiltered.map(renderCard).join('')}</div></div>`;
   }
-}
-function onGridChange(e){
-  const el=e.target;if(!el.classList.contains('card-checkbox'))return;
-  const pid=el.dataset.pid;const card=el.closest('.card');
-  if(el.checked){ST.selected.add(pid);card?.classList.add('selected');}else{ST.selected.delete(pid);card?.classList.remove('selected');}
+  D.grid.innerHTML=html;
+  // Re-check selected
+  ST.selected.forEach(pid=>{const cb=document.querySelector(`.card-checkbox[data-pid="${CSS.escape(pid)}"]`);if(cb){cb.checked=true;cb.closest('.card')?.classList.add('selected');}});
   updateBulkBar();
 }
-function onGridKeydown(e){
-  const inp=e.target;if(inp.classList.contains('comment-input')&&e.key==='Enter'){e.preventDefault();submitComment(inp.dataset.pid,inp);}
+
+// ── FILE ACTIONS (delegated) ──────────────────────────────────────
+D.grid.addEventListener('click',async e=>{
+  const btn=e.target.closest('[data-action]');if(!btn)return;
+  const {action,pid}=btn.dataset;if(!pid)return;
+  const f=cardData.get(pid);
+  if(action==='play')    { if(f)openPreview(f.publicId,true);return; }
+  if(action==='preview') { if(f)openPreview(f.publicId);return; }
+  if(action==='download'){ window.open(mediaUrl(pid,'download'),'_blank');return; }
+  if(action==='copy')    { try{await navigator.clipboard.writeText(mediaUrl(pid,'preview'));toast('Link copied!','success');}catch{toast('Copy failed','error');}return; }
+  if(action==='share')   { await shareFile(pid);return; }
+  if(action==='rename')  { await renameFile(pid,f?.name||'');return; }
+  if(action==='delete')  { await deleteFile(pid,f?.name||'');return; }
+  if(action==='setvis')  { if(f)await setFileVisibility(pid,f.visibility);return; }
+  if(action==='tick')    { await toggleTick(pid,f);return; }
+  if(action==='toggleComments'){ toggleComments(pid);return; }
+  if(action==='submitComment'){const inp=D.grid.querySelector(`input[data-action="commentInput"][data-pid="${CSS.escape(pid)}"]`);if(inp)submitComment(pid,inp);return;}
+});
+D.grid.addEventListener('change',e=>{
+  const cb=e.target.closest('.card-checkbox');if(!cb)return;
+  const pid=cb.dataset.pid;const card=cb.closest('.card');
+  if(cb.checked){ST.selected.add(pid);card?.classList.add('selected');}else{ST.selected.delete(pid);card?.classList.remove('selected');}
+  updateBulkBar();
+});
+
+async function toggleTick(pid,f){
+  if(!f)return;const newVal=!f.isTicked;
+  try{
+    const res=await apiFetch('/tick/set',{method:'POST',body:JSON.stringify({fileId:pid,ticked:newVal})});
+    if(!res.ok)throw new Error((await res.json()).message);
+    const data=await res.json();
+    if(f){f.isTicked=data.ticked;f.tickCount=data.count;}
+    const btn=D.grid.querySelector(`.tick-btn[data-pid="${CSS.escape(pid)}"]`);
+    if(btn)btn.innerHTML=`${data.ticked?'✅':'☑️'} <span style="font-size:.7rem;color:var(--muted);">${data.count}</span>`;
+  }catch(e){toast('Tick failed: '+e.message,'error');}
 }
 
-// ── FILE ACTIONS ──────────────────────────────────────────────────
-function downloadFile(pid,name){const a=document.createElement('a');a.href=mediaUrl(pid,'download');a.download=name||'file';a.target='_blank';a.rel='noopener noreferrer';document.body.appendChild(a);a.click();a.remove();}
+async function shareFile(pid){
+  const label=prompt('Share link label (optional):','');if(label===null)return;
+  try{
+    const res=await apiFetch('/share/create',{method:'POST',body:JSON.stringify({publicId:pid,expiresIn:86400,label})});
+    const data=await res.json();if(!res.ok)throw new Error(data.message);
+    try{await navigator.clipboard.writeText(data.shareUrl);}catch{}
+    toast(`Share link created (expires in 24h)${data.shareUrl?'\n'+data.shareUrl.substring(0,60)+'…':''}. Copied to clipboard.`,'success',7000);
+  }catch(e){toast('Share failed: '+e.message,'error');}
+}
+
+async function renameFile(pid,currentName){
+  const newName=prompt('Rename file:',currentName);if(!newName||newName===currentName)return;
+  try{const res=await apiFetch('/rename',{method:'POST',body:JSON.stringify({publicId:pid,newName})});const data=await res.json();if(!res.ok)throw new Error(data.message);toast(`Renamed to "${data.newName}"`,'success');ST.filesEtag=null;fetchFiles(false);}
+  catch(e){toast('Rename failed: '+e.message,'error');}
+}
+
 async function deleteFile(pid,name){
-  if(!confirm(`Delete "${name}"?`))return;
-  const card=document.querySelector(`.card[data-pid="${CSS.escape(pid)}"]`);if(card)card.classList.add('removing');
-  ST.filesMeta=(ST.filesMeta||[]).filter(f=>f.publicId!==pid);ST.myFilesMeta=(ST.myFilesMeta||[]).filter(f=>f.publicId!==pid);cardData.delete(pid);ST.selected.delete(pid);updateBulkBar();
-  try{const res=await apiFetch('/delete',{method:'POST',body:JSON.stringify({publicId:pid})});if(!res.ok)throw new Error((await res.json()).message||'Delete failed');card?.remove();toast(`"${name}" deleted.`,'success');ST.filesEtag=null;}
-  catch(e){toast(e.message,'error');if(card)card.classList.remove('removing');fetchFiles(false);}
+  if(!confirm(`Delete "${name}"? This cannot be undone.`))return;
+  const card=document.querySelector(`.card[data-pid="${CSS.escape(pid)}"]`);card?.classList.add('removing');
+  try{const res=await apiFetch('/delete',{method:'POST',body:JSON.stringify({publicId:pid})});if(!res.ok)throw new Error((await res.json()).message);toast(`Deleted "${name}"`,'success');card?.remove();ST.filesEtag=null;fetchFiles(false);}
+  catch(e){toast('Delete failed: '+e.message,'error');card?.classList.remove('removing');}
 }
-async function renameFile(pid,cur){
-  const n=prompt('New name:',cur);if(!n||n.trim()===cur)return;
-  try{const res=await apiFetch('/rename',{method:'POST',body:JSON.stringify({publicId:pid,newName:n.trim()})});if(!res.ok)throw new Error((await res.json()).message);const data=await res.json();toast(`Renamed to "${data.newName}"`,'success');ST.filesEtag=null;fetchFiles(false);}
-  catch(e){toast(e.message,'error');}
-}
-async function copyLink(pid){const url=mediaUrl(pid,'preview');try{await navigator.clipboard.writeText(url);toast('Link copied!','success');}catch{prompt('Copy link:',url);}}
-async function createShare(pid){
-  const hrs=prompt('Expire in hours? (1–720)','24');if(!hrs)return;
-  const expiresIn=Math.min(Math.max(parseInt(hrs,10)||24,1),720)*3600;
-  try{const res=await apiFetch('/share/create',{method:'POST',body:JSON.stringify({publicId:pid,expiresIn})});const data=await res.json();if(!res.ok)throw new Error(data.message);try{await navigator.clipboard.writeText(data.shareUrl);}catch{}toast('Share link created & copied!','success',5000);}
-  catch(e){toast(e.message,'error');}
-}
-async function toggleTick(pid,btn){
-  const was=btn.dataset.ticked==='1';const next=!was;btn.dataset.ticked=next?'1':'0';btn.innerHTML=next?'✅':'☐';
-  try{const res=await apiFetch('/tick/set',{method:'POST',body:JSON.stringify({fileId:pid,ticked:next})});const data=await res.json();btn.innerHTML=`${next?'✅':'☐'}<span style="font-size:.62rem;vertical-align:middle;">${data.count}</span>`;const f=cardData.get(pid);if(f){f.isTicked=next;f.tickCount=data.count;}}
-  catch{btn.dataset.ticked=was?'1':'0';btn.innerHTML=was?'✅':'☐';toast('Tick failed','error');}
-}
+
 async function setFileVisibility(pid,current){
   const map={'1':'owner_only','2':'all_approved','3':'public'};
   const choice=prompt(`Visibility:\n1 = Only Me\n2 = All Users\n3 = Public\n\nCurrent: ${current||'all_approved'}\n\nEnter 1, 2, or 3:`,current==='owner_only'?'1':current==='public'?'3':'2');
@@ -1113,7 +1213,6 @@ async function submitComment(pid,inp){
 
 // ── PREVIEW ───────────────────────────────────────────────────────
 function openPreview(pid,autoPlay=false){
-  // FIX: was filter(()=>can('preview')) — arrow fn ignored the file param 'f'
   const previewable=(ST.filesMeta||[]).filter(f=>f&&can('preview'));
   ST.previewList=previewable;ST.previewIdx=previewable.findIndex(f=>f.publicId===pid);
   if(ST.previewIdx<0)ST.previewIdx=0;showPreview(autoPlay);
@@ -1185,7 +1284,6 @@ async function uploadFile(file){
 D.search.addEventListener('input',debounce(()=>{ST.query=D.search.value.trim();renderFiles();},300));
 D.sortSel.addEventListener('change',()=>{ST.sort=D.sortSel.value;localStorage.setItem('sort',ST.sort);renderFiles();});
 D.filterSel.addEventListener('change',()=>{ST.filter=D.filterSel.value;localStorage.setItem('filter',ST.filter);renderFiles();});
-// FIX: Removed duplicate refreshFilesBtn listener (was bound twice — here and at the bottom)
 $('refreshFilesBtn').addEventListener('click',()=>{ST.filesEtag=null;fetchFiles();});
 
 // ── CHAT ─────────────────────────────────────────────────────────
@@ -1195,8 +1293,15 @@ $('btnCloseChat').onclick=()=>{D.chatPanel.classList.add('hidden');ST.chatOpen=f
 function toggleChat(){
   ST.chatOpen=!ST.chatOpen;
   D.chatPanel.classList.toggle('hidden',!ST.chatOpen);
-  if(ST.chatOpen){clearChatUnread();loadChatMessages();startChatPoll();loadChatUsers();}
-  else stopChat();
+  if(ST.chatOpen){
+    clearChatUnread();
+    // Reset to start of conversation on open
+    ST.chatLastTs=0;ST.chatDMLastTs=0;
+    D.chatMessages.innerHTML='<div class="chat-empty">Loading messages…</div>';
+    loadChatMessages();
+    startChatPoll();
+    loadChatUsers();
+  } else stopChat();
 }
 
 function clearChatUnread(){
@@ -1208,6 +1313,14 @@ function addChatUnread(n=1){
   ST.chatUnread+=n;D.chatUnreadBadge.textContent=ST.chatUnread>99?'99+':String(ST.chatUnread);D.chatUnreadBadge.classList.remove('hidden');
 }
 
+// Show/hide chat notification bar
+function showChatNotify(msg){
+  const bar=$('chatNotifyBar');const span=$('chatNotifyMsg');
+  if(!bar||!span)return;
+  span.textContent=msg;bar.classList.remove('hidden');
+}
+function hideChatNotify(){$('chatNotifyBar')?.classList.add('hidden');}
+
 // Tab switching
 document.querySelectorAll('.chat-tab').forEach(tab=>{
   tab.onclick=()=>{
@@ -1215,9 +1328,14 @@ document.querySelectorAll('.chat-tab').forEach(tab=>{
     tab.classList.add('active');ST.chatTab=tab.dataset.tab;
     $('chatGroupControls').classList.toggle('hidden',ST.chatTab!=='group');
     $('chatDMControls').classList.toggle('hidden',ST.chatTab!=='dm');
+    $('chatDMHeader').classList.toggle('hidden',ST.chatTab!=='dm'||!ST.chatDMWith);
     ST.chatLastTs=0;ST.chatDMLastTs=0;
     D.chatMessages.innerHTML='<div class="chat-empty">Loading…</div>';
-    loadChatMessages();
+    if(ST.chatTab==='dm'&&!ST.chatDMWith){
+      D.chatMessages.innerHTML='<div class="chat-empty">👈 Select someone to chat with</div>';
+    } else {
+      loadChatMessages();
+    }
   };
 });
 
@@ -1227,11 +1345,34 @@ $('chatRoomSel').onchange=()=>{
   loadChatMessages();
 };
 
-$('dmRecipientSel').onchange=()=>{
-  ST.chatDMWith=$('dmRecipientSel').value||null;ST.chatDMLastTs=0;
-  D.chatMessages.innerHTML=ST.chatDMWith?'<div class="chat-empty">Loading…</div>':'<div class="chat-empty">Select a user to start chatting.</div>';
-  if(ST.chatDMWith)loadChatMessages();
-};
+// ── DM USER LIST (messenger-style) ───────────────────────────────
+function renderDMUserList(users){
+  const container=$('chatDMControls');if(!container)return;
+  if(!users.length){
+    container.innerHTML='<div style="padding:10px;font-size:.8rem;color:var(--muted);text-align:center;">No other users yet.</div>';
+    return;
+  }
+  container.innerHTML=users.map(u=>{
+    const initial=u.replace(/@.*/,'').substring(0,2).toUpperCase();
+    const name=u.replace(/@.*/,'');
+    const isActive=u===ST.chatDMWith;
+    return`<div class="dm-user-item${isActive?' active':''}" data-email="${esc(u)}">
+      <div class="dm-user-avatar">${esc(initial)}</div>
+      <div class="dm-user-name" title="${esc(u)}">${esc(name)}</div>
+    </div>`;
+  }).join('');
+  container.onclick=e=>{
+    const item=e.target.closest('.dm-user-item[data-email]');if(!item)return;
+    const email=item.dataset.email;
+    // Update active state
+    container.querySelectorAll('.dm-user-item').forEach(el=>el.classList.toggle('active',el.dataset.email===email));
+    ST.chatDMWith=email;ST.chatDMLastTs=0;
+    $('chatDMWithLabel').textContent=email.replace(/@.*/,'');
+    $('chatDMHeader').classList.remove('hidden');
+    D.chatMessages.innerHTML='<div class="chat-empty">Loading…</div>';
+    loadChatMessages();
+  };
+}
 
 async function loadChatUsers(){
   try{
@@ -1239,12 +1380,21 @@ async function loadChatUsers(){
     if(!res.ok)return;
     const {users=[]}=await res.json();
     ST.chatUsers=users.filter(u=>u!==ST.email);
-    const sel=$('dmRecipientSel');
-    sel.innerHTML='<option value="">— Select user —</option>'+ST.chatUsers.map(u=>`<option value="${esc(u)}">${esc(u)}</option>`).join('');
+    // Render messenger-style DM list
+    renderDMUserList(ST.chatUsers);
+    // Auto-select first user if none selected yet
+    if(!ST.chatDMWith&&ST.chatUsers.length>0&&ST.chatTab==='dm'){
+      const first=ST.chatUsers[0];
+      ST.chatDMWith=first;
+      $('chatDMWithLabel').textContent=first.replace(/@.*/,'');
+      $('chatDMHeader').classList.remove('hidden');
+      const container=$('chatDMControls');
+      container?.querySelector(`[data-email="${CSS.escape(first)}"]`)?.classList.add('active');
+    }
     apiFetch('/chat/online').then(r=>r.json()).then(d=>{
       $('chatOnlineCount').textContent=`${d.count||0} online`;
     }).catch(()=>{});
-  }catch(e){ /* silent — chat is non-critical */ }
+  }catch{ /* silent — chat is non-critical */ }
 }
 
 async function loadChatMessages(){
@@ -1259,20 +1409,34 @@ async function loadChatMessages(){
       const since=ST.chatDMLastTs;
       res=await apiFetch(`/chat/dm/history?with=${encodeURIComponent(ST.chatDMWith)}&limit=80&since=${since}`,{},SLOTS.chat.signal);
     }
-    if(!res.ok)return;
-    const {messages=[]}=await res.json();
-    if(!messages.length){
-      if(D.chatMessages.innerHTML.includes('Loading'))D.chatMessages.innerHTML='<div class="chat-empty">No messages yet. Say hello!</div>';
+    if(!res.ok){
+      const err=await res.json().catch(()=>({message:'Failed to load messages'}));
+      if(res.status===503){
+        showChatNotify(ST.isAdmin
+          ? 'Chat table missing. Click "🔧 Migrate DB" in the admin bar to set up chat.'
+          : 'Chat is not available yet. Ask an admin to run the DB migration.');
+      }
       return;
     }
-    const isAtBottom=D.chatMessages.scrollHeight-D.chatMessages.scrollTop<=D.chatMessages.clientHeight+60;
+    hideChatNotify();
+    const {messages=[]}=await res.json();
+    if(!messages.length){
+      if(D.chatMessages.innerHTML.includes('Loading'))
+        D.chatMessages.innerHTML=`<div class="chat-empty">No messages yet. Say hello! 👋</div>`;
+      return;
+    }
+    const wasEmpty=D.chatMessages.querySelector('.chat-empty')!==null;
+    const isAtBottom=D.chatMessages.scrollHeight-D.chatMessages.scrollTop<=D.chatMessages.clientHeight+80;
     messages.forEach(msg=>appendChatMsg(msg));
     const maxTs=messages.reduce((m,msg)=>Math.max(m,msg.ts),0);
     if(ST.chatTab==='group')ST.chatLastTs=Math.max(ST.chatLastTs,maxTs);
     else ST.chatDMLastTs=Math.max(ST.chatDMLastTs,maxTs);
-    if(isAtBottom)D.chatMessages.scrollTop=D.chatMessages.scrollHeight;
-    if(messages.some(m=>m.sender!==ST.email))addChatUnread(messages.filter(m=>m.sender!==ST.email).length);
-  }catch(e){ if(e.name!=='AbortError'&&!e.message?.includes('Unauthorized')){} }
+    // Always scroll to bottom on first load, otherwise only if near bottom
+    if(wasEmpty||isAtBottom)D.chatMessages.scrollTop=D.chatMessages.scrollHeight;
+    // Notify unread for incoming messages when panel is closed
+    const incoming=messages.filter(m=>m.sender!==ST.email);
+    if(incoming.length&&!wasEmpty)addChatUnread(incoming.length);
+  }catch(e){ if(e.name!=='AbortError'){} }
 }
 
 function appendChatMsg(msg){
@@ -1282,7 +1446,7 @@ function appendChatMsg(msg){
   const authorName=(msg.senderDisplay||msg.sender||'').replace(/@.*/,'');
   const div=document.createElement('div');
   div.className=`chat-msg ${isMe?'me':'other'}`;div.id=`cmsg-${msg.id}`;
-  div.innerHTML=`${!isMe?`<div class="chat-msg-author">${esc(authorName)}</div>`:''}${esc(msg.text)}<div class="chat-msg-meta"><span>${fmtRel(msg.ts)}</span>${(isMe||ST.isAdmin)?`<button data-msgid="${esc(msg.id)}" style="background:none;border:none;cursor:pointer;font-size:.62rem;color:rgba(0,0,0,.4);" class="btn-del-msg">🗑</button>`:''}</div>`;
+  div.innerHTML=`${!isMe?`<div class="chat-msg-author">${esc(authorName)}</div>`:''}${esc(msg.text)}<div class="chat-msg-meta">${!isMe?`<span style="flex:1"></span>`:''}${(isMe||ST.isAdmin)?`<button data-msgid="${esc(msg.id)}" style="background:none;border:none;cursor:pointer;font-size:.6rem;color:rgba(128,128,128,.6);" class="btn-del-msg">🗑</button>`:''}  <span>${fmtTime(msg.ts)}</span></div>`;
   D.chatMessages.appendChild(div);
   div.querySelector('.btn-del-msg')?.addEventListener('click',async()=>{
     if(!confirm('Delete message?'))return;
@@ -1291,24 +1455,37 @@ function appendChatMsg(msg){
   },{once:true});
 }
 
+// FIX: check res.ok BEFORE reading body to avoid consuming error body as message object
 async function sendChatMsg(){
   const text=(D.chatInput.value||'').trim();if(!text)return;
   D.chatInput.value='';D.chatInput.disabled=true;
   try{
     if(ST.chatTab==='group'){
       const res=await apiFetch('/chat/send',{method:'POST',body:JSON.stringify({room:ST.chatRoom,text})});
-      const {message}=await res.json();if(!res.ok)throw new Error(message);
-      appendChatMsg(message);D.chatMessages.scrollTop=D.chatMessages.scrollHeight;
-      ST.chatLastTs=Math.max(ST.chatLastTs,message.ts);
-    } else {
-      if(!ST.chatDMWith){toast('Select a recipient first','warn');return;}
-      const res=await apiFetch('/chat/dm/send',{method:'POST',body:JSON.stringify({recipient:ST.chatDMWith,text})});
-      const {message}=await res.json();if(!res.ok)throw new Error(message);
-      appendChatMsg({...message,senderDisplay:ST.email.replace(/@.*/,'')});
+      const data=await res.json();
+      if(!res.ok)throw new Error(data.message||'Send failed');
+      appendChatMsg(data.message);
       D.chatMessages.scrollTop=D.chatMessages.scrollHeight;
-      ST.chatDMLastTs=Math.max(ST.chatDMLastTs,message.ts);
+      ST.chatLastTs=Math.max(ST.chatLastTs,data.message.ts);
+    } else {
+      if(!ST.chatDMWith){toast('Select someone to chat with first','warn');D.chatInput.value=text;return;}
+      const res=await apiFetch('/chat/dm/send',{method:'POST',body:JSON.stringify({recipient:ST.chatDMWith,text})});
+      const data=await res.json();
+      if(!res.ok)throw new Error(data.message||'Send failed');
+      appendChatMsg({...data.message,senderDisplay:ST.email});
+      D.chatMessages.scrollTop=D.chatMessages.scrollHeight;
+      ST.chatDMLastTs=Math.max(ST.chatDMLastTs,data.message.ts);
     }
-  }catch(e){toast('Send failed: '+e.message,'error');D.chatInput.value=text;}
+    hideChatNotify();
+  }catch(e){
+    toast('Send failed: '+e.message,'error');
+    D.chatInput.value=text;
+    if(e.message&&(e.message.includes('migration')||e.message.includes('not set up')||e.message.includes('table'))){
+      showChatNotify(ST.isAdmin
+        ? 'Chat table missing. Click "🔧 Migrate DB" in the admin bar to set up chat.'
+        : 'Chat is not available yet. Ask an admin to run the DB migration.');
+    }
+  }
   finally{D.chatInput.disabled=false;D.chatInput.focus();}
 }
 
