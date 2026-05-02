@@ -245,21 +245,32 @@ body::before{
 /* ── ENHANCED VIDEO PLAYER ── */
 .video-wrap{position:relative;width:100%;max-width:1100px;background:#000;border-radius:12px;overflow:hidden;}
 .video-wrap video{width:100%;display:block;}
-.vctrl{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(to top,rgba(0,0,0,.9),transparent);padding:8px 12px 10px;display:flex;flex-direction:column;gap:6px;transition:opacity .2s;}
+.vctrl{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(to top,rgba(0,0,0,.95),rgba(0,0,0,.4),transparent);padding:6px 12px 10px;display:flex;flex-direction:column;gap:5px;transition:opacity .25s;}
 .video-wrap.ctrl-hidden .vctrl{opacity:0;}
 .vctrl:hover,.video-wrap:hover .vctrl{opacity:1;}
-.vseek{width:100%;height:4px;-webkit-appearance:none;background:rgba(255,255,255,.2);border-radius:99px;cursor:pointer;outline:none;}
-.vseek::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--p);cursor:pointer;}
-.vcontrols{display:flex;align-items:center;gap:8px;}
-.vbtn{background:none;border:none;color:#fff;cursor:pointer;font-size:.95rem;padding:3px 5px;border-radius:6px;transition:background .12s;}
-.vbtn:hover{background:rgba(255,255,255,.15);}
-.vtime{font-size:.74rem;color:rgba(255,255,255,.8);flex:1;}
-.vvol{width:70px;height:3px;-webkit-appearance:none;background:rgba(255,255,255,.3);border-radius:99px;cursor:pointer;outline:none;}
+/* seek bar with buffer layer */
+.vseek-wrap{position:relative;width:100%;height:14px;display:flex;align-items:center;cursor:pointer;}
+.vseek-buf{position:absolute;left:0;top:50%;transform:translateY(-50%);height:4px;background:rgba(255,255,255,.22);border-radius:99px;pointer-events:none;transition:width .3s;}
+.vseek{position:relative;z-index:1;width:100%;height:4px;-webkit-appearance:none;background:rgba(255,255,255,.12);border-radius:99px;cursor:pointer;outline:none;}
+.vseek::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--p);cursor:pointer;box-shadow:0 0 6px rgba(168,85,247,.6);}
+.vcontrols{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;}
+.vbtn{background:none;border:none;color:#fff;cursor:pointer;font-size:.95rem;padding:3px 6px;border-radius:6px;transition:background .12s;white-space:nowrap;flex-shrink:0;}
+.vbtn:hover{background:rgba(255,255,255,.18);}
+.vbtn.active{color:var(--p2);}
+.vtime{font-size:.72rem;color:rgba(255,255,255,.85);white-space:nowrap;flex-shrink:0;}
+.vvol-wrap{display:flex;align-items:center;gap:5px;flex-shrink:0;}
+.vvol{width:65px;height:3px;-webkit-appearance:none;background:rgba(255,255,255,.3);border-radius:99px;cursor:pointer;outline:none;}
 .vvol::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11px;border-radius:50%;background:#fff;cursor:pointer;}
-.vspeed-btn,.vasp-btn{background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:6px;padding:2px 7px;font-size:.72rem;cursor:pointer;}
+.vvol-pct{font-size:.66rem;color:rgba(255,255,255,.7);min-width:32px;text-align:left;flex-shrink:0;}
+.vspacer{flex:1;}
+.vspeed-btn,.vasp-btn{background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:6px;padding:2px 7px;font-size:.72rem;cursor:pointer;flex-shrink:0;}
 .vspeed-btn:hover,.vasp-btn:hover{background:rgba(255,255,255,.28);}
-.vsub-track{position:absolute;bottom:70px;left:0;right:0;text-align:center;pointer-events:none;}
-.vsub-track p{display:inline-block;background:rgba(0,0,0,.75);color:#fff;padding:3px 10px;border-radius:5px;font-size:1rem;max-width:80%;line-height:1.5;}
+.vboost-wrap{display:flex;align-items:center;gap:4px;flex-shrink:0;}
+.vboost-lbl{font-size:.64rem;color:rgba(255,255,255,.6);}
+.vboost{width:52px;height:3px;-webkit-appearance:none;background:rgba(255,255,255,.2);border-radius:99px;cursor:pointer;outline:none;}
+.vboost::-webkit-slider-thumb{-webkit-appearance:none;width:10px;height:10px;border-radius:50%;background:var(--y);cursor:pointer;}
+.vsub-track{position:absolute;bottom:76px;left:0;right:0;text-align:center;pointer-events:none;}
+.vsub-track p{display:inline-block;background:rgba(0,0,0,.8);color:#fff;padding:4px 12px;border-radius:6px;font-size:1rem;max-width:80%;line-height:1.5;text-shadow:0 1px 3px rgba(0,0,0,.9);}
 .sub-upload-area{display:flex;gap:6px;align-items:center;margin-top:6px;}
 .sub-upload-area input[type=file]{display:none;}
 
@@ -434,12 +445,20 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--p);outline-offset:3
   <button class="btn btn-sm" id="btnApprovals">👥 Pending <span class="badge" id="pendingBadge" style="position:static;background:var(--y);color:#000;padding:0 5px;border-radius:5px;font-size:.64rem;display:none;">0</span></button>
   <button class="btn btn-sm" id="btnAllUsers">👤 Users</button>
   <button class="btn btn-sm" id="btnAdminFiles">📂 All Files</button>
-  <button class="btn btn-sm" id="btnLogs">2��� Logs</button>
+  <button class="btn btn-sm" id="btnLogs">📋 Logs</button>
   <button class="btn btn-sm" id="btnAnalytics">📊 Analytics</button>
   <button class="btn btn-sm" id="btnShareMgr">🔗 Shares</button>
   <button class="btn btn-sm" id="btnAdminChats">💬 All Chats</button>
-  <button class="btn btn-sm" style="background:rgba(245,158,11,.2);border-color:var(--y);color:var(--y);" id="btnMigrateDB">🔧 Migrate DB</button>
+  <button class="btn btn-sm" id="btnDriveAuth" style="background:rgba(239,68,68,.25);border-color:var(--r);color:#fca5a5;display:none;">⚠️ Authorize Drive</button>
+  <span id="driveStatusBadge" style="display:none;font-size:.72rem;padding:3px 9px;border-radius:99px;font-weight:700;"></span>
   <button class="btn btn-sm btn-danger" id="btnAdminLogout">🔒 Logout</button>
+</div>
+
+<!-- DRIVE AUTH WARNING BANNER -->
+<div id="driveWarnBanner" style="display:none;background:linear-gradient(135deg,rgba(239,68,68,.2),rgba(245,158,11,.15));border-bottom:1px solid rgba(239,68,68,.35);padding:10px 20px;text-align:center;">
+  <span style="font-size:.85rem;color:#fca5a5;font-weight:600;">⚠️ Drive not authorized — uploads are disabled for everyone. </span>
+  <button class="btn btn-sm" id="btnDriveAuthBanner" style="background:linear-gradient(135deg,#dc2626,#ef4444);border:none;color:#fff;margin-left:8px;">🔑 Authorize Drive Now</button>
+  <span style="font-size:.75rem;color:var(--muted2);margin-left:8px;">One-time setup — takes 10 seconds</span>
 </div>
 
 <!-- MAIN -->
@@ -566,7 +585,7 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--p);outline-offset:3
         </div>
         <div id="msgAreaActions" style="display:flex;gap:6px;"></div>
       </div>
-      <div class="msg-notify hidden" id="msgNotify">⚠️ Chat tables not ready — click Migrate DB in admin bar first.</div>
+      <div class="msg-notify hidden" id="msgNotify">⚠️ Chat tables not ready — the admin must run DB migration once.</div>
       <div class="msg-messages" id="msgMessages"><div class="msg-empty"><div class="msg-empty-icon">💬</div><span>Select a conversation to start chatting</span></div></div>
       <div class="msg-input-row">
         <button class="msg-attach-btn" id="btnAttachFile" title="Attach file from vault">📎</button>
@@ -825,7 +844,7 @@ async function fetchUserInfo(){
   }catch{return false;}
 }
 
-// ── HEARTBEAT ──i��──────────────────────────────────────────────────────────────
+// ── HEARTBEAT ─────────────────────────────────────────────────────────────────
 function startHeartbeat(){stopHeartbeat();sendHeartbeat();ST.hbTimer=setInterval(sendHeartbeat,45000);}
 function stopHeartbeat(){if(ST.hbTimer){clearInterval(ST.hbTimer);ST.hbTimer=null;}}
 async function sendHeartbeat(){
@@ -855,7 +874,7 @@ async function fetchOnlineUsers(){
     if(ST.msgOpen&&ST.msgTab==='dm')renderMsgList();
   }catch{}
 }
-function updateOnlineCount(n){const el=$('onlineCount');if(!el)return;if(n>0){el.textContent=`${n} online`;el.classList.remove('hidden');}else el.classList.add('hidden');}
+function updateOnlineCount(n){const el=$('onlineCount');if(!el)return;if(!ST.isAdmin){el.classList.add('hidden');return;}if(n>0){el.textContent=`${n} online`;el.classList.remove('hidden');}else el.classList.add('hidden');}
 
 // ── LOGIN PAGE ─────────────────────────────────────────────────────────────────
 async function showLogin(){
@@ -949,18 +968,53 @@ function bindAdminRibbon(){
   $('btnShareMgr').onclick=()=>openPanel('shares',loadSharesPanel);
   $('btnAdminChats').onclick=()=>openPanel('adminchats',loadAdminChatsPanel);
   $('btnAdminLogout').onclick=logout;
-  $('btnMigrateDB').onclick=migrateDB;
+  // Auto-migrate silently on admin login (no button needed)
+  silentMigrate();
+  const doDriveAuth=async()=>{
+    try{const r=await fetch(`${WORKER}/auth-url?mode=admin`);const{authUrl}=await r.json();window.location.href=authUrl;}
+    catch{toast('Failed to get Drive auth URL. Check worker config.','error');}
+  };
+  $('btnDriveAuth').onclick=doDriveAuth;
+  $('btnDriveAuthBanner').onclick=doDriveAuth;
+  checkDriveStatus();
 }
 
-async function migrateDB(){
-  const btn=$('btnMigrateDB');if(btn){btn.disabled=true;btn.textContent='⏳ Migrating…';}
+async function checkDriveStatus(){
+  if(!ST.isAdmin)return;
+  try{
+    const res=await api('/drive-status');
+    if(!res.ok)return;
+    const d=await res.json();
+    const badge=$('driveStatusBadge');
+    const btn=$('btnDriveAuth');
+    const banner=$('driveWarnBanner');
+    if(d.tokenOk){
+      badge.style.display='inline-block';
+      badge.style.background='rgba(16,185,129,.25)';
+      badge.style.color='#6ee7b7';
+      badge.style.border='1px solid rgba(16,185,129,.4)';
+      badge.textContent='✓ Drive OK';
+      btn.style.display='none';
+      banner.style.display='none';
+    } else {
+      badge.style.display='inline-block';
+      badge.style.background='rgba(239,68,68,.2)';
+      badge.style.color='#fca5a5';
+      badge.style.border='1px solid rgba(239,68,68,.4)';
+      badge.textContent='✗ Drive not authorized';
+      btn.style.display='inline-flex';
+      banner.style.display='block';
+      toast('⚠️ Drive not authorized! Click "Authorize Drive" in the ribbon to enable uploads.','warn',8000);
+    }
+  }catch{}
+}
+
+async function silentMigrate(){
   try{
     const res=await api('/migrate',{method:'POST'});const d=await res.json();
-    if(!res.ok)throw new Error(d.message||'Migration failed');
-    toast(d.failed===0?`✅ DB ready! ${d.total} migrations applied.`:`⚠️ ${d.total-d.failed}/${d.total} OK, ${d.failed} failed.`,d.failed===0?'success':'warn',7000);
-    $('msgNotify').classList.add('hidden');
-  }catch(e){toast('Migration failed: '+e.message,'error',6000);}
-  finally{if(btn){btn.disabled=false;btn.textContent='🔧 Migrate DB';}}
+    if(res.ok&&d.failed===0){$('msgNotify')?.classList.add('hidden');}
+    else if(res.ok&&d.failed>0){console.warn('DB migration partial:',d);}
+  }catch(e){console.warn('Silent migrate:',e.message);}
 }
 
 async function syncDrive(){
@@ -1159,7 +1213,7 @@ async function fetchFiles(showLoading=true){
     if(!res.ok){
       let msg='Failed to load files';
       try{const d=await res.json();msg=d.message||msg;}catch{}
-      $('fileGrid').innerHTML=`<div class="empty-state"><div class="empty-icon">⚠️</div><p style="color:var(--r);">${esc(msg)}</p><button class="btn btn-primary btn-sm" style="margin-top:12px;" onclick="fetchFiles()">Retry</button>${ST.isAdmin?`<button class="btn btn-sm" style="margin-top:8px;" onclick="migrateDB()">🔧 Migrate DB</button>`:''}`;
+      $('fileGrid').innerHTML=`<div class="empty-state"><div class="empty-icon">⚠️</div><p style="color:var(--r);">${esc(msg)}</p><button class="btn btn-primary btn-sm" style="margin-top:12px;" onclick="fetchFiles()">Retry</button></div>`;
       return;
     }
     const d=await res.json();
@@ -1226,12 +1280,12 @@ function renderCard(f){
   const vis=f.visibility||'all_approved';
   return`<div class="card" data-pid="${esc(f.publicId)}">
     <input type="checkbox" class="card-checkbox" data-pid="${esc(f.publicId)}" tabindex="-1">
-    <div style="position:relative;">
+    <div style="position:relative;cursor:pointer;" data-action="open" data-pid="${esc(f.publicId)}">
       ${thumbHtml(f.mimeType,f.publicId)}
       <span class="vis-dot ${vis}" title="${esc(VIS_LABELS[vis]||vis)}"></span>
     </div>
     <div class="card-body">
-      <div class="file-name" title="${esc(f.name)}">${esc(f.name)}</div>
+      <div class="file-name" title="${esc(f.name)}" style="cursor:pointer;" data-action="open" data-pid="${esc(f.publicId)}">${esc(f.name)}</div>
       <div class="file-meta">
         <span>${fmtSize(f.size)}</span>
         <span title="${esc(f.uploadedBy||'')}">by ${esc(uploaderShort)}</span>
@@ -1251,7 +1305,7 @@ function renderCard(f){
       </div>
       <div class="comment-list" data-pid="${esc(f.publicId)}"></div>
       <div class="comment-form">
-        <input type="text" placeholder="Add comment…" data-action="commentInput" data-pid="${esc(f.publicId)}" maxlength="1000">
+        <input type="text" placeholder="Add comment… (Enter to send)" data-action="commentInput" data-pid="${esc(f.publicId)}" maxlength="1000">
         <button class="act-btn ab-prev" data-action="submitComment" data-pid="${esc(f.publicId)}" style="padding:4px 8px;">Send</button>
       </div>
     </div>
@@ -1282,6 +1336,7 @@ $('fileGrid').addEventListener('click', async e => {
   const btn=e.target.closest('[data-action]');if(!btn)return;
   const{action,pid}=btn.dataset;if(!pid)return;
   const f=cardData.get(pid);
+  if(action==='open')    {if(f)openPreview(f.publicId);return;}
   if(action==='play')    {if(f)openPreview(f.publicId,true);return;}
   if(action==='preview') {if(f)openPreview(f.publicId);return;}
   if(action==='download'){window.open(mediaUrl(pid,'download'),'_blank');return;}
@@ -1301,6 +1356,12 @@ $('fileGrid').addEventListener('change', e => {
   const pid=cb.dataset.pid,card=cb.closest('.card');
   if(cb.checked){ST.selected.add(pid);card?.classList.add('selected');}else{ST.selected.delete(pid);card?.classList.remove('selected');}
   updateBulkBar();
+});
+
+$('fileGrid').addEventListener('keydown', e => {
+  if(e.key!=='Enter')return;
+  const inp=e.target.closest('input[data-action="commentInput"]');if(!inp)return;
+  e.preventDefault();submitComment(inp.dataset.pid,inp);
 });
 
 async function toggleTick(pid,f){
@@ -1426,18 +1487,33 @@ function showPreview(autoPlay=false){
   let content='';
   if(mt==='video'){
     content=`<div class="video-wrap" id="videoWrap">
-      <video id="mainVideo" preload="metadata" ${autoPlay?'autoplay':''} playsinline style="max-height:80vh;width:100%;"></video>
+      <video id="mainVideo" preload="metadata" ${autoPlay?'autoplay':''} playsinline style="width:100%;"></video>
       <div class="vsub-track" id="subTrack"></div>
       <div class="vctrl" id="vctrl">
-        <input type="range" class="vseek" id="vseek" min="0" max="100" value="0" step="0.1">
+        <div class="vseek-wrap">
+          <div class="vseek-buf" id="vBuf" style="width:0%"></div>
+          <input type="range" class="vseek" id="vseek" min="0" max="100" value="0" step="0.1">
+        </div>
         <div class="vcontrols">
-          <button class="vbtn" id="vPlay">▶</button>
-          <input type="range" class="vvol" id="vVol" min="0" max="1" value="1" step="0.01">
+          <button class="vbtn" id="vPlay" title="Play/Pause (Space)">▶</button>
+          <button class="vbtn" id="vSkipB" title="Back 10s (←)">⏮10</button>
+          <button class="vbtn" id="vSkipF" title="Forward 10s (→)">10⏭</button>
+          <button class="vbtn" id="vMute" title="Mute/Unmute (M)">🔊</button>
+          <div class="vvol-wrap">
+            <input type="range" class="vvol" id="vVol" min="0" max="1" value="1" step="0.01" title="Volume">
+            <span class="vvol-pct" id="vVolPct">100%</span>
+          </div>
+          <div class="vboost-wrap" title="Volume boost (up to 400%)">
+            <span class="vboost-lbl">Boost</span>
+            <input type="range" class="vboost" id="vBoost" min="1" max="4" value="1" step="0.1">
+            <span class="vvol-pct" id="vBoostPct">1×</span>
+          </div>
           <span class="vtime" id="vTime">0:00 / 0:00</span>
-          <button class="vspeed-btn" id="vSpeed">1×</button>
-          <button class="vasp-btn" id="vAsp">16:9</button>
+          <span class="vspacer"></span>
+          <button class="vspeed-btn" id="vSpeed" title="Playback speed">1×</button>
+          <button class="vasp-btn" id="vAsp" title="Aspect ratio">16:9</button>
           <button class="vbtn" id="vPip" title="Picture-in-Picture">⧉</button>
-          <button class="vbtn" id="vFs" title="Fullscreen">⛶</button>
+          <button class="vbtn" id="vFs" title="Fullscreen (F)">⛶</button>
         </div>
       </div>
     </div>`;
@@ -1466,57 +1542,134 @@ function showPreview(autoPlay=false){
 }
 
 function bindVideoPlayer(video,f){
-  const SPEEDS=[0.5,0.75,1,1.25,1.5,2];let speedIdx=2;
-  const ASPECTS=['16:9','4:3','1:1','Auto'];let aspIdx=0;
+  const SPEEDS=[0.25,0.5,0.75,1,1.25,1.5,1.75,2,3];let speedIdx=3;
+  const ASPECTS=['16:9','4:3','1:1','9:16','Auto'];let aspIdx=0;
 
-  const play=$('vPlay'),seek=$('vSeek')||document.querySelector('#videoWrap .vseek'),time=$('vTime'),vol=$('vVol'),speedBtn=$('vSpeed'),aspBtn=$('vAsp');
+  const play=$('vPlay'),seek=$('vseek'),buf=$('vBuf'),time=$('vTime'),
+        vol=$('vVol'),volPct=$('vVolPct'),boost=$('vBoost'),boostPct=$('vBoostPct'),
+        muteBtn=$('vMute'),speedBtn=$('vSpeed'),aspBtn=$('vAsp'),
+        skipB=$('vSkipB'),skipF=$('vSkipF');
 
-  video.onloadedmetadata=()=>{seek.max=video.duration;};
-  video.ontimeupdate=()=>{if(!seek._dragging){seek.value=video.currentTime;}time.textContent=`${fmtDur(video.currentTime)} / ${fmtDur(video.duration)}`;};
-  video.onplay=()=>{play.textContent='⏸';};
+  // ── Web Audio API for volume boost (up to 4× = 400%) ──────────────────────
+  let gainNode=null,audioCtx=null;
+  function ensureAudioCtx(){
+    if(audioCtx)return;
+    try{
+      audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+      const src=audioCtx.createMediaElementSource(video);
+      gainNode=audioCtx.createGain();
+      gainNode.gain.value=1;
+      src.connect(gainNode);gainNode.connect(audioCtx.destination);
+    }catch(e){gainNode=null;}
+  }
+  function setGain(v){if(!gainNode)return;gainNode.gain.value=v;}
+
+  function updateVolDisplay(){
+    const v=video.muted?0:video.volume;
+    const g=gainNode?gainNode.gain.value:parseFloat(boost.value);
+    volPct.textContent=Math.round(v*100)+'%';
+    boostPct.textContent=g.toFixed(1)+'×';
+    muteBtn.textContent=video.muted||v===0?'🔇':'🔊';
+  }
+
+  // ── Buffer progress ────────────────────────────────────────────────────────
+  function updateBuffer(){
+    if(!video.duration)return;
+    try{const b=video.buffered;if(b.length){const end=b.end(b.length-1);buf.style.width=Math.min(100,(end/video.duration)*100)+'%';}}catch{}
+  }
+
+  // ── Metadata / playback events ─────────────────────────────────────────────
+  video.onloadedmetadata=()=>{seek.max=video.duration;updateBuffer();};
+  video.onprogress=updateBuffer;
+  video.ontimeupdate=()=>{
+    if(!seek._dragging){seek.value=video.currentTime;}
+    time.textContent=`${fmtDur(video.currentTime)} / ${fmtDur(video.duration)}`;
+    updateBuffer();
+  };
+  video.onplay=()=>{play.textContent='⏸';if(audioCtx?.state==='suspended')audioCtx.resume();};
   video.onpause=()=>{play.textContent='▶';};
   video.onended=()=>{play.textContent='▶';};
+  video.onvolumechange=updateVolDisplay;
 
-  play.onclick=()=>{video.paused?video.play():video.pause();};
+  // ── Controls ───────────────────────────────────────────────────────────────
+  play.onclick=()=>{if(video.paused){ensureAudioCtx();video.play();}else video.pause();};
+  skipB.onclick=()=>{video.currentTime=Math.max(0,video.currentTime-10);};
+  skipF.onclick=()=>{video.currentTime=Math.min(video.duration||0,video.currentTime+10);};
   seek.oninput=()=>{seek._dragging=true;video.currentTime=+seek.value;};
   seek.onchange=()=>{seek._dragging=false;};
-  vol.oninput=()=>{video.volume=+vol.value;video.muted=+vol.value===0;};
-  speedBtn.onclick=()=>{speedIdx=(speedIdx+1)%SPEEDS.length;video.playbackRate=SPEEDS[speedIdx];speedBtn.textContent=SPEEDS[speedIdx]+'×';};
-  aspBtn.onclick=()=>{aspIdx=(aspIdx+1)%ASPECTS.length;const a=ASPECTS[aspIdx];aspBtn.textContent=a;video.style.aspectRatio=a==='16:9'?'16/9':a==='4:3'?'4/3':a==='1:1'?'1/1':'auto';video.style.width='100%';video.style.height='';};
-  $('vPip').onclick=()=>{if(document.pictureInPictureEnabled&&!video.disablePictureInPicture){video.requestPictureInPicture?.().catch(()=>{});}};
-  $('vFs').onclick=()=>{const w=$('videoWrap');w.requestFullscreen?.()?.catch(()=>{});};
 
-  // Keyboard shortcuts within video
-  document.onkeydown=e=>{
-    if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')return;
-    if($('previewOverlay').classList.contains('hidden'))return;
-    if(e.key==='ArrowLeft'){video.currentTime=Math.max(0,video.currentTime-10);e.preventDefault();}
-    if(e.key==='ArrowRight'){video.currentTime=Math.min(video.duration||0,video.currentTime+10);e.preventDefault();}
-    if(e.key==='ArrowUp'){video.volume=Math.min(1,video.volume+.1);vol.value=video.volume;e.preventDefault();}
-    if(e.key==='ArrowDown'){video.volume=Math.max(0,video.volume-.1);vol.value=video.volume;e.preventDefault();}
-    if(e.key===' '){e.preventDefault();video.paused?video.play():video.pause();}
+  muteBtn.onclick=()=>{video.muted=!video.muted;updateVolDisplay();};
+  vol.oninput=()=>{
+    ensureAudioCtx();
+    video.volume=+vol.value;
+    video.muted=+vol.value===0;
+    updateVolDisplay();
+  };
+  boost.oninput=()=>{
+    ensureAudioCtx();
+    const g=Math.max(1,Math.min(4,+boost.value));
+    setGain(g);
+    boostPct.textContent=g.toFixed(1)+'×';
   };
 
-  // Subtitle support
+  speedBtn.onclick=()=>{speedIdx=(speedIdx+1)%SPEEDS.length;video.playbackRate=SPEEDS[speedIdx];speedBtn.textContent=SPEEDS[speedIdx]+'×';};
+  aspBtn.onclick=()=>{
+    aspIdx=(aspIdx+1)%ASPECTS.length;const a=ASPECTS[aspIdx];aspBtn.textContent=a;
+    const map={'16:9':'16/9','4:3':'4/3','1:1':'1/1','9:16':'9/16','Auto':'auto'};
+    video.style.aspectRatio=map[a]||'auto';video.style.width='100%';video.style.height='';
+  };
+  $('vPip').onclick=()=>{
+    if(document.pictureInPictureElement){document.exitPictureInPicture().catch(()=>{});}
+    else if(document.pictureInPictureEnabled&&!video.disablePictureInPicture){video.requestPictureInPicture().catch(()=>{});}
+  };
+  $('vFs').onclick=()=>{
+    const w=$('videoWrap');
+    if(document.fullscreenElement){document.exitFullscreen().catch(()=>{});}
+    else{(w.requestFullscreen||w.webkitRequestFullscreen||w.mozRequestFullScreen).call(w).catch(()=>{});}
+  };
+
+  // ── Keyboard shortcuts ─────────────────────────────────────────────────────
+  document.onkeydown=e=>{
+    const tag=(e.target.tagName||'').toUpperCase();
+    if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT')return;
+    if($('previewOverlay').classList.contains('hidden'))return;
+    switch(e.key){
+      case'ArrowLeft':video.currentTime=Math.max(0,video.currentTime-10);e.preventDefault();break;
+      case'ArrowRight':video.currentTime=Math.min(video.duration||0,video.currentTime+10);e.preventDefault();break;
+      case'ArrowUp':video.volume=Math.min(1,video.volume+.05);vol.value=video.volume;updateVolDisplay();e.preventDefault();break;
+      case'ArrowDown':video.volume=Math.max(0,video.volume-.05);vol.value=video.volume;updateVolDisplay();e.preventDefault();break;
+      case' ':e.preventDefault();if(video.paused){ensureAudioCtx();video.play();}else video.pause();break;
+      case'm':case'M':video.muted=!video.muted;e.preventDefault();break;
+      case'f':case'F':$('vFs').click();e.preventDefault();break;
+    }
+  };
+
+  // ── Subtitle support ───────────────────────────────────────────────────────
   $('btnPrevSub').onclick=()=>$('subFileInput').click();
   $('subFileInput').onchange=e=>{
     const file=e.target.files?.[0];if(!file)return;
-    const url=URL.createObjectURL(file);
-    // Remove existing tracks
+    const surl=URL.createObjectURL(file);
     while(video.firstChild)video.removeChild(video.firstChild);
     const track=document.createElement('track');
-    track.src=url;track.kind='subtitles';track.label='Subtitle';track.srclang='en';track.default=true;
+    track.src=surl;track.kind='subtitles';track.label='Subtitle';track.srclang='en';track.default=true;
     video.appendChild(track);
-    // Render in custom div for better styling
-    track.onload=()=>{try{video.textTracks[0].mode='hidden';}catch{}};
+    track.onload=()=>{try{const t=video.textTracks[0];if(t){t.mode='showing';}}catch{}};
     toast('Subtitles loaded!','success');
   };
+
+  // Init display
+  updateVolDisplay();
 }
 
 function navigatePreview(dir){const n=ST.previewIdx+dir;if(n>=0&&n<(ST.previewList?.length||0)){const v=$('prevContainer').querySelector('video,audio');if(v){v.pause();v.src='';}ST.previewIdx=n;showPreview();}}
 function closePreview(){const v=$('prevContainer').querySelector('video,audio');if(v){v.pause();v.src='';}$('prevContainer').innerHTML='';$('previewOverlay').classList.add('hidden');document.body.style.overflow='';document.onkeydown=null;}
 $('btnPrevClose').onclick=closePreview;$('btnPrevL').onclick=()=>navigatePreview(-1);$('btnPrevR').onclick=()=>navigatePreview(1);
-$('btnPrevFullscreen').onclick=()=>{const el=$('prevContainer').querySelector('video,img,iframe');if(el?.requestFullscreen)el.requestFullscreen().catch(()=>{});};
+$('btnPrevFullscreen').onclick=()=>{
+  const vw=$('videoWrap');const el=vw||$('prevContainer').querySelector('video,img,iframe');
+  if(!el)return;
+  if(document.fullscreenElement){document.exitFullscreen().catch(()=>{});}
+  else{(el.requestFullscreen||el.webkitRequestFullscreen||el.mozRequestFullScreen)?.call(el).catch(()=>{});}
+};
 $('previewOverlay').addEventListener('click',e=>{if(e.target===$('previewOverlay'))closePreview();});
 
 // ── UPLOAD VIS PICKER ─────────────────────────────────────────────────────────
@@ -1540,7 +1693,19 @@ $('btnUrlClose').onclick=()=>{$('urlBar').classList.add('hidden');};
 $('btnUrlUpload').onclick=async()=>{
   const url=($('urlInput').value||'').trim();if(!url){toast('Paste a URL first','warn');return;}
   $('btnUrlUpload').disabled=true;$('btnUrlUpload').textContent='⏳ Uploading…';
-  try{const res=await api('/upload-from-url',{method:'POST',body:JSON.stringify({url,visibility:ST.uploadVis})});const d=await res.json();if(!res.ok)throw new Error(d.message);toast(`Uploaded "${d.name}" (${fmtSize(d.size)})`,'success',5000);$('urlInput').value='';ST.filesEtag=null;fetchFiles(false);}
+  try{
+    const res=await api('/upload-from-url',{method:'POST',body:JSON.stringify({url,visibility:ST.uploadVis})});
+    const d=await res.json();
+    if(!res.ok){
+      if(res.status===503||d.message?.toLowerCase().includes('drive token')){
+        toast('Upload blocked: Google Drive not authorized. Admin must click "Authorize Drive" first.','error',10000);
+        if(ST.isAdmin)$('driveWarnBanner').style.display='block';
+        return;
+      }
+      throw new Error(d.message||`Error ${res.status}`);
+    }
+    toast(`Uploaded "${d.name}" (${fmtSize(d.size)})`,'success',5000);$('urlInput').value='';ST.filesEtag=null;fetchFiles(false);
+  }
   catch(e){toast('URL upload failed: '+e.message,'error');}
   finally{$('btnUrlUpload').disabled=false;$('btnUrlUpload').textContent='📥 Upload';}
 };
@@ -1565,7 +1730,6 @@ function makeProgressItem(name){
 const CHUNK=5*1024*1024;
 async function uploadFile(file){
   const prog=makeProgressItem(file.name);
-  // Collect specific emails if needed
   let specificEmails=[];
   if(ST.uploadVis==='specific_users'){
     const raw=$('specificUsersInput').value.trim();
@@ -1573,7 +1737,17 @@ async function uploadFile(file){
   }
   try{
     const initRes=await api('/upload-init',{method:'POST',body:JSON.stringify({fileName:file.name,fileSize:file.size,fileType:file.type||'application/octet-stream',visibility:ST.uploadVis})});
-    const initData=await initRes.json();if(!initRes.ok)throw new Error(initData.message||'Upload init failed');
+    const initData=await initRes.json();
+    if(!initRes.ok){
+      const msg=initData.message||'Upload init failed';
+      if(msg.toLowerCase().includes('drive token')||msg.toLowerCase().includes('drive unavailable')||initRes.status===503){
+        prog.setError();
+        toast('Upload blocked: Google Drive is not authorized. The admin must click "Authorize Drive" in the ribbon first.','error',10000);
+        if(ST.isAdmin)$('driveWarnBanner').style.display='block';
+        return;
+      }
+      throw new Error(msg);
+    }
     const{publicId}=initData;let offset=0;const startTime=Date.now();let uploaded=0;
     while(offset<file.size){
       const chunk=file.slice(offset,offset+CHUNK);const end=Math.min(offset+chunk.size-1,file.size-1);
@@ -1598,7 +1772,7 @@ async function uploadFile(file){
   }catch(e){prog.setError();toast(`Upload failed: ${e.message}`,'error');}
 }
 
-// ── MESSENGER ─────────────────────────────────────────────────────────y��───────
+// ── MESSENGER ─────────────────────────────────────────────────────────────────
 function toggleMsg(){ST.msgOpen=!ST.msgOpen;$('messengerOverlay').classList.toggle('hidden',!ST.msgOpen);if(ST.msgOpen){clearMsgUnread();renderMsgList();startChatPoll();}else stopChatPoll();}
 $('chatFab').onclick=toggleMsg;
 $('btnCloseMsg').onclick=()=>{$('messengerOverlay').classList.add('hidden');ST.msgOpen=false;stopChatPoll();};
@@ -1700,7 +1874,7 @@ async function loadMsgMessages(since=0){
     messages.forEach(m=>appendMsgBubble(m,since>0));
     if(messages.length>0){ST.msgLastTs=messages[messages.length-1].ts;if(!since||wasAtBottom)msgs.scrollTop=msgs.scrollHeight;if(since>0)addMsgUnread(messages.length);}
   }catch(e){
-    if(!since){msgs.innerHTML=`<div class="msg-empty" style="color:var(--r);">❌ ${esc(e.message)}<br><button class="btn btn-sm btn-primary" style="margin-top:10px;" onclick="migrateDB()">🔧 Migrate DB</button></div>`;$('msgNotify').classList.remove('hidden');}
+    if(!since){msgs.innerHTML=`<div class="msg-empty" style="color:var(--r);">❌ ${esc(e.message)}</div>`;$('msgNotify').classList.remove('hidden');}
   }
 }
 
